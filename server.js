@@ -1,9 +1,12 @@
 const express = require('express');
 const app = express();
-// ===============================
-// ALMACENAMIENTO TEMPORAL EN MEMORIA
-// ===============================
+const PORT = 3000;
 
+// Esto permite que el servidor muestre páginas web reales desde una carpeta llamada "public"
+app.use(express.static('public'));
+app.use(express.json());
+
+// Nuestra base de datos temporal en memoria
 let ciclicos = [
   {
     id: 128,
@@ -14,59 +17,24 @@ let ciclicos = [
     estatus: "Pendiente",
     realizadoPor: null,
     resultados: []
+  },
+  {
+    id: 129,
+    modelo: "33739",
+    color: "Navy",
+    fecha: "28/02/26",
+    tallas: ["36R", "38R", "40R"],
+    estatus: "Pendiente",
+    realizadoPor: null,
+    resultados: []
   }
 ];
-const PORT = 3000;
 
-app.use(express.json());
-
-app.get('/', (req, res) => {
-    res.send(`
-        <html>
-            <head>
-                <title>Inventario Cíclico</title>
-                <style>
-                    body {
-                        font-family: Arial;
-                        background-color: #f4f6f9;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                        margin: 0;
-                    }
-                    .card {
-                        background: white;
-                        padding: 30px;
-                        border-radius: 12px;
-                        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-                        text-align: center;
-                    }
-                    h1 {
-                        margin-bottom: 10px;
-                    }
-                    p {
-                        color: gray;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <h1>Sistema Inventario Cíclico</h1>
-                    <p>Servidor funcionando correctamente 🚀</p>
-                </div>
-            </body>
-        </html>
-    `);
-
-});
-// ===============================
-// VER CICLICOS
-// ===============================
-app.get("/ciclicos", (req, res) => {
+// Ruta para que el celular pida los datos de los inventarios
+app.get("/api/ciclicos", (req, res) => {
   res.json(ciclicos);
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });

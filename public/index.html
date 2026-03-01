@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Inventario Cíclico</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; color: #333; }
+    .header { background: #2c3e50; color: white; padding: 15px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .header-dark { background: #1a252f; color: white; padding: 15px; text-align: center; border-bottom: 3px solid #34495e;}
+    .container { padding: 15px; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    .btn { background: linear-gradient(180deg, #2980b9 0%, #1a5276 100%); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    .btn:active { background: #154360; }
+    .btn-success { background: linear-gradient(180deg, #27ae60 0%, #1e8449 100%); }
+    .input-box { width: 100%; padding: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; margin-top: 8px; box-sizing: border-box; display: block; }
+    .img-placeholder { background: #eef2f3; border-radius: 8px; font-size: 80px; text-align: center; padding: 20px; margin: 10px 0; }
+    .text-center { text-align: center; }
+    .subtitle { margin: 5px 0; font-size: 14px; color: #bdc3c7; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
+  </style>
+</head>
+<body>
+  <div id="app">
+     <div class="header"><h2>Cargando...</h2></div>
+  </div>
+
+  <script>
+     let ciclicos = [];
+     let countState = { id: null, name: '', currentIndex: 0, resultados: [] };
+
+     // Función que inicia la app y pide los datos al servidor
+     async function init() {
+        const res = await fetch('/api/ciclicos');
+        ciclicos = await res.json();
+        renderList();
+     }
+
+     // 1. Pantalla: Lista de Cíclicos Pendientes
+     function renderList() {
+        let html = `<div class="header"><h2>📦 Cíclicos Disponibles</h2></div><div class="container">`;
+        ciclicos.forEach(c => {
+            if(c.estatus === "Pendiente") {
+                html += `
+                <div class="card" onclick="startNamePrompt(${c.id})">
+                    <h3 style="margin:0 0 5px 0; color:#2c3e50;">Conteo #${c.id}</h3>
+                    <p style="margin:0 0 15px 0; font-size:16px;"><strong>${c.modelo}</strong> - ${c.color}</p>
+                    <p style="color:gray; font-size: 14px; margin:0 0 15px 0;">📅 Fecha: ${c.fecha}</p>
+                    <button class="btn">Tomar Cíclico ➡</button>
+                </div>`;
+            }
+        });
+        html += `</div>`;
+        document.getElementById('app').innerHTML = html;
+     }
+
+     // 2. Pantalla: Identificación del Operador
+     function startNamePrompt(id) {
+        countState.id = id;
+        let html = `
+        <div class="header"><h2>Identificación</h2></div>
+        <div class="container">
+            <div class="card text-center">
+                <p style="font-size: 18px; margin-bottom: 20px;">¿Quién realizará este conteo?</p>
+                <input type="text" id="operatorName" class="input-box text-center" placeholder="Ingresa tu nombre..." autocomplete="off">
+                <br>
+                <button class="btn" onclick="startCount()">Iniciar Conteo</button>
+                <p style="color:gray; font-size:14px; margin-top:20px;" onclick="renderList()">⬅ Volver a la lista</p>
+            </div>
+        </div>`;
+        document.getElementById('app').innerHTML = html;
+     }
+
+     // 3. Preparar el conteo
+     function startCount() {
+        const name = document.getElementById('operatorName').value.trim();
+        if(!name) return alert('Por favor, ingresa tu nombre.');
+        countState.name = name;
+        countState.currentIndex = 0;
+        countState.resultados = [];
+        renderCountScreen();
+     }
+
+     // 4. Pantalla: Conteo Talla por Talla (Diseño de la foto)
+     function renderCountScreen() {
+        const ciclico = ciclicos.find(c => c.id === countState.id);
+        const totalTallas = ciclico.tallas.length;
+        const currentTalla = ciclico.tallas[countState.currentIndex];
+
+        let html = `
+        <div class="header-dark">
+            <h3 style="margin:0;">Conteo Cíclico #${ciclico.id}</h3>
+            <p class="subtitle">Modelo: ${ciclico.modelo} ${ciclico.color}</p>
+            <div style="background:#34495e; padding:5px; border-radius:5px; display:inline-block; margin-top:5px; font-size:14px;">
+                Producto ${countState.currentIndex + 1} de ${totalTallas}
+            </div>
+        </div>
+        <div class="container">
+            <div class="card" style="margin-top:-10px;">
+                <div class="img-placeholder">👔</div>
+                <h2 style="margin: 10px 0 5px 0;">Talla: ${currentTalla}</h2>
+                <p style="margin: 0 0 15px 0; color: #555;">Color: <strong>${ciclico.color}</strong></p>
+                <hr>
+                <p style="margin-bottom: 5px; font-weight:bold;">Cantidad física contada:</p>
+                <input type="number" id="cantidad" class="input-box" placeholder="Ej. 125">
+                <br>
+                <button class="btn" onclick="saveAndContinue()">Guardar y Continuar ➡</button>
+            </div>
+        </div>`;
+        document.getElementById('app').innerHTML = html;
+     }
+
+     // 5. Lógica para avanzar
+     function saveAndContinue() {
+        const cant = document.getElementById('cantidad').value;
+        if(cant === '') return alert('Por favor, ingresa una cantidad.');
+
+        const ciclico = ciclicos.find(c => c.id === countState.id);
+        const currentTalla = ciclico.tallas[countState.currentIndex];
+
+        // Guardamos lo contado
+        countState.resultados.push({ talla: currentTalla, cantidad: parseInt(cant) });
+
+        // Evaluamos si hay más tallas
+        if (countState.currentIndex + 1 < ciclico.tallas.length) {
+            countState.currentIndex++;
+            renderCountScreen();
+        } else {
+            renderFinishScreen();
+        }
+     }
+
+     // 6. Pantalla: Finalizado
+     function renderFinishScreen() {
+         let html = `
+         <div class="header" style="background:#27ae60;">
+             <h2>✅ Cíclico Finalizado</h2>
+         </div>
+         <div class="container">
+             <div class="card text-center">
+                 <h1 style="font-size:50px; margin:10px 0;">🎉</h1>
+                 <p style="font-size: 18px;">¡Excelente trabajo, <strong>${countState.name}</strong>!</p>
+                 <p style="color:gray;">Todas las tallas de este modelo han sido capturadas correctamente.</p>
+                 <br>
+                 <button class="btn btn-success" onclick="init()">Volver a Pendientes</button>
+             </div>
+         </div>`;
+         document.getElementById('app').innerHTML = html;
+     }
+
+     // Arrancar app
+     init();
+  </script>
+</body>
+</html>
