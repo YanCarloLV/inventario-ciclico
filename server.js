@@ -58,6 +58,13 @@ app.get('/', (req, res) => {
             </body>
         </html>
     `);
+
+});
+// ===============================
+// VER CICLICOS
+// ===============================
+app.get("/ciclicos", (req, res) => {
+  res.json(ciclicos);
 });
 
 app.listen(PORT, () => {
