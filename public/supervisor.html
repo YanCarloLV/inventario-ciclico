@@ -2,54 +2,103 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Supervisor - Inventarios</title>
     <style>
-        body { font-family: sans-serif; background: #ecf0f1; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background: #2c3e50; color: white; }
-        .status { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .fin { background: #27ae60; color: white; }
-        .pen { background: #f1c40f; color: black; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; padding: 30px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .actions { margin-bottom: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-refresh { background: #3498db; color: white; }
+        .btn-excel { background: #27ae60; color: white; }
+        button:hover { opacity: 0.8; transform: translateY(-1px); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #dfe6e9; padding: 12px; text-align: left; }
+        th { background: #f8f9fa; color: #2c3e50; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase; }
+        .fin { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .pen { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
     </style>
 </head>
 <body>
-    <h1>📋 Panel de Control de Inventarios</h1>
-    <button onclick="cargarReportes()">🔄 Actualizar Datos</button>
-    
-    <table id="tablaReportes">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Modelo</th>
-                <th>Operador</th>
-                <th>Estatus</th>
-                <th>Resultados (Talla: Cantidad)</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <div class="container">
+        <h1>📋 Control de Inventarios Cíclicos</h1>
+        
+        <div class="actions">
+            <button class="btn-refresh" onclick="cargarReportes()">🔄 Actualizar Tabla</button>
+            <button class="btn-excel" onclick="exportarExcel()">📥 Descargar Excel (CSV)</button>
+        </div>
+        
+        <table id="tablaReportes">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Modelo</th>
+                    <th>Color</th>
+                    <th>Operador</th>
+                    <th>Estatus</th>
+                    <th>Resultados (Talla: Cant)</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
 
     <script>
+        let datosActuales = [];
+
         async function cargarReportes() {
             const res = await fetch('/api/ciclicos');
-            const datos = await res.json();
+            datosActuales = await res.json();
             const cuerpo = document.querySelector("#tablaReportes tbody");
             cuerpo.innerHTML = "";
 
-            datos.forEach(c => {
-                const resultadosTxt = c.resultados.map(r => `${r.talla}: ${r.cantidad}`).join(', ') || "---";
+            datosActuales.forEach(c => {
+                const resultadosTxt = c.resultados.map(r => `${r.talla}: ${r.cantidad}`).join(' | ') || "---";
                 cuerpo.innerHTML += `
                     <tr>
                         <td>${c.id}</td>
                         <td>${c.modelo}</td>
-                        <td>${c.realizadoPor || 'N/A'}</td>
+                        <td>${c.color}</td>
+                        <td>${c.realizadoPor || '---'}</td>
                         <td><span class="status ${c.estatus === 'Finalizado' ? 'fin' : 'pen'}">${c.estatus}</span></td>
                         <td>${resultadosTxt}</td>
                     </tr>
                 `;
             });
         }
+
+        function exportarExcel() {
+            if (datosActuales.length === 0) return alert("No hay datos para exportar");
+
+            // Cabeceras del CSV
+            let csvContent = "ID,Modelo,Color,Operador,Estatus,Talla,Cantidad\n";
+
+            // Recorremos cada cíclico y sus resultados
+            datosActuales.forEach(c => {
+                if (c.resultados.length > 0) {
+                    c.resultados.forEach(r => {
+                        csvContent += `${c.id},${c.modelo},${c.color},${c.realizadoPor},${c.estatus},${r.talla},${r.cantidad}\n`;
+                    });
+                } else {
+                    csvContent += `${c.id},${c.modelo},${c.color},${c.realizadoPor || 'N/A'},${c.estatus},N/A,0\n`;
+                }
+            });
+
+            // Crear el archivo y descargarlo automáticamente
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Reporte_Inventario_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Cargar datos al abrir la página
         cargarReportes();
     </script>
 </body>
