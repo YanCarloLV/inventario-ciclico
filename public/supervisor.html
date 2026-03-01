@@ -2,85 +2,145 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel Supervisor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Supervisor</title>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #eee; padding: 12px; text-align: left; font-size: 14px; }
-        th { background: #2c3e50; color: white; }
-        .btn-dl { background: #27ae60; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h1, h2 { color: #2c3e50; margin-top: 0; }
+        
+        /* Formulario */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end; }
+        label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-add { background: #3498db; color: white; }
+        .btn-refresh { background: #95a5a6; color: white; }
+        .btn-dl { background: #27ae60; color: white; font-size: 12px; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* Tabla */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .fin { background: #d4edda; color: #155724; }
         .pen { background: #fff3cd; color: #856404; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📋 Control de Inventarios</h1>
-        <button onclick="cargarReportes()">🔄 Actualizar Tabla</button>
-        
+
+<div class="container">
+    <h1>📋 Gestión de Inventarios Cíclicos</h1>
+
+    <div class="card">
+        <h2>➕ Crear Nuevo Inventario</h2>
+        <div class="form-grid">
+            <div>
+                <label>Modelo</label>
+                <input type="text" id="mod" placeholder="Ej: 4040">
+            </div>
+            <div>
+                <label>Color</label>
+                <input type="text" id="col" placeholder="Ej: Navy">
+            </div>
+            <div>
+                <label>Tallas (Separadas por comas)</label>
+                <input type="text" id="tal" placeholder="Ej: 36R, 38R, 40R">
+            </div>
+            <button class="btn btn-add" onclick="crearCiclico()">Guardar y Publicar</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>📊 Monitor de Actividad</h2>
+            <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
+        </div>
         <table id="tabla">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Modelo</th>
+                    <th>Modelo/Color</th>
                     <th>Operador</th>
-                    <th>Inicio</th>
-                    <th>Fin</th>
+                    <th>Tiempos</th>
                     <th>Duración</th>
                     <th>Estatus</th>
-                    <th>Acción</th>
+                    <th>Reporte</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
     </div>
+</div>
 
-    <script>
-        let datos = [];
-        async function cargarReportes() {
-            const res = await fetch('/api/ciclicos');
-            datos = await res.json();
-            const cuerpo = document.querySelector("#tabla tbody");
-            cuerpo.innerHTML = "";
+<script>
+    let datos = [];
 
-            datos.forEach(c => {
-                const fila = `
-                    <tr>
-                        <td>${c.id}</td>
-                        <td>${c.modelo}</td>
-                        <td>${c.realizadoPor || '---'}</td>
-                        <td>${c.horaInicio || '---'}</td>
-                        <td>${c.horaFin || '---'}</td>
-                        <td><strong>${c.tiempoTotal || '---'}</strong></td>
-                        <td><span class="status ${c.estatus === 'Finalizado' ? 'fin' : 'pen'}">${c.estatus}</span></td>
-                        <td>
-                            ${c.estatus === 'Finalizado' 
-                                ? `<button class="btn-dl" onclick="descargarIndividual(${c.id})">📥 Descargar Excel</button>` 
-                                : '---'}
-                        </td>
-                    </tr>`;
-                cuerpo.innerHTML += fila;
-            });
-        }
+    async function cargarDatos() {
+        const res = await fetch('/api/ciclicos');
+        datos = await res.json();
+        const cuerpo = document.querySelector("#tabla tbody");
+        cuerpo.innerHTML = "";
 
-        function descargarIndividual(id) {
-            const c = datos.find(item => item.id === id);
-            let csv = "ID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Total\n";
-            
-            c.resultados.forEach(r => {
-                csv += `${c.id},${c.modelo},${c.color},${c.realizadoPor},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${c.tiempoTotal}\n`;
-            });
+        datos.reverse().forEach(c => { // reverse para ver los nuevos arriba
+            cuerpo.innerHTML += `
+                <tr>
+                    <td><b>#${c.id}</b></td>
+                    <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
+                    <td>${c.realizadoPor || '---'}</td>
+                    <td><small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small></td>
+                    <td>${c.tiempoTotal || '---'}</td>
+                    <td><span class="status ${c.estatus === 'Finalizado' ? 'fin' : 'pen'}">${c.estatus}</span></td>
+                    <td>
+                        ${c.estatus === 'Finalizado' 
+                            ? `<button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button>` 
+                            : '⌛ Esperando...'}
+                    </td>
+                </tr>
+            `;
+        });
+    }
 
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Ciclico_${c.id}_${c.modelo}.csv`;
-            link.click();
-        }
+    async function crearCiclico() {
+        const modelo = document.getElementById('mod').value;
+        const color = document.getElementById('col').value;
+        const tallasRaw = document.getElementById('tal').value;
 
-        cargarReportes();
-    </script>
+        if(!modelo || !color || !tallasRaw) return alert("Por favor llena todos los campos.");
+
+        await fetch('/api/crear-ciclico', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ modelo, color, tallasRaw })
+        });
+
+        // Limpiar formulario y recargar
+        document.getElementById('mod').value = "";
+        document.getElementById('col').value = "";
+        document.getElementById('tal').value = "";
+        alert("¡Cíclico creado! Ya aparece en los celulares.");
+        cargarDatos();
+    }
+
+    function descargarExcel(id) {
+        const c = datos.find(item => item.id === id);
+        let csv = "ID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Total\n";
+        c.resultados.forEach(r => {
+            csv += `${c.id},${c.modelo},${c.color},${c.realizadoPor},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${c.tiempoTotal}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
+        link.click();
+    }
+
+    cargarDatos();
+    // Auto-actualizar cada 30 segundos por si alguien termina un conteo
+    setInterval(cargarDatos, 30000);
+</script>
 </body>
 </html>
