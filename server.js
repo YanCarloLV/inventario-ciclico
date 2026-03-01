@@ -1,5 +1,21 @@
 const express = require('express');
 const app = express();
+// ===============================
+// ALMACENAMIENTO TEMPORAL EN MEMORIA
+// ===============================
+
+let ciclicos = [
+  {
+    id: 128,
+    modelo: "4040",
+    color: "Negro",
+    fecha: "28/02/26",
+    tallas: ["36R", "38R", "40R", "42R", "44R"],
+    estatus: "Pendiente",
+    realizadoPor: null,
+    resultados: []
+  }
+];
 const PORT = 3000;
 
 app.use(express.json());
