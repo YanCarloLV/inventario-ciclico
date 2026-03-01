@@ -239,13 +239,21 @@
      }
 
      // 7. Finalizar, capturar hora fin y enviar al servidor
-     async function finishAndSend() {
-        const endTime = new Date(); // Capturamos la hora de fin exacta
+async function finishAndSend() {
+        const endTime = new Date(); 
         
-        // Mostrar mensaje de "Enviando"
+        // Calculamos la duración aquí mismo en el celular (en minutos)
+        const diffMs = endTime - countState.startTime;
+        const diffMins = Math.round(diffMs / 60000);
+
+        // Formateamos las horas a formato local (12h)
+        const opciones = { hour: '2-digit', minute: '2-digit', hour12: true };
+        const horaInicioFormateada = countState.startTime.toLocaleTimeString('es-MX', opciones);
+        const horaFinFormateada = endTime.toLocaleTimeString('es-MX', opciones);
+
         document.getElementById('app').innerHTML = `
             <div class="header-blue"><h2>Enviando...</h2></div>
-            <div class="container text-center"><div class="card">📤 Guardando datos en el servidor...</div></div>
+            <div class="container text-center"><div class="card">📤 Guardando datos...</div></div>
         `;
 
         try {
@@ -256,13 +264,14 @@
                     id: countState.id,
                     realizadoPor: countState.name,
                     resultados: countState.resultados,
-                    horaInicio: countState.startTime,
-                    horaFin: endTime
+                    horaInicioStr: horaInicioFormateada, // Mandamos el texto "05:00 PM"
+                    horaFinStr: horaFinFormateada,
+                    duracionMinutos: diffMins
                 })
             });
             renderSuccessScreen();
         } catch (error) {
-            alert('Error al enviar. Intenta de nuevo.');
+            alert('Error al enviar. Revisa tu conexión.');
         }
      }
 
