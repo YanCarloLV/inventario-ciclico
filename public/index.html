@@ -130,19 +130,30 @@
         }
      }
 
-     // 6. Pantalla: Finalizado
-     function renderFinishScreen() {
+// 6. Pantalla: Finalizado (CON ENVÍO DE DATOS)
+     async function renderFinishScreen() {
+         // Enviamos los datos al servidor antes de mostrar el éxito
+         await fetch('/api/finalizar-conteo', {
+             method: 'POST',
+             headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({
+                 id: countState.id,
+                 realizadoPor: countState.name,
+                 resultados: countState.resultados
+             })
+         });
+
          let html = `
          <div class="header" style="background:#27ae60;">
-             <h2>✅ Cíclico Finalizado</h2>
+             <h2>✅ Cíclico Enviado</h2>
          </div>
          <div class="container">
              <div class="card text-center">
-                 <h1 style="font-size:50px; margin:10px 0;">🎉</h1>
-                 <p style="font-size: 18px;">¡Excelente trabajo, <strong>${countState.name}</strong>!</p>
-                 <p style="color:gray;">Todas las tallas de este modelo han sido capturadas correctamente.</p>
+                 <h1 style="font-size:50px; margin:10px 0;">🚀</h1>
+                 <p style="font-size: 18px;">¡Datos enviados al Supervisor!</p>
+                 <p style="color:gray;">El inventario del modelo se guardó correctamente.</p>
                  <br>
-                 <button class="btn btn-success" onclick="init()">Volver a Pendientes</button>
+                 <button class="btn btn-success" onclick="init()">Hacer otro cíclico</button>
              </div>
          </div>`;
          document.getElementById('app').innerHTML = html;

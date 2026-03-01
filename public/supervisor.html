@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel Supervisor - Inventarios</title>
+    <style>
+        body { font-family: sans-serif; background: #ecf0f1; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #2c3e50; color: white; }
+        .status { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .fin { background: #27ae60; color: white; }
+        .pen { background: #f1c40f; color: black; }
+    </style>
+</head>
+<body>
+    <h1>📋 Panel de Control de Inventarios</h1>
+    <button onclick="cargarReportes()">🔄 Actualizar Datos</button>
+    
+    <table id="tablaReportes">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Modelo</th>
+                <th>Operador</th>
+                <th>Estatus</th>
+                <th>Resultados (Talla: Cantidad)</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        async function cargarReportes() {
+            const res = await fetch('/api/ciclicos');
+            const datos = await res.json();
+            const cuerpo = document.querySelector("#tablaReportes tbody");
+            cuerpo.innerHTML = "";
+
+            datos.forEach(c => {
+                const resultadosTxt = c.resultados.map(r => `${r.talla}: ${r.cantidad}`).join(', ') || "---";
+                cuerpo.innerHTML += `
+                    <tr>
+                        <td>${c.id}</td>
+                        <td>${c.modelo}</td>
+                        <td>${c.realizadoPor || 'N/A'}</td>
+                        <td><span class="status ${c.estatus === 'Finalizado' ? 'fin' : 'pen'}">${c.estatus}</span></td>
+                        <td>${resultadosTxt}</td>
+                    </tr>
+                `;
+            });
+        }
+        cargarReportes();
+    </script>
+</body>
+</html>
