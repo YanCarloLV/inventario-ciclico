@@ -1,16 +1,17 @@
 {
   "name": "inventario-ciclico",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Sistema de Inventarios con Base de Datos",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^4.18.2",
+    "mongoose": "^8.0.0"
   }
 }
