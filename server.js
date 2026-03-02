@@ -1,60 +1,78 @@
 const express = require('express');
+const mongoose = require('mongoose'); 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 app.use(express.json());
 
-// Base de datos temporal (Empezamos con los que ya tenías)
-let ciclicos = [
-  { id: 128, modelo: "4040", color: "Negro", fecha: "28/02/26", tallas: ["36R", "38R", "40R", "42R", "44R"], estatus: "Pendiente", realizadoPor: null, resultados: [], horaInicio: null, horaFin: null, tiempoTotal: null }
-];
+// 🔗 CONEXIÓN PERMANENTE
+// Pega aquí la dirección que copiaste de MongoDB
+const mongoURI = "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico"; 
 
-// Obtener todos los cíclicos
-app.get("/api/ciclicos", (req, res) => res.json(ciclicos));
+mongoose.connect(mongoURI)
+  .then(() => console.log("✅ Conectado a MongoDB - Los datos ya no se borrarán"))
+  .catch(err => console.error("❌ Error al conectar:", err));
 
-// RUTA NUEVA: Crear un nuevo cíclico desde el Panel
-app.post("/api/crear-ciclico", (req, res) => {
+// 📝 ESTRUCTURA DE LOS DATOS
+const CiclicoSchema = new mongoose.Schema({
+  id: Number,
+  modelo: String,
+  color: String,
+  fecha: String,
+  tallas: [String],
+  estatus: { type: String, default: "Pendiente" },
+  realizadoPor: String,
+  resultados: Array,
+  horaInicio: String,
+  horaFin: String,
+  tiempoTotal: String
+});
+
+const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
+
+// --- RUTAS DEL SERVIDOR ---
+
+// 1. Ver todos
+app.get("/api/ciclicos", async (req, res) => {
+  const lista = await Ciclico.find().sort({ id: -1 });
+  res.json(lista);
+});
+
+// 2. Crear nuevo (Supervisor)
+app.post("/api/crear-ciclico", async (req, res) => {
   const { modelo, color, tallasRaw } = req.body;
-  
-  // Convertimos el texto de tallas "36, 38, 40" en una lista real ["36", "38", "40"]
   const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+  
+  const ultimo = await Ciclico.findOne().sort({ id: -1 });
+  const nuevoId = ultimo ? ultimo.id + 1 : 100;
 
-  const nuevoId = ciclicos.length > 0 ? Math.max(...ciclicos.map(c => c.id)) + 1 : 100;
-
-  const nuevoCiclico = {
+  const nuevo = new Ciclico({
     id: nuevoId,
-    modelo: modelo,
-    color: color,
+    modelo,
+    color,
     fecha: new Date().toLocaleDateString('es-MX'),
-    tallas: listaTallas,
-    estatus: "Pendiente",
-    realizadoPor: null,
-    resultados: [],
-    horaInicio: null,
-    horaFin: null,
-    tiempoTotal: null
-  };
+    tallas: listaTallas
+  });
 
-  ciclicos.push(nuevoCiclico);
-  console.log(`🆕 Nuevo cíclico creado: ID ${nuevoId}`);
+  await nuevo.save();
   res.json({ success: true });
 });
 
-// Finalizar conteo (la que ya teníamos)
-app.post("/api/finalizar-conteo", (req, res) => {
+// 3. Guardar resultado (Celular)
+app.post("/api/finalizar-conteo", async (req, res) => {
   const { id, realizadoPor, resultados, horaInicioStr, horaFinStr, duracionMinutos } = req.body;
-  const index = ciclicos.findIndex(c => c.id === id);
-  if (index !== -1) {
-    ciclicos[index].estatus = "Finalizado";
-    ciclicos[index].realizadoPor = realizadoPor;
-    ciclicos[index].resultados = resultados;
-    ciclicos[index].horaInicio = horaInicioStr;
-    ciclicos[index].horaFin = horaFinStr;
-    ciclicos[index].tiempoTotal = `${duracionMinutos} min`;
-    return res.json({ success: true });
-  }
-  res.status(404).json({ success: false });
+  
+  await Ciclico.findOneAndUpdate({ id: id }, {
+    estatus: "Finalizado",
+    realizadoPor: realizadoPor,
+    resultados: resultados,
+    horaInicio: horaInicioStr,
+    horaFin: horaFinStr,
+    tiempoTotal: `${duracionMinutos} min`
+  });
+
+  res.json({ success: true });
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`Servidor listo`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Servidor profesional activo`));
