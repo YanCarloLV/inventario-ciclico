@@ -1,116 +1,124 @@
 const express = require('express');
-const app = express();
+const mongoose = require('mongoose');
 const path = require('path');
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración para recibir JSON
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// BASE DE DATOS VOLÁTIL (Se reinicia al desplegar en Render si no usas base de datos externa)
-// Pero para pruebas operativas funciona perfecto
-let db = {
-    ciclicos: []
-};
+// CONEXIÓN A MONGODB
+const MONGO_URI = process.env.MONGO_URI || "TU_CADENA_DE_CONEXION_AQUÍ";
 
-// --- RUTAS DEL SISTEMA ---
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("🚀 Conectado a MongoDB - La base de datos es persistente"))
+  .catch(err => console.error("❌ Error conectando a MongoDB:", err));
 
-// 1. Obtener todos los inventarios
-app.get('/api/ciclicos', (req, res) => {
-    res.json(db.ciclicos);
+// MODELO DE DATOS
+const CiclicoSchema = new mongoose.Schema({
+    id: Number,
+    modelo: String,
+    color: String,
+    tallas: [String],
+    totalTallas: Number,
+    conteoActual: { type: Number, default: 0 },
+    progreso: { type: Number, default: 0 },
+    estatus: { type: String, default: "Pendiente" },
+    asignadoA: { type: String, default: null },
+    resultados: { type: Array, default: [] },
+    horaInicio: String,
+    horaFin: String
 });
 
-// 2. Crear Inventario (Con contador de tallas para el 100%)
-app.post('/api/crear-ciclico', (req, res) => {
+const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
+
+// --- RUTAS CON MONGODB ---
+
+// 1. Obtener todos los inventarios
+app.get('/api/ciclicos', async (req, res) => {
+    const inventarios = await Ciclico.find().sort({ id: -1 });
+    res.json(inventarios);
+});
+
+// 2. Crear Inventario
+app.post('/api/crear-ciclico', async (req, res) => {
     const { modelo, color, tallasRaw } = req.body;
     const listaTallas = tallasRaw.split(',').map(t => t.trim());
     
-    const nuevo = {
+    const nuevo = new Ciclico({
         id: Date.now(),
         modelo,
         color,
-        tallas: listaTallas, 
-        totalTallas: listaTallas.length, 
-        conteoActual: 0,
-        progreso: 0,
-        estatus: "Pendiente",
-        asignadoA: null,
-        resultados: [],
-        horaInicio: null,
-        horaFin: null,
-        tiempoTotal: null
-    };
+        tallas: listaTallas,
+        totalTallas: listaTallas.length
+    });
 
-    db.ciclicos.push(nuevo);
+    await nuevo.save();
     res.json(nuevo);
 });
 
 // 3. Apartar Inventario (Control de Colisiones)
-app.post('/api/apartar-inventario', (req, res) => {
+app.post('/api/apartar-inventario', async (req, res) => {
     const { id, nombreOperador } = req.body;
-    const inventario = db.ciclicos.find(c => c.id === id);
+    const inv = await Ciclico.findOne({ id });
 
-    if (inventario) {
-        // Si nadie lo tiene o si el que entra es el mismo que ya lo tenía
-        if (inventario.asignadoA === null || inventario.asignadoA === nombreOperador) {
-            inventario.estatus = "En Proceso";
-            inventario.asignadoA = nombreOperador;
-            if (!inventario.horaInicio) inventario.horaInicio = new Date().toLocaleTimeString();
-            res.json({ success: true, inventario });
+    if (inv) {
+        if (inv.asignadoA === null || inv.asignadoA === nombreOperador) {
+            inv.estatus = "En Proceso";
+            inv.asignadoA = nombreOperador;
+            if (!inv.horaInicio) inv.horaInicio = new Date().toLocaleTimeString();
+            await inv.save();
+            res.json({ success: true, inventario: inv });
         } else {
-            res.status(403).json({ success: false, message: "Ya está ocupado por " + inventario.asignadoA });
+            res.status(403).json({ success: false, message: "Ocupado por " + inv.asignadoA });
         }
     } else {
-        res.status(404).json({ success: false, message: "Inventario no encontrado" });
+        res.status(404).json({ success: false });
     }
 });
 
-// 4. Actualizar Progreso (Barra en tiempo real)
-app.post('/api/actualizar-progreso', (req, res) => {
+// 4. Actualizar Avance (Barra de progreso)
+app.post('/api/actualizar-progreso', async (req, res) => {
     const { id, resultadosActuales } = req.body;
-    const inventario = db.ciclicos.find(c => c.id === id);
+    const inv = await Ciclico.findOne({ id });
 
-    if (inventario) {
-        inventario.resultados = resultadosActuales;
-        inventario.conteoActual = resultadosActuales.length;
-        // Cálculo matemático del %
-        inventario.progreso = Math.round((inventario.conteoActual / inventario.totalTallas) * 100);
-        res.json({ success: true, progreso: inventario.progreso });
+    if (inv) {
+        inv.resultados = resultadosActuales;
+        inv.conteoActual = resultadosActuales.length;
+        inv.progreso = Math.round((inv.conteoActual / inv.totalTallas) * 100);
+        await inv.save();
+        res.json({ success: true });
     } else {
         res.status(404).json({ success: false });
     }
 });
 
-// 5. Finalizar Inventario
-app.post('/api/finalizar-ciclico', (req, res) => {
+// 5. Finalizar
+app.post('/api/finalizar-ciclico', async (req, res) => {
     const { id, resultados } = req.body;
-    const inventario = db.ciclicos.find(c => c.id === id);
+    const inv = await Ciclico.findOne({ id });
 
-    if (inventario) {
-        inventario.estatus = "Finalizado";
-        inventario.resultados = resultados;
-        inventario.horaFin = new Date().toLocaleTimeString();
-        // Aquí podrías calcular tiempo total si quisieras
+    if (inv) {
+        inv.estatus = "Finalizado";
+        inv.resultados = resultados;
+        inv.horaFin = new Date().toLocaleTimeString();
+        await inv.save();
         res.json({ success: true });
     } else {
         res.status(404).json({ success: false });
     }
 });
 
-// 6. Liberar Inventario (Botón manual del Supervisor)
-app.post('/api/liberar-inventario', (req, res) => {
+// 6. Liberar (Supervisor)
+app.post('/api/liberar-inventario', async (req, res) => {
     const { id } = req.body;
-    const inventario = db.ciclicos.find(c => c.id === id);
-    if (inventario) {
-        inventario.estatus = "Pendiente";
-        inventario.asignadoA = null;
-        inventario.progreso = 0;
-        inventario.conteoActual = 0;
-        res.json({ success: true });
-    }
+    await Ciclico.findOneAndUpdate({ id }, {
+        estatus: "Pendiente",
+        asignadoA: null,
+        progreso: 0,
+        conteoActual: 0
+    });
+    res.json({ success: true });
 });
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-    console.log(`Servidor operando en puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor MongoDB Activo en puerto ${PORT}`));
