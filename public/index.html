@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Inventarios - Operador Pro</title>
     <style>
-        /* Estilos heredados del diseño original para mantener la experiencia visual */
+        /* Estilos heredados para mantener la experiencia visual */
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; color: #333; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 20px; transition: 0.3s; }
         h2 { margin-top: 0; color: #1a1a1a; font-size: 22px; }
@@ -33,7 +33,7 @@
         #conteo-screen { display: none; }
         .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         
-        /* Barra de Progreso Pro (AHORA FLOTANTE/STICKY) */
+        /* Barra de Progreso Sticky */
         .progress-wrapper { 
             position: sticky; 
             top: 0; 
@@ -58,7 +58,7 @@
         .btn-finish { background: #27ae60; color: white; width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 25px; box-shadow: 0 4px 12px rgba(39,174,96,0.3); }
         .btn-back { background: transparent; color: #94a3b8; border: none; margin-top: 15px; width: 100%; font-size: 14px; text-decoration: underline; }
 
-        /* Estilos nuevos para el botón de Hallazgo */
+        /* Estilos para el botón de Hallazgo */
         .hallazgo-banner {
             border: 2px dashed #e67e22; 
             background: #fffaf5; 
@@ -127,7 +127,6 @@
     let inventarioActivo = null;
     let resultados = [];
 
-    // Verificación inicial de sesión
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
         document.getElementById('listado-screen').style.display = 'none';
@@ -157,7 +156,6 @@
         const contenedor = document.getElementById('lista-pendientes');
         contenedor.innerHTML = "";
         
-        // Filtramos solo los que no están finalizados
         const disponibles = datos.filter(d => d.estatus !== "Finalizado");
 
         disponibles.forEach(inv => {
@@ -185,7 +183,6 @@
     }
 
     async function apartarInventario(inv) {
-        // Generamos hora de inicio solo si es la primera vez (Estatus Pendiente)
         let horaInicioParam = null;
         if (!inv.asignadoA || inv.estatus === "Pendiente") {
             const ahora = new Date();
@@ -205,7 +202,6 @@
         const data = await res.json();
 
         if (data.success) {
-            // Re-obtenemos el objeto actualizado del servidor para tener los resultados previos
             const resActualizado = await fetch('/api/ciclicos');
             const todos = await resActualizado.json();
             const invActualizado = todos.find(i => i.id == inv.id);
@@ -213,7 +209,7 @@
             resultados = invActualizado.resultados || [];
             abrirConteo(invActualizado);
         } else {
-            alert("Error al intentar tomar el inventario. Es posible que alguien más lo haya seleccionado.");
+            alert("Error al intentar tomar el inventario.");
             iniciarApp();
         }
     }
@@ -282,7 +278,6 @@
         const actualT = resultados.length;
         const porc = Math.round((actualT / totalT) * 100);
 
-        // Enviamos progreso al servidor para que el supervisor lo vea en tiempo real
         fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -331,8 +326,8 @@
         });
 
         if (res.ok) {
-            alert("🚀 Reporte enviado correctamente. Buen trabajo.");
-            location.reload();
+            alert("🚀 Reporte enviado correctamente.");
+            location.reload(); // Esto nos regresa al listado principal de index.html
         }
     }
 </script>
