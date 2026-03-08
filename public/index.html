@@ -189,7 +189,6 @@
             const datos = await res.json();
             renderListaDisponibles(datos);
             
-            // SUMA: Recuperar inventario si hubo una recarga accidental
             const backup = localStorage.getItem('backup_resultados');
             const backupId = localStorage.getItem('backup_id');
             if(backup && backupId) {
@@ -261,10 +260,12 @@
 
     function abrirConteo(inv) {
         inventarioActivo = inv;
-        localStorage.setItem('backup_id', inv.id); // SUMA: Respaldo de ID activo
+        localStorage.setItem('backup_id', inv.id);
         document.getElementById('listado-screen').style.display = 'none';
         document.getElementById('conteo-screen').style.display = 'block';
-        const rutaFoto = `/fotos/${inv.modelo}.jpg`;
+        
+        // CORRECCIÓN DE RUTA DE FOTO: Ahora busca en carpeta/color
+        const rutaFoto = `/fotos/${inv.modelo}/${inv.color}.jpg`;
 
         document.getElementById('info-header').innerHTML = `
             <div style="display:flex; gap:15px; align-items:center;">
@@ -337,14 +338,11 @@
         const n = parseInt(valStr);
         if (isNaN(n) || n < 0) return;
 
-        // SUMA: Regla Robusta - Validación anti-error para cantidades altas
         if (n > 50) {
             if (!confirm(`¿Estás seguro que hay ${n} unidades? Es una cantidad inusual.`)) return;
         }
 
         resultados.push({ talla: tallaActivaModal, cantidad: n });
-        
-        // SUMA: Respaldo local inmediato
         localStorage.setItem('backup_resultados', JSON.stringify(resultados));
 
         cerrarModalCantidad();
@@ -371,7 +369,7 @@
 
     function borrarTalla(talla) {
         resultados = resultados.filter(r => r.talla !== talla);
-        localStorage.setItem('backup_resultados', JSON.stringify(resultados)); // SUMA: Actualizar respaldo
+        localStorage.setItem('backup_resultados', JSON.stringify(resultados));
         enviarAvance();
         renderTallas();
     }
@@ -384,7 +382,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados })
             });
-        } catch (e) { console.warn("Error de conexión, el respaldo local protegerá los datos."); }
+        } catch (e) { console.warn("Error de conexión"); }
     }
 
     function actualizarProgresoVisual() {
@@ -408,7 +406,6 @@
         });
         
         if (res.ok) { 
-            // SUMA: Limpiar respaldos al finalizar con éxito
             localStorage.removeItem('backup_resultados');
             localStorage.removeItem('backup_id');
             alert("¡Reporte enviado exitosamente!"); 

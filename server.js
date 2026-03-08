@@ -39,14 +39,15 @@ const CiclicoSchema = new mongoose.Schema({
     horaFin: String
 });
 
-// Catálogo Maestro (Para alimentar los selectores del Supervisor)
+// Catálogo Maestro 
+// Usamos strict: false por si el seed.js añade campos extras como 'sku' o 'familia'
 const CatalogoSchema = new mongoose.Schema({
     modelo: String,
     color: String
-});
+}, { strict: false });
 
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
-const Catalogo = mongoose.model('Catalogo', CatalogoSchema, 'catalogo'); // Colección 'catalogo'
+const Catalogo = mongoose.model('Catalogo', CatalogoSchema, 'catalogo'); 
 
 
 // --- RUTAS DE LA API ---
@@ -61,43 +62,58 @@ app.get('/api/ciclicos', async (req, res) => {
     }
 });
 
-// 2. OBTENER CATÁLOGO (Nueva ruta para el Supervisor inteligente)
+// 2. OBTENER CATÁLOGO (Alimenta los selectores del Supervisor)
 app.get('/api/catalogo', async (req, res) => {
     try {
+        // Buscamos todo el catálogo para que el Supervisor filtre dinámicamente
         const items = await Catalogo.find().sort({ modelo: 1 });
+        console.log(`📦 Catálogo solicitado: ${items.length} productos encontrados.`);
         res.json(items);
     } catch (error) {
         res.status(500).json({ error: "Error al cargar el catálogo" });
     }
 });
 
-// 3. Crear Nuevo Inventario (ID Largo Cronológico)
+// 3. Crear Nuevo Inventario
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
         const { modelo, color, tallasRaw } = req.body;
-        // Limpiamos y convertimos el string de tallas en un array limpio
-        const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+        
+        // Convertir string de tallas a Array y limpiar espacios
+        let listaTallas = [];
+        if (Array.isArray(tallasRaw)) {
+            listaTallas = tallasRaw;
+        } else {
+            listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+        }
 
         const nuevo = new Ciclico({
             id: Date.now(), 
             modelo,
             color,
             tallas: listaTallas,
-            totalTallas: listaTallas.length || 1
+            totalTallas: listaTallas.length || 1,
+            estatus: "Pendiente",
+            progreso: 0,
+            conteoActual: 0,
+            resultados: []
         });
 
         await nuevo.save();
+        console.log(`✨ Inventario Creado: ${modelo} - ${color}`);
         res.json(nuevo);
     } catch (error) {
+        console.error("❌ Error al crear cíclico:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// 4. Liberar Inventario (Reset para el Supervisor)
+// 4. Liberar Inventario (Reset)
 app.post('/api/liberar-inventario', async (req, res) => {
     try {
         const { id } = req.body;
-        await Ciclico.findOneAndUpdate({ id }, {
+        // Buscamos por el campo 'id' numérico, no por el _id de Mongo
+        await Ciclico.findOneAndUpdate({ id: Number(id) }, {
             estatus: "Pendiente",
             asignadoA: null,
             progreso: 0,
@@ -117,22 +133,27 @@ app.post('/api/actualizar-progreso', async (req, res) => {
     try {
         const { id, progreso, conteoActual, resultados, horaFin, estatus } = req.body;
         
-        const updateData = { progreso, conteoActual, resultados };
+        const updateData = { 
+            progreso: Number(progreso), 
+            conteoActual: Number(conteoActual), 
+            resultados 
+        };
+        
         if (horaFin) updateData.horaFin = horaFin;
         if (estatus) updateData.estatus = estatus;
 
-        await Ciclico.findOneAndUpdate({ id }, updateData);
-        res.json({ success: true });
+        const doc = await Ciclico.findOneAndUpdate({ id: Number(id) }, updateData, { new: true });
+        res.json({ success: true, doc });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// 6. Asignar Operador e Inicio de Tiempo
+// 6. Asignar Operador
 app.post('/api/asignar-operador', async (req, res) => {
     try {
         const { id, operador, horaInicio } = req.body;
-        await Ciclico.findOneAndUpdate({ id }, {
+        await Ciclico.findOneAndUpdate({ id: Number(id) }, {
             asignadoA: operador,
             estatus: "En Proceso",
             horaInicio: horaInicio
