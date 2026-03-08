@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; }
+        .container { max-width: 1100px; margin: auto; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h1, h2 { color: #2c3e50; margin-top: 0; }
         
@@ -15,93 +15,124 @@
         .form-main { display: flex; flex-direction: column; gap: 20px; }
         .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; }
-        select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+        select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; background: white; font-size: 14px; }
         
-        /* Columnas de Tallas (Regla Estricta) */
-        .tallas-grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-        .talla-col { background: white; border: 1px solid #e0e6ed; border-radius: 12px; overflow: hidden; }
-        .col-header { background: #f8f9fa; padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
-        .col-circle { width: 30px; height: 30px; background: #6c5ce7; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 5px; }
-        .sizes-list { max-height: 350px; overflow-y: auto; padding: 10px; }
-        .size-item { display: flex; align-items: center; gap: 10px; padding: 6px; border-bottom: 1px solid #f1f1f1; font-size: 13px; }
+        /* Columnas de Tallas (Estructura Blindada) */
+        .tallas-grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 10px; }
+        .talla-col { background: white; border: 1px solid #e0e6ed; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .col-header { background: #f8f9fa; padding: 12px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .col-circle { width: 30px; height: 30px; background: #6c5ce7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        .select-all-box { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; color: #2c3e50; width: 100%; padding-top: 5px; }
+        .sizes-list { max-height: 400px; overflow-y: auto; padding: 10px; }
+        .size-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #f1f1f1; font-size: 14px; color: #555; cursor: pointer; }
+        .size-item input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
 
         /* Botones */
-        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
         .btn-add { background: #3498db; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
-        .btn-dl { background: #27ae60; color: white; font-size: 11px; }
-        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 5px 8px; margin-left: 5px; }
+        .btn-refresh { background: #95a5a6; color: white; }
+        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; }
+        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-left: 5px; }
 
         /* Tabla y Progreso */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
-        th { background: #f8f9fa; }
-
-        /* Barra de Progreso en Tabla */
-        .progress-mini-bg { background: #eee; height: 8px; border-radius: 4px; overflow: hidden; width: 100px; margin-top: 4px; }
-        .progress-mini-fill { background: #3498db; height: 100%; transition: 0.5s; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
         
+        .progress-mini-bg { background: #eee; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; max-width: 100px; margin-top: 5px; }
+        .progress-mini-fill { background: #3498db; height: 100%; transition: 0.5s; }
+
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .fin { background: #d4edda; color: #155724; }
         .proc { background: #e3f2fd; color: #0d47a1; }
-        .pen { background: #f5f5f5; color: #616161; }
+        .pen { background: #fff3cd; color: #856404; }
 
-        /* Animación de Resaltado (Highlight) */
-        @keyframes highlightNew {
-            0% { background-color: #fff3cd; }
-            100% { background-color: transparent; }
-        }
-        .new-row { animation: highlightNew 4s ease-out; border-left: 5px solid #ffc107; }
+        @keyframes highlightNew { 0% { background-color: #d4edda; } 100% { background-color: transparent; } }
+        .new-row { animation: highlightNew 3s ease-out; }
     </style>
 </head>
 <body>
 
+<div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
+    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;">
+</div>
+
 <div class="container">
-    <div style="text-align:center; margin-bottom:20px;"><img src="/logo.png" style="max-height:80px;"></div>
-    
-    <h1>🛡️ Panel de Supervisión</h1>
+    <h1>📋 Gestión de Inventarios Cíclicos</h1>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2>➕ Crear Inventario</h2>
-            <label class="btn btn-dl" style="cursor:pointer;">📥 Excel <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="procesarExcel(this)"></label>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h2>➕ Crear Nuevo Inventario</h2>
+            <label class="btn btn-dl" style="cursor:pointer;">
+                📥 Cargar desde Excel
+                <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="procesarExcel(this)">
+            </label>
         </div>
         
         <div class="form-main">
             <div class="row-inputs">
-                <div><label>Modelo</label><select id="mod">
-                    <option value="" disabled selected>Selecciona...</option>
-                    <option value="33739">33739</option><option value="4030">4030</option>
-                    <option value="4040">4040</option><option value="TR-1">TR-1</option>
-                </select></div>
-                <div><label>Color</label><select id="col">
-                    <option value="" disabled selected>Selecciona...</option>
-                    <option value="AZUL">AZUL</option><option value="NEGRO">NEGRO</option>
-                    <option value="VINO">VINO</option>
-                </select></div>
+                <div>
+                    <label>Modelo</label>
+                    <select id="mod">
+                        <option value="" disabled selected>Selecciona modelo...</option>
+                        <option value="33739">33739</option>
+                        <option value="4030">4030</option>
+                        <option value="4040">4040</option>
+                        <option value="TR-1">TR-1</option>
+                        <option value="TR-2">TR-2</option>
+                        <option value="C67901">C67901</option>
+                        <option value="G47815">G47815</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Color</label>
+                    <select id="col">
+                        <option value="" disabled selected>Selecciona color...</option>
+                        <option value="AZUL FRANCIA">AZUL FRANCIA</option>
+                        <option value="AZUL">AZUL</option>
+                        <option value="NEGRO">NEGRO</option>
+                        <option value="OXFORD">OXFORD</option>
+                        <option value="MARINO">MARINO</option>
+                        <option value="GRIS CLARO">GRIS CLARO</option>
+                        <option value="R-BLUE">R-BLUE</option>
+                        <option value="CAMEL">CAMEL</option>
+                        <option value="BEIGE">BEIGE</option>
+                        <option value="VERDE HUNTER">VERDE HUNTER</option>
+                        <option value="VINO">VINO</option>
+                    </select>
+                </div>
             </div>
 
+            <label>Selección de Tallas por Categoría:</label>
             <div class="tallas-grid-container">
                 <div class="talla-col">
-                    <div class="col-header"><div class="col-circle">C</div><br><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Todos</div>
+                    <div class="col-header"><div class="col-circle">C</div>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todas</label>
+                    </div>
                     <div id="list-C" class="sizes-list"></div>
                 </div>
                 <div class="talla-col">
-                    <div class="col-header"><div class="col-circle" style="background:#4834d4">R</div><br><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Todos</div>
+                    <div class="col-header"><div class="col-circle" style="background:#4834d4">R</div>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todas</label>
+                    </div>
                     <div id="list-R" class="sizes-list"></div>
                 </div>
                 <div class="talla-col">
-                    <div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div><br><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Todos</div>
+                    <div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todas</label>
+                    </div>
                     <div id="list-L" class="sizes-list"></div>
                 </div>
             </div>
-            <button class="btn btn-add" onclick="crearCiclico()">🚀 Publicar Inventario</button>
+
+            <button class="btn btn-add" onclick="crearCiclico()">🚀 Guardar y Publicar Inventario</button>
         </div>
     </div>
 
-    <div class="card" id="seccion-monitor">
+    <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>📊 Monitor en Tiempo Real</h2>
-            <button class="btn" style="background:#eee" onclick="cargarDatos()">🔄 Refrescar</button>
+            <h2>📊 Monitor de Actividad</h2>
+            <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
         </div>
         <table id="tabla">
             <thead>
@@ -111,7 +142,7 @@
                     <th>Estado / Progreso</th>
                     <th>Operador</th>
                     <th>Tiempos</th>
-                    <th>Acciones</th>
+                    <th>Reporte</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -128,7 +159,10 @@
         ['C', 'R', 'L'].forEach(cat => {
             const container = document.getElementById(`list-${cat}`);
             container.innerHTML = tallasBase.map(t => `
-                <label class="size-item"><input type="checkbox" class="check-${cat}" value="${t}${cat}"> ${t}</label>
+                <label class="size-item">
+                    <input type="checkbox" class="check-${cat}" value="${t}${cat}">
+                    <span>${t}</span>
+                </label>
             `).join('');
         });
     }
@@ -152,23 +186,25 @@
             cuerpo.innerHTML += `
                 <tr ${isNew}>
                     <td><b>#${c.id}</b></td>
-                    <td>${c.modelo}<br><small>${c.color}</small></td>
+                    <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
                     <td>
                         <span class="status ${c.estatus === 'Finalizado' ? 'fin' : (c.estatus === 'En Proceso' ? 'proc' : 'pen')}">
                             ${c.estatus}
                         </span>
                         ${c.estatus === 'En Proceso' ? `
                             <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div>
-                            <small>${porcentaje}%</small>
+                            <small style="font-size:10px">${porcentaje}%</small>
                         ` : ''}
                     </td>
                     <td>
                         ${c.asignadoA || '---'}
-                        ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓 Liberar</button>` : ''}
+                        ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}
                     </td>
                     <td><small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small></td>
                     <td>
-                        ${c.estatus === 'Finalizado' ? `<button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button>` : '⌛'}
+                        ${c.estatus === 'Finalizado' 
+                            ? `<button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button>` 
+                            : '⌛'}
                     </td>
                 </tr>
             `;
@@ -180,7 +216,7 @@
         const color = document.getElementById('col').value;
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
 
-        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos");
+        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
 
         const res = await fetch('/api/crear-ciclico', {
             method: 'POST',
@@ -191,14 +227,19 @@
         if(res.ok) {
             const nuevo = await res.json();
             ultimoIdCreado = nuevo.id;
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            await cargarDatos();
-            document.getElementById('seccion-monitor').scrollIntoView({ behavior: 'smooth' });
+            limpiarFormulario();
+            cargarDatos();
         }
     }
 
+    function limpiarFormulario() {
+        document.getElementById('mod').selectedIndex = 0;
+        document.getElementById('col').selectedIndex = 0;
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+
     async function liberarInventario(id) {
-        if(!confirm("¿Deseas liberar este inventario? El operador actual podrá ser desplazado.")) return;
+        if(!confirm("¿Liberar este inventario?")) return;
         await fetch('/api/liberar-inventario', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -207,7 +248,40 @@
         cargarDatos();
     }
 
-    // Funciones de Excel (Mantener igual que antes)
+    function procesarExcel(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            const grupos = {};
+
+            rows.forEach(row => {
+                const mod = row.Modelo; const col = row.Color; const tal = row.Talla;
+                if(mod && col && tal) {
+                    const key = `${mod}-${col}`;
+                    if(!grupos[key]) grupos[key] = { modelo: mod, color: col, tallas: [] };
+                    grupos[key].tallas.push(tal);
+                }
+            });
+
+            for (const key in grupos) {
+                const item = grupos[key];
+                await fetch('/api/crear-ciclico', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ modelo: item.modelo, color: item.color, tallasRaw: item.tallas.join(', ') })
+                });
+            }
+            alert("Carga masiva completada.");
+            input.value = "";
+            cargarDatos();
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
     function descargarExcel(id) {
         const c = datos.find(item => item.id === id);
         let csv = "ID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin\n";
@@ -217,13 +291,13 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${c.modelo}.csv`;
+        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
         link.click();
     }
 
     renderTallas();
     cargarDatos();
-    setInterval(cargarDatos, 5000); // Actualización cada 5 segundos para ver las barritas moverse
+    setInterval(cargarDatos, 5000); 
 </script>
 </body>
 </html>
