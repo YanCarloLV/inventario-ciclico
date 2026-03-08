@@ -28,8 +28,8 @@
         .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
         .btn-add { background: #3498db; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
         .btn-refresh { background: #95a5a6; color: white; }
-        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; }
-        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-left: 5px; }
+        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; padding: 8px 15px; }
+        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-left: 5px; border: none; cursor: pointer; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
@@ -39,7 +39,6 @@
         .progress-mini-fill { background: #3498db; height: 100%; transition: 0.5s; }
 
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .fin { background: #d4edda; color: #155724; }
         .proc { background: #e3f2fd; color: #0d47a1; }
         .pen { background: #fff3cd; color: #856404; }
 
@@ -103,19 +102,19 @@
             <div class="tallas-grid-container">
                 <div class="talla-col">
                     <div class="col-header"><div class="col-circle">C</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todas</label>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Todas</label>
                     </div>
                     <div id="list-C" class="sizes-list"></div>
                 </div>
                 <div class="talla-col">
                     <div class="col-header"><div class="col-circle" style="background:#4834d4">R</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todas</label>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Todas</label>
                     </div>
                     <div id="list-R" class="sizes-list"></div>
                 </div>
                 <div class="talla-col">
                     <div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todas</label>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Todas</label>
                     </div>
                     <div id="list-L" class="sizes-list"></div>
                 </div>
@@ -126,16 +125,31 @@
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>📊 Monitor de Actividad</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <h2 style="color: #e67e22;">🚀 Inventarios Activos (En Curso)</h2>
             <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
         </div>
-        <table id="tabla">
+        <table id="tablaActivos">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Modelo/Color</th>
                     <th>Estado / Progreso</th>
+                    <th>Operador</th>
+                    <th>Tiempos</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="card" style="opacity: 0.9;">
+        <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
+        <table id="tablaHistorial">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Modelo/Color</th>
                     <th>Operador</th>
                     <th>Tiempos</th>
                     <th>Reporte</th>
@@ -147,8 +161,7 @@
 </div>
 
 <script>
-    let datos = [];
-    let ultimoIdCreado = null;
+    let datosGlobales = [];
     const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
 
     function renderTallas() {
@@ -171,46 +184,49 @@
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
         
-        // CORRECCIÓN DE ORDEN: Forzamos que IDs cortos (nuevos) estén arriba de los largos (viejos)
-        datos = listado.sort((a, b) => {
-            const sA = String(a.id);
-            const sB = String(b.id);
-            if (sA.length !== sB.length) return sA.length - sB.length; // Menor longitud arriba
-            return b.id - a.id; // Si miden igual, el número más grande arriba
-        });
+        // ORDEN CRONOLÓGICO: El ID más grande (timestamp nuevo) siempre arriba
+        datosGlobales = listado.sort((a, b) => b.id - a.id);
 
-        const cuerpo = document.querySelector("#tabla tbody");
-        cuerpo.innerHTML = "";
+        const cuerpoActivos = document.querySelector("#tablaActivos tbody");
+        const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
+        
+        cuerpoActivos.innerHTML = "";
+        cuerpoHistorial.innerHTML = "";
 
-        datos.forEach(c => {
-            const isNew = c.id === ultimoIdCreado ? 'class="new-row"' : '';
+        datosGlobales.forEach(c => {
             const porcentaje = c.progreso || 0;
-            
-            cuerpo.innerHTML += `
-                <tr ${isNew}>
-                    <td><b>#${c.id}</b></td>
-                    <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
-                    <td>
-                        <span class="status ${c.estatus === 'Finalizado' ? 'fin' : (c.estatus === 'En Proceso' ? 'proc' : 'pen')}">
-                            ${c.estatus}
-                        </span>
-                        ${c.estatus === 'En Proceso' ? `
-                            <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div>
-                            <small style="font-size:10px">${porcentaje}%</small>
-                        ` : ''}
-                    </td>
-                    <td>
-                        ${c.asignadoA || '---'}
-                        ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}
-                    </td>
-                    <td><small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small></td>
-                    <td>
-                        ${c.estatus === 'Finalizado' 
-                            ? `<button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button>` 
-                            : '⌛'}
-                    </td>
-                </tr>
-            `;
+            const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
+
+            if (c.estatus !== 'Finalizado') {
+                cuerpoActivos.innerHTML += `
+                    <tr>
+                        <td><b>#${c.id}</b></td>
+                        <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
+                        <td>
+                            <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
+                            ${c.estatus === 'En Proceso' ? `
+                                <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div>
+                                <small style="font-size:10px">${porcentaje}%</small>
+                            ` : ''}
+                        </td>
+                        <td>
+                            ${c.asignadoA || '---'}
+                            ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}
+                        </td>
+                        <td>${tiempos}</td>
+                    </tr>
+                `;
+            } else {
+                cuerpoHistorial.innerHTML += `
+                    <tr>
+                        <td><small>#${c.id}</small></td>
+                        <td>${c.modelo} - ${c.color}</td>
+                        <td>${c.asignadoA}</td>
+                        <td>${tiempos}</td>
+                        <td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td>
+                    </tr>
+                `;
+            }
         });
     }
 
@@ -228,8 +244,6 @@
         });
 
         if(res.ok) {
-            const nuevo = await res.json();
-            ultimoIdCreado = nuevo.id;
             limpiarFormulario();
             cargarDatos();
         }
@@ -242,7 +256,7 @@
     }
 
     async function liberarInventario(id) {
-        if(!confirm("¿Liberar este inventario?")) return;
+        if(!confirm("¿Liberar este inventario? El operador perderá el progreso.")) return;
         await fetch('/api/liberar-inventario', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -285,7 +299,7 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // FUNCIÓN DE PARSEO ROBUSTA: Convierte AM/PM o 24h a segundos puros
+    // LÓGICA DE TIEMPOS ROBUSTA PARA EXCEL
     function parseTimeToSeconds(timeStr) {
         if (!timeStr || timeStr === '--') return null;
         const parts = timeStr.match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);
@@ -300,24 +314,24 @@
     }
 
     function descargarExcel(id) {
-        const c = datos.find(item => item.id === id);
-        
+        const c = datosGlobales.find(item => item.id === id);
+        if(!c) return;
+
         let tiempoTotal = "N/A";
         const sIn = parseTimeToSeconds(c.horaInicio);
         const sFin = parseTimeToSeconds(c.horaFin);
 
         if (sIn !== null && sFin !== null) {
             let diff = sFin - sIn;
-            if (diff < 0) diff += 86400; // Por si cruza la medianoche
+            if (diff < 0) diff += 86400; 
             const mins = Math.floor(diff / 60);
             const segs = diff % 60;
             tiempoTotal = `${mins}m ${segs}s`;
         }
 
-        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-
+        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
         c.resultados.forEach(r => {
-            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${tiempoTotal}\n`;
+            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -329,7 +343,7 @@
 
     renderTallas();
     cargarDatos();
-    setInterval(cargarDatos, 5000); 
+    setInterval(cargarDatos, 7000); 
 </script>
 </body>
 </html>
