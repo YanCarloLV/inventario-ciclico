@@ -33,8 +33,16 @@
         #conteo-screen { display: none; }
         .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         
-        /* Barra de Progreso Pro */
-        .progress-wrapper { margin: 15px 0; }
+        /* Barra de Progreso Pro (AHORA FLOTANTE/STICKY) */
+        .progress-wrapper { 
+            position: sticky; 
+            top: 0; 
+            background-color: white; /* Fondo sólido para tapar las tallas al hacer scroll */
+            padding: 15px 0; 
+            margin: 0 0 15px 0;
+            z-index: 1000; /* Lo mantiene al frente */
+            border-bottom: 1px solid #f3f4f6; /* Línea sutil para separar la barra de las tallas */
+        }
         .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; position: relative; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); width: 0%; transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
         
