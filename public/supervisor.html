@@ -339,17 +339,20 @@
         let csv = "";
 
         if (esHallazgo) {
-            // ESTRUCTURA NUEVA PARA HALLAZGOS (Marca, Tipo, etc)
-            csv = "\uFEFFID,Marca/Tipo,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
+            // ESTRUCTURA DESGLOSADA SEGÚN TU LIBRETA (Marca, Tipo, Modelo, Color, Talla, Qty)
+            csv = "\uFEFFID,Marca,Tipo,Modelo,Color,Talla,Cantidad,Operador,Inicio,Fin,Tiempo Total\n";
             c.resultados.forEach(r => {
-                let marcaTipo = "GENERAL";
-                const mod = (c.modelo || "").toLowerCase();
-                if(mod.includes("traje") || mod.includes("saco")) marcaTipo = "VESTIR";
-                
-                csv += `${c.id},${marcaTipo},${(c.modelo||"").replace(/,/g," ")},${(c.color||"").replace(/,/g," ")},${(c.asignadoA||"").replace(/,/g," ")},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
+                // Limpiamos comas para no romper el CSV y extraemos campos del hallazgo
+                const marca = (r.marca || "S/M").replace(/,/g, " ");
+                const tipo = (r.tipo || "S/T").replace(/,/g, " ");
+                const modelo = (r.modelo || "S/M").replace(/,/g, " ");
+                const color = (r.color || "S/C").replace(/,/g, " ");
+                const operador = (c.asignadoA || "").replace("(HALLAZGO)", "").trim();
+
+                csv += `${c.id},${marca},${tipo},${modelo},${color},${r.talla},${r.cantidad},${operador},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
             });
         } else {
-            // ESTRUCTURA ORIGINAL PARA CICLICOS (No tocada)
+            // ESTRUCTURA ORIGINAL PARA CICLICOS (NO TOCADA)
             csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
             c.resultados.forEach(r => {
                 csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
@@ -359,7 +362,7 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${c.modelo.replace(/\s+/g, '_')}_${c.id}.csv`;
+        link.download = `Reporte_${esHallazgo ? 'HALLAZGO' : 'CICLICO'}_${c.id}.csv`;
         link.click();
     }
 
