@@ -11,13 +11,47 @@
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h1, h2 { color: #2c3e50; margin-top: 0; }
         
-        /* Formulario */
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end; }
-        label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; background: white; }
+        /* Formulario Layout */
+        .form-main { display: flex; flex-direction: column; gap: 20px; }
+        .row-inputs { display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end; }
         
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
-        .btn-add { background: #3498db; color: white; }
+        label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; }
+        select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; background: white; font-size: 14px; }
+        
+        /* Diseño de Tallas (Chips como el ejemplo) */
+        .tallas-container { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 10px; 
+            border: 1px solid #eee;
+        }
+        .size-chip {
+            padding: 10px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            color: #555;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            user-select: none;
+            text-align: center;
+            min-width: 50px;
+        }
+        .size-chip:hover { border-color: #3498db; color: #3498db; }
+        .size-chip.selected {
+            border-color: #3498db;
+            background-color: #ebf5fb;
+            color: #3498db;
+            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2);
+        }
+
+        /* Botones */
+        .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
+        .btn-add { background: #3498db; color: white; width: 100%; font-size: 16px; margin-top: 10px; }
         .btn-refresh { background: #95a5a6; color: white; }
         .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; }
         .btn:hover { opacity: 0.9; transform: translateY(-1px); }
@@ -32,10 +66,11 @@
     </style>
 </head>
 <body>
+
 <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
     <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;">
-    <h2 style="margin-top: 10px; color: #333;"> </h2>
 </div>
+
 <div class="container">
     <h1>📋 Gestión de Inventarios Cíclicos</h1>
 
@@ -48,56 +83,47 @@
             </label>
         </div>
         
-        <div class="form-grid">
-            <div>
-                <label>Modelo</label>
-                <select id="mod">
-                    <option value="" disabled selected>Selecciona...</option>
-                    <option value="33739">33739</option>
-                    <option value="4030">4030</option>
-                    <option value="4040">4040</option>
-                    <option value="TR-1">TR-1</option>
-                    <option value="TR-2">TR-2</option>
-                    <option value="C67901">C67901</option>
-                    <option value="G47815">G47815</option>
-                </select>
+        <div class="form-main">
+            <div class="row-inputs">
+                <div>
+                    <label>Modelo</label>
+                    <select id="mod">
+                        <option value="" disabled selected>Selecciona modelo...</option>
+                        <option value="33739">33739</option>
+                        <option value="4030">4030</option>
+                        <option value="4040">4040</option>
+                        <option value="TR-1">TR-1</option>
+                        <option value="TR-2">TR-2</option>
+                        <option value="C67901">C67901</option>
+                        <option value="G47815">G47815</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Color</label>
+                    <select id="col">
+                        <option value="" disabled selected>Selecciona color...</option>
+                        <option value="AZUL FRANCIA">AZUL FRANCIA</option>
+                        <option value="AZUL">AZUL</option>
+                        <option value="NEGRO">NEGRO</option>
+                        <option value="OXFORD">OXFORD</option>
+                        <option value="MARINO">MARINO</option>
+                        <option value="GRIS CLARO">GRIS CLARO</option>
+                        <option value="R-BLUE">R-BLUE</option>
+                        <option value="CAMEL">CAMEL</option>
+                        <option value="BEIGE">BEIGE</option>
+                        <option value="VERDE HUNTER">VERDE HUNTER</option>
+                        <option value="VINO">VINO</option>
+                    </select>
+                </div>
             </div>
+
             <div>
-                <label>Color</label>
-                <select id="col">
-                    <option value="" disabled selected>Selecciona...</option>
-                    <option value="AZUL FRANCIA">AZUL FRANCIA</option>
-                    <option value="AZUL">AZUL</option>
-                    <option value="NEGRO">NEGRO</option>
-                    <option value="OXFORD">OXFORD</option>
-                    <option value="MARINO">MARINO</option>
-                    <option value="GRIS CLARO">GRIS CLARO</option>
-                    <option value="R-BLUE">R-BLUE</option>
-                    <option value="CAMEL">CAMEL</option>
-                    <option value="BEIGE">BEIGE</option>
-                    <option value="VERDE HUNTER">VERDE HUNTER</option>
-                    <option value="VINO">VINO</option>
-                </select>
+                <label>Elige las tallas a inventariar:</label>
+                <div id="tallas-grid" class="tallas-container">
+                    </div>
             </div>
-            <div>
-                <label>Tallas (Ctrl + Click para varias)</label>
-                <select id="tal" multiple style="height: 40px;">
-                    <option value="36R">36R</option>
-                    <option value="38R">38R</option>
-                    <option value="40R">40R</option>
-                    <option value="42R">42R</option>
-                    <option value="44R">44R</option>
-                    <option value="46R">46R</option>
-                    <option value="48R">48R</option>
-                    <option value="50R">50R</option>
-                    <option value="52R">52R</option>
-                    <option value="54R">54R</option>
-                    <option value="56R">56R</option>
-                    <option value="58R">58R</option>
-                    <option value="60R">60R</option>
-                </select>
-            </div>
-            <button class="btn btn-add" onclick="crearCiclico()">Guardar y Publicar</button>
+
+            <button class="btn btn-add" onclick="crearCiclico()">🚀 Guardar y Publicar Inventario</button>
         </div>
     </div>
 
@@ -125,6 +151,23 @@
 
 <script>
     let datos = [];
+    const listaTallas = [
+        "36R", "38R", "40R", "42R", "44R", "46R", "48R", "50R", "52R", "54R", "56R", "58R", "60R",
+        "36C", "38C", "40C", "42C", "44C", "46C", "48C", "50C", "52C", "54C", "56C", "58C", "60C",
+        "404"
+    ];
+
+    // Generar los botones de tallas al cargar
+    function renderTallas() {
+        const grid = document.getElementById('tallas-grid');
+        grid.innerHTML = listaTallas.map(t => `
+            <div class="size-chip" onclick="toggleTalla(this, '${t}')">${t}</div>
+        `).join('');
+    }
+
+    function toggleTalla(elemento, talla) {
+        elemento.classList.toggle('selected');
+    }
 
     async function cargarDatos() {
         const res = await fetch('/api/ciclicos');
@@ -154,12 +197,16 @@
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
-        const tallasSelect = document.getElementById('tal');
-        const tallasSeleccionadas = Array.from(tallasSelect.selectedOptions).map(option => option.value);
+        
+        // Obtener tallas de los chips seleccionados
+        const seleccionadas = Array.from(document.querySelectorAll('.size-chip.selected'))
+                                   .map(chip => chip.innerText);
 
-        if(!modelo || !color || tallasSeleccionadas.length === 0) return alert("Por favor llena todos los campos.");
+        if(!modelo || !color || seleccionadas.length === 0) {
+            return alert("Por favor selecciona modelo, color y al menos una talla.");
+        }
 
-        const tallasRaw = tallasSeleccionadas.join(', ');
+        const tallasRaw = seleccionadas.join(', ');
 
         await fetch('/api/crear-ciclico', {
             method: 'POST',
@@ -167,11 +214,16 @@
             body: JSON.stringify({ modelo, color, tallasRaw })
         });
 
-        alert("¡Cíclico creado! Ya aparece en los celulares.");
+        alert("¡Cíclico creado exitosamente!");
+        
+        // Limpiar formulario
+        document.getElementById('mod').selectedIndex = 0;
+        document.getElementById('col').selectedIndex = 0;
+        document.querySelectorAll('.size-chip').forEach(c => c.classList.remove('selected'));
+        
         cargarDatos();
     }
 
-    // Nueva función para procesar el Excel masivo
     function procesarExcel(input) {
         const file = input.files[0];
         if (!file) return;
@@ -180,17 +232,14 @@
         reader.onload = async function(e) {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(sheet);
 
-            // Agrupamos por Modelo y Color
             const grupos = {};
             rows.forEach(row => {
                 const mod = row.Modelo;
                 const col = row.Color;
                 const tal = row.Talla;
-                
                 if(mod && col && tal) {
                     const key = `${mod}-${col}`;
                     if(!grupos[key]) grupos[key] = { modelo: mod, color: col, tallas: [] };
@@ -198,7 +247,6 @@
                 }
             });
 
-            // Enviamos cada grupo al servidor
             for (const key in grupos) {
                 const item = grupos[key];
                 await fetch('/api/crear-ciclico', {
@@ -212,7 +260,7 @@
                 });
             }
 
-            alert("Excel procesado. Se han creado los inventarios correspondientes.");
+            alert("Excel procesado correctamente.");
             input.value = "";
             cargarDatos();
         };
@@ -232,6 +280,8 @@
         link.click();
     }
 
+    // Inicialización
+    renderTallas();
     cargarDatos();
     setInterval(cargarDatos, 30000);
 </script>
