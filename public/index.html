@@ -65,6 +65,40 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
 
+        /* Modal para Teclado Numérico */
+        #modal-cantidad {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-caja {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .input-num {
+            width: 100%;
+            padding: 15px;
+            font-size: 28px;
+            text-align: center;
+            border: 2px solid #3498db;
+            border-radius: 12px;
+            margin: 15px 0;
+            box-sizing: border-box;
+            outline: none;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .input-num:focus { border-color: #2980b9; box-shadow: 0 0 8px rgba(52, 152, 219, 0.3); }
+
         /* Barra de Progreso */
         .progress-wrapper { position: sticky; top: 0; background-color: white; padding: 15px 0; margin-bottom: 15px; z-index: 1000; border-bottom: 1px solid #f3f4f6; }
         .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; }
@@ -82,6 +116,19 @@
 
     <div id="modal-zoom" onclick="cerrarZoom()">
         <img id="img-ampliada" src="">
+    </div>
+
+    <div id="modal-cantidad">
+        <div class="modal-caja">
+            <h3 style="margin-top:0; color:#2c3e50;">Cantidad para la talla</h3>
+            <h1 id="modal-talla-label" style="margin:5px 0; color:#e67e22; font-size: 36px;">--</h1>
+            <input type="number" id="input-cantidad" class="input-num" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="cerrarModalCantidad()" style="flex:1; padding:15px; background:#ecf0f1; color:#7f8c8d; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Cancelar</button>
+                <button onclick="guardarCantidadModal()" style="flex:1; padding:15px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Guardar</button>
+            </div>
+        </div>
     </div>
 
     <div id="login-screen" class="card">
@@ -119,6 +166,7 @@
     let miNombre = localStorage.getItem('operador_nombre');
     let inventarioActivo = null;
     let resultados = [];
+    let tallaActivaModal = null; // Variable para saber qué talla estamos editando en el modal
 
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
@@ -140,7 +188,7 @@
             const res = await fetch('/api/ciclicos');
             const datos = await res.json();
             renderListaDisponibles(datos);
-        } catch (e) { console.error("Error"); }
+        } catch (e) { console.error("Error al cargar"); }
     }
 
     function renderListaDisponibles(datos) {
@@ -148,7 +196,6 @@
         contenedor.innerHTML = "";
         const disponibles = datos.filter(d => d.estatus !== "Finalizado");
 
-        // NUEVA LÓGICA: Si no hay inventarios disponibles, mostrar mensaje profesional
         if (disponibles.length === 0) {
             contenedor.innerHTML = `
                 <div class="empty-state">
@@ -157,7 +204,7 @@
                     <p>Por el momento no hay inventarios asignados. Excelente trabajo.</p>
                 </div>
             `;
-            return; // Detenemos la ejecución aquí si está vacío
+            return;
         }
 
         disponibles.forEach(inv => {
@@ -224,7 +271,6 @@
         renderTallas();
     }
 
-    // Funciones de Zoom
     function verZoom(src) {
         document.getElementById('img-ampliada').src = src;
         document.getElementById('modal-zoom').style.display = 'flex';
@@ -242,8 +288,8 @@
                 <div class="talla-item" style="${yaContada ? 'background:#f0fdf4' : ''}">
                     <div class="talla-info"><b>${talla}</b></div>
                     ${yaContada 
-                        ? `<div><span style="color:#16a34a; font-weight:bold">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:red; cursor:pointer; font-size:10px;">Editar</button></div>`
-                        : `<button class="btn-action" onclick="capturarTalla('${talla}')">CONTAR</button>`
+                        ? `<div><span style="color:#16a34a; font-weight:bold; font-size:18px; margin-right:10px;">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold; text-decoration:underline;">Rehacer</button></div>`
+                        : `<button class="btn-action" onclick="abrirModalCantidad('${talla}')">CONTAR</button>`
                     }
                 </div>
             `;
@@ -251,15 +297,45 @@
         actualizarProgresoVisual();
     }
 
-    function capturarTalla(talla) {
-        const cant = prompt(`Cantidad para ${talla}:`);
-        if (!cant) return;
-        const n = parseInt(cant);
-        if (isNaN(n)) return;
-        resultados.push({ talla, cantidad: n });
+    // NUVAS FUNCIONES PARA EL MODAL NUMÉRICO
+    function abrirModalCantidad(talla) {
+        tallaActivaModal = talla;
+        document.getElementById('modal-talla-label').innerText = talla;
+        const inputNum = document.getElementById('input-cantidad');
+        inputNum.value = ""; // Limpiar input
+        document.getElementById('modal-cantidad').style.display = 'flex';
+        
+        // Pequeño delay para asegurar que el teclado numérico se levante automáticamente
+        setTimeout(() => inputNum.focus(), 100);
+    }
+
+    function cerrarModalCantidad() {
+        document.getElementById('modal-cantidad').style.display = 'none';
+        tallaActivaModal = null;
+    }
+
+    function guardarCantidadModal() {
+        const valStr = document.getElementById('input-cantidad').value;
+        if (!valStr || valStr === "") {
+            alert("Por favor, ingresa una cantidad válida.");
+            return;
+        }
+        
+        const n = parseInt(valStr);
+        if (isNaN(n) || n < 0) return;
+
+        resultados.push({ talla: tallaActivaModal, cantidad: n });
+        cerrarModalCantidad();
         enviarAvance();
         renderTallas();
     }
+
+    // Permitir guardar al presionar la tecla "Enter" en el teclado del celular
+    document.getElementById('input-cantidad').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            guardarCantidadModal();
+        }
+    });
 
     function borrarTalla(talla) {
         resultados = resultados.filter(r => r.talla !== talla);
@@ -285,7 +361,7 @@
 
     async function finalizarInventario() {
         if (resultados.length < inventarioActivo.totalTallas) {
-            if (!confirm("¿Enviar incompleto?")) return;
+            if (!confirm("Aún faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
         }
         const ahora = new Date();
         const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -294,7 +370,10 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" })
         });
-        if (res.ok) { alert("Reporte enviado"); location.reload(); }
+        if (res.ok) { 
+            alert("¡Reporte enviado exitosamente!"); 
+            location.reload(); 
+        }
     }
 </script>
 </body>
