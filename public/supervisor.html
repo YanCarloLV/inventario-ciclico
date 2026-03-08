@@ -264,13 +264,13 @@
         });
     }
 
-    async function crearCiclico() {
+async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
         
-        // Obtener todas las tallas marcadas
-        const seleccionadas = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
-                                   .filter(cb => cb.value) // Filtrar solo los de tallas, no los "Select All"
+        // CORRECCIÓN: Buscamos solo los checkboxes que están DENTRO de las listas de tallas
+        // Esto ignora automáticamente los checkboxes de "Seleccionar Todas" que están en el header
+        const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked'))
                                    .map(cb => cb.value);
 
         if(!modelo || !color || seleccionadas.length === 0) {
@@ -279,20 +279,30 @@
 
         const tallasRaw = seleccionadas.join(', ');
 
-        await fetch('/api/crear-ciclico', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ modelo, color, tallasRaw })
-        });
+        try {
+            const response = await fetch('/api/crear-ciclico', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ modelo, color, tallasRaw })
+            });
 
-        alert("¡Inventario Publicado!");
-        
-        // Limpiar
-        document.getElementById('mod').selectedIndex = 0;
-        document.getElementById('col').selectedIndex = 0;
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-        
-        cargarDatos();
+            if (response.ok) {
+                alert("¡Inventario Publicado Exitosamente!");
+                
+                // Limpiar el formulario para el siguiente
+                document.getElementById('mod').selectedIndex = 0;
+                document.getElementById('col').selectedIndex = 0;
+                // Desmarcar todos los checkboxes (incluyendo los de "Seleccionar Todas")
+                document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                
+                cargarDatos();
+            } else {
+                alert("Hubo un problema al guardar en el servidor.");
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Error de conexión con el servidor.");
+        }
     }
 
     function procesarExcel(input) {
