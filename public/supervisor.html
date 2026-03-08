@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Control - Supervisor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 1100px; margin: auto; }
@@ -13,12 +14,12 @@
         /* Formulario */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end; }
         label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; background: white; }
         
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
         .btn-add { background: #3498db; color: white; }
         .btn-refresh { background: #95a5a6; color: white; }
-        .btn-dl { background: #27ae60; color: white; font-size: 12px; }
+        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; }
         .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
         /* Tabla */
@@ -39,19 +40,62 @@
     <h1>📋 Gestión de Inventarios Cíclicos</h1>
 
     <div class="card">
-        <h2>➕ Crear Nuevo Inventario</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h2>➕ Crear Nuevo Inventario</h2>
+            <label class="btn btn-dl" style="cursor:pointer;">
+                📥 Cargar desde Excel
+                <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="procesarExcel(this)">
+            </label>
+        </div>
+        
         <div class="form-grid">
             <div>
                 <label>Modelo</label>
-                <input type="text" id="mod" placeholder="Ej: 4040">
+                <select id="mod">
+                    <option value="" disabled selected>Selecciona...</option>
+                    <option value="33739">33739</option>
+                    <option value="4030">4030</option>
+                    <option value="4040">4040</option>
+                    <option value="TR-1">TR-1</option>
+                    <option value="TR-2">TR-2</option>
+                    <option value="C67901">C67901</option>
+                    <option value="G47815">G47815</option>
+                </select>
             </div>
             <div>
                 <label>Color</label>
-                <input type="text" id="col" placeholder="Ej: Navy">
+                <select id="col">
+                    <option value="" disabled selected>Selecciona...</option>
+                    <option value="AZUL FRANCIA">AZUL FRANCIA</option>
+                    <option value="AZUL">AZUL</option>
+                    <option value="NEGRO">NEGRO</option>
+                    <option value="OXFORD">OXFORD</option>
+                    <option value="MARINO">MARINO</option>
+                    <option value="GRIS CLARO">GRIS CLARO</option>
+                    <option value="R-BLUE">R-BLUE</option>
+                    <option value="CAMEL">CAMEL</option>
+                    <option value="BEIGE">BEIGE</option>
+                    <option value="VERDE HUNTER">VERDE HUNTER</option>
+                    <option value="VINO">VINO</option>
+                </select>
             </div>
             <div>
-                <label>Tallas (Separadas por comas)</label>
-                <input type="text" id="tal" placeholder="Ej: 36R, 38R, 40R">
+                <label>Tallas (Ctrl + Click para varias)</label>
+                <select id="tal" multiple style="height: 40px;">
+                    <option value="36R">36R</option>
+                    <option value="38R">38R</option>
+                    <option value="40R">40R</option>
+                    <option value="42R">42R</option>
+                    <option value="44R">44R</option>
+                    <option value="46R">46R</option>
+                    <option value="48R">48R</option>
+                    <option value="50R">50R</option>
+                    <option value="52R">52R</option>
+                    <option value="54R">54R</option>
+                    <option value="56R">56R</option>
+                    <option value="58R">58R</option>
+                    <option value="60R">60R</option>
+                </select>
             </div>
             <button class="btn btn-add" onclick="crearCiclico()">Guardar y Publicar</button>
         </div>
@@ -88,7 +132,7 @@
         const cuerpo = document.querySelector("#tabla tbody");
         cuerpo.innerHTML = "";
 
-        datos.reverse().forEach(c => { // reverse para ver los nuevos arriba
+        datos.reverse().forEach(c => {
             cuerpo.innerHTML += `
                 <tr>
                     <td><b>#${c.id}</b></td>
@@ -110,9 +154,12 @@
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
-        const tallasRaw = document.getElementById('tal').value;
+        const tallasSelect = document.getElementById('tal');
+        const tallasSeleccionadas = Array.from(tallasSelect.selectedOptions).map(option => option.value);
 
-        if(!modelo || !color || !tallasRaw) return alert("Por favor llena todos los campos.");
+        if(!modelo || !color || tallasSeleccionadas.length === 0) return alert("Por favor llena todos los campos.");
+
+        const tallasRaw = tallasSeleccionadas.join(', ');
 
         await fetch('/api/crear-ciclico', {
             method: 'POST',
@@ -120,12 +167,56 @@
             body: JSON.stringify({ modelo, color, tallasRaw })
         });
 
-        // Limpiar formulario y recargar
-        document.getElementById('mod').value = "";
-        document.getElementById('col').value = "";
-        document.getElementById('tal').value = "";
         alert("¡Cíclico creado! Ya aparece en los celulares.");
         cargarDatos();
+    }
+
+    // Nueva función para procesar el Excel masivo
+    function procesarExcel(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet);
+
+            // Agrupamos por Modelo y Color
+            const grupos = {};
+            rows.forEach(row => {
+                const mod = row.Modelo;
+                const col = row.Color;
+                const tal = row.Talla;
+                
+                if(mod && col && tal) {
+                    const key = `${mod}-${col}`;
+                    if(!grupos[key]) grupos[key] = { modelo: mod, color: col, tallas: [] };
+                    grupos[key].tallas.push(tal);
+                }
+            });
+
+            // Enviamos cada grupo al servidor
+            for (const key in grupos) {
+                const item = grupos[key];
+                await fetch('/api/crear-ciclico', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        modelo: item.modelo, 
+                        color: item.color, 
+                        tallasRaw: item.tallas.join(', ') 
+                    })
+                });
+            }
+
+            alert("Excel procesado. Se han creado los inventarios correspondientes.");
+            input.value = "";
+            cargarDatos();
+        };
+        reader.readAsArrayBuffer(file);
     }
 
     function descargarExcel(id) {
@@ -142,7 +233,6 @@
     }
 
     cargarDatos();
-    // Auto-actualizar cada 30 segundos por si alguien termina un conteo
     setInterval(cargarDatos, 30000);
 </script>
 </body>
