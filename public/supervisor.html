@@ -282,12 +282,38 @@
         reader.readAsArrayBuffer(file);
     }
 
+    // FUNCIÓN ACTUALIZADA PARA EXCEL CON TIEMPO TOTAL
     function descargarExcel(id) {
         const c = datos.find(item => item.id === id);
-        let csv = "ID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin\n";
+        
+        // 1. Lógica para calcular Tiempo Total
+        let tiempoTotal = "N/A";
+        if (c.horaInicio && c.horaFin) {
+            try {
+                // Usamos una fecha base ficticia para poder restar horas
+                const inicio = new Date(`1970-01-01T${c.horaInicio}`);
+                const fin = new Date(`1970-01-01T${c.horaFin}`);
+                
+                const diffMs = fin - inicio;
+                const totalSegundos = Math.floor(diffMs / 1000);
+                const mins = Math.floor(totalSegundos / 60);
+                const segs = totalSegundos % 60;
+                
+                tiempoTotal = `${mins}m ${segs}s`;
+            } catch (e) {
+                tiempoTotal = "Error en formato";
+            }
+        }
+
+        // 2. Crear encabezado del CSV (Sin columnas Inicio/Fin, agregando Tiempo Total)
+        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
+
+        // 3. Llenar filas
         c.resultados.forEach(r => {
-            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin}\n`;
+            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${tiempoTotal}\n`;
         });
+
+        // 4. Descarga del archivo
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);

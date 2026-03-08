@@ -58,7 +58,7 @@ app.post('/api/crear-ciclico', async (req, res) => {
         const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
         
         const nuevo = new Ciclico({
-            id: Date.now(),
+            id: Math.floor(Math.random() * 90) + Date.now().toString().slice(-6), // Genera un ID de 8 dígitos fácil de leer
             modelo,
             color,
             tallas: listaTallas,
