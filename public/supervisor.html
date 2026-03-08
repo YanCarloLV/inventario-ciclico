@@ -183,8 +183,6 @@
     async function cargarDatos() {
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
-        
-        // ORDEN CRONOLÓGICO: El ID más grande (timestamp nuevo) siempre arriba
         datosGlobales = listado.sort((a, b) => b.id - a.id);
 
         const cuerpoActivos = document.querySelector("#tablaActivos tbody");
@@ -299,7 +297,6 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // LÓGICA DE TIEMPOS ROBUSTA PARA EXCEL
     function parseTimeToSeconds(timeStr) {
         if (!timeStr || timeStr === '--') return null;
         const parts = timeStr.match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);

@@ -14,7 +14,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- CONFIGURACIÓN DE MONGODB ---
-// Mantenemos tu conexión original para no afectar los datos existentes
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico";
 
 mongoose.connect(MONGO_URI)
@@ -46,7 +45,6 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // 1. Obtener todos los inventarios
 app.get('/api/ciclicos', async (req, res) => {
     try {
-        // Ordenamos por ID de mayor a menor (el más reciente siempre arriba)
         const inventarios = await Ciclico.find().sort({ id: -1 });
         res.json(inventarios);
     } catch (error) {
@@ -61,7 +59,7 @@ app.post('/api/crear-ciclico', async (req, res) => {
         const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
 
         const nuevo = new Ciclico({
-            id: Date.now(), // Genera un ID como 1741457890123 (Siempre mayor al anterior)
+            id: Date.now(), 
             modelo,
             color,
             tallas: listaTallas,

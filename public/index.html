@@ -33,6 +33,17 @@
         #conteo-screen { display: none; }
         .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         
+        /* ESTILO PARA LA FOTO DEL MODELO */
+        .foto-referencia {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: white;
+            display: none; /* Se activa por JS si carga */
+        }
+
         /* Barra de Progreso Pro (AHORA FLOTANTE/STICKY) */
         .progress-wrapper { 
             position: sticky; 
@@ -155,7 +166,6 @@
     }
 
     async function apartarInventario(inv) {
-        // Generamos hora de inicio solo si es la primera vez (Estatus Pendiente)
         let horaInicioParam = null;
         if (!inv.asignadoA || inv.estatus === "Pendiente") {
             const ahora = new Date();
@@ -175,7 +185,6 @@
         const data = await res.json();
 
         if (data.success) {
-            // Re-obtenemos el objeto actualizado del servidor para tener los resultados previos
             const resActualizado = await fetch('/api/ciclicos');
             const todos = await resActualizado.json();
             const invActualizado = todos.find(i => i.id == inv.id);
@@ -193,10 +202,20 @@
         document.getElementById('listado-screen').style.display = 'none';
         document.getElementById('conteo-screen').style.display = 'block';
         
+        // Ruta para buscar la foto en /fotos/NOMBRE_DEL_MODELO.jpg
+        const rutaFoto = `/fotos/${inv.modelo}.jpg`;
+
         document.getElementById('info-header').innerHTML = `
-            <small style="opacity:0.8">ID: #${inv.id}</small>
-            <h2 style="color:white; margin:0;">${inv.modelo}</h2>
-            <p style="margin:5px 0 0 0; opacity:0.9">Color: ${inv.color}</p>
+            <div style="display:flex; gap:15px; align-items:center;">
+                <img src="${rutaFoto}" class="foto-referencia" 
+                     onload="this.style.display='block'" 
+                     onerror="this.style.display='none'">
+                <div>
+                    <small style="opacity:0.8">ID: #${inv.id}</small>
+                    <h2 style="color:white; margin:0;">${inv.modelo}</h2>
+                    <p style="margin:5px 0 0 0; opacity:0.9">Color: ${inv.color}</p>
+                </div>
+            </div>
         `;
         renderTallas();
     }
@@ -252,7 +271,6 @@
         const actualT = resultados.length;
         const porc = Math.round((actualT / totalT) * 100);
 
-        // Enviamos progreso al servidor para que el supervisor lo vea en tiempo real
         fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
