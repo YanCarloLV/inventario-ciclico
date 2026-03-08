@@ -69,7 +69,7 @@
         .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; }
         .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        /* Tabla y Efectos de Feedback Visual */
+        /* Tabla y Efecto Profesional de Resaltado */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
         th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
@@ -77,15 +77,12 @@
         .fin { background: #d4edda; color: #155724; }
         .pen { background: #fff3cd; color: #856404; }
 
-        /* Animación de Resaltado para Feedback de Éxito */
+        /* Animación para nuevos registros */
         @keyframes highlightNew {
-            0% { background-color: #fff3cd; } /* Amarillo suave */
+            0% { background-color: #d4edda; }
             100% { background-color: transparent; }
         }
-        .new-row { 
-            animation: highlightNew 4s ease-out; 
-            border-left: 5px solid #ffc107; /* Barra lateral amarilla de énfasis */
-        }
+        .new-row { animation: highlightNew 3s ease-out; }
     </style>
 </head>
 <body>
@@ -143,31 +140,20 @@
             <label>Selección de Tallas por Categoría:</label>
             <div class="tallas-grid-container">
                 <div class="talla-col">
-                    <div class="col-header">
-                        <div class="col-circle">C</div>
-                        <label class="select-all-box">
-                            <input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todas
-                        </label>
+                    <div class="col-header"><div class="col-circle">C</div>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todas</label>
                     </div>
                     <div id="list-C" class="sizes-list"></div>
                 </div>
-
                 <div class="talla-col">
-                    <div class="col-header">
-                        <div class="col-circle" style="background:#4834d4">R</div>
-                        <label class="select-all-box">
-                            <input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todas
-                        </label>
+                    <div class="col-header"><div class="col-circle" style="background:#4834d4">R</div>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todas</label>
                     </div>
                     <div id="list-R" class="sizes-list"></div>
                 </div>
-
                 <div class="talla-col">
-                    <div class="col-header">
-                        <div class="col-circle" style="background:#eb4d4b">L</div>
-                        <label class="select-all-box">
-                            <input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todas
-                        </label>
+                    <div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todas</label>
                     </div>
                     <div id="list-L" class="sizes-list"></div>
                 </div>
@@ -224,14 +210,14 @@
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
         
-        // ORDEN PROFESIONAL: Los más recientes arriba
+        // ORDENAMIENTO CRONOLÓGICO INVERSO (Más reciente primero)
         datos = listado.sort((a, b) => b.id - a.id);
 
         const cuerpo = document.querySelector("#tabla tbody");
         cuerpo.innerHTML = "";
 
         datos.forEach(c => {
-            // Aplicar clase de resaltado si es el que acabamos de crear
+            // Aplicar clase de resaltado si es el que se acaba de crear
             const isNew = c.id === ultimoIdCreado ? 'class="new-row"' : '';
             
             cuerpo.innerHTML += `
@@ -251,21 +237,17 @@
             `;
         });
         
-        // Limpiamos la referencia para que solo brille una vez
-        setTimeout(() => { ultimoIdCreado = null; }, 4000);
+        // Limpiar la referencia del último ID después de renderizar para que no brille siempre
+        setTimeout(() => { ultimoIdCreado = null; }, 3500);
     }
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
-        
-        // Buscamos solo los checks dentro de las listas para evitar la "talla on"
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked'))
                                    .map(cb => cb.value);
 
-        if(!modelo || !color || seleccionadas.length === 0) {
-            return alert("Por favor selecciona modelo, color y al menos una talla.");
-        }
+        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
 
         const res = await fetch('/api/crear-ciclico', {
             method: 'POST',
@@ -274,22 +256,20 @@
         });
 
         if(res.ok) {
-            const nuevo = await res.json();
-            ultimoIdCreado = nuevo.id; // Marcamos para el resaltado
+            const nuevoInventario = await res.json();
+            ultimoIdCreado = nuevoInventario.id; // Guardamos el ID para resaltarlo
             
             // Limpiar formulario
             document.getElementById('mod').selectedIndex = 0;
             document.getElementById('col').selectedIndex = 0;
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
             
-            alert("¡Inventario Publicado!");
-            
-            // Recargar tabla y hacer Scroll suave hacia abajo
-            await cargarDatos();
-            document.getElementById('tabla').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alert("Inventario creado correctamente.");
+            cargarDatos();
         }
     }
 
+    // El resto de funciones (Excel) se mantienen igual...
     function procesarExcel(input) {
         const file = input.files[0];
         if (!file) return;
@@ -315,7 +295,7 @@
                     body: JSON.stringify({ modelo: item.modelo, color: item.color, tallasRaw: item.tallas.join(', ') })
                 });
             }
-            alert("Excel procesado correctamente.");
+            alert("Carga masiva completada.");
             input.value = "";
             cargarDatos();
         };
@@ -337,7 +317,7 @@
 
     renderTallas();
     cargarDatos();
-    setInterval(cargarDatos, 30000); // Auto-actualización cada 30 seg
+    setInterval(cargarDatos, 30000);
 </script>
 </body>
 </html>
