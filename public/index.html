@@ -5,15 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Inventarios - Operador Pro</title>
     <style>
-        /* Estilos heredados del diseño original para mantener la experiencia visual */
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; color: #333; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 20px; transition: 0.3s; }
         h2 { margin-top: 0; color: #1a1a1a; font-size: 22px; }
         
-        /* Login Screen Estilizado */
+        /* Login Screen */
         #login-screen { display: none; max-width: 400px; margin: 100px auto; text-align: center; }
-        .input-pro { width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; }
-        .input-pro:focus { border-color: #3498db; box-shadow: 0 0 0 4px rgba(52,152,219,0.1); }
+        .input-pro { width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; outline: none; }
 
         /* Lista de Inventarios */
         .item-pend { 
@@ -29,11 +27,15 @@
         .tag-mine { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
         .tag-free { background: #f3f4f6; color: #374151; }
 
+        /* Empty State (Sin Inventarios) */
+        .empty-state { text-align: center; padding: 40px 20px; background: white; border-radius: 12px; border: 2px dashed #cbd5e1; color: #64748b; margin-top: 10px; }
+        .empty-state h3 { color: #334155; margin: 15px 0 5px 0; font-size: 18px; }
+
         /* Pantalla de Conteo Activo */
         #conteo-screen { display: none; }
-        .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; }
         
-        /* ESTILO PARA LA FOTO DEL MODELO */
+        /* ESTILO PARA LA FOTO Y EL ZOOM */
         .foto-referencia {
             width: 80px;
             height: 80px;
@@ -41,36 +43,46 @@
             border-radius: 10px;
             border: 2px solid rgba(255,255,255,0.2);
             background: white;
-            display: none; /* Se activa por JS si carga */
+            cursor: zoom-in;
+            display: none;
         }
 
-        /* Barra de Progreso Pro (AHORA FLOTANTE/STICKY) */
-        .progress-wrapper { 
-            position: sticky; 
-            top: 0; 
-            background-color: white; 
-            padding: 15px 0; 
-            margin: 0 0 15px 0;
-            z-index: 1000; 
-            border-bottom: 1px solid #f3f4f6; 
+        /* Capa de Zoom (Modal) */
+        #modal-zoom {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
         }
-        .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; position: relative; }
+        #modal-zoom img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        /* Barra de Progreso */
+        .progress-wrapper { position: sticky; top: 0; background-color: white; padding: 15px 0; margin-bottom: 15px; z-index: 1000; border-bottom: 1px solid #f3f4f6; }
+        .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); width: 0%; transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
         
-        /* Lista de Tallas */
-        .talla-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 15px; border-bottom: 1px solid #f3f4f6;
-        }
-        .talla-item:last-child { border-bottom: none; }
+        .talla-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f3f4f6; }
         .talla-info b { font-size: 18px; color: #2c3e50; }
         
         .btn-action { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .btn-finish { background: #27ae60; color: white; width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 25px; box-shadow: 0 4px 12px rgba(39,174,96,0.3); }
+        .btn-finish { background: #27ae60; color: white; width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 25px; }
         .btn-back { background: transparent; color: #94a3b8; border: none; margin-top: 15px; width: 100%; font-size: 14px; text-decoration: underline; }
     </style>
 </head>
 <body>
+
+    <div id="modal-zoom" onclick="cerrarZoom()">
+        <img id="img-ampliada" src="">
+    </div>
 
     <div id="login-screen" class="card">
         <img src="/logo.png" style="max-height: 80px; margin-bottom: 20px;">
@@ -108,7 +120,6 @@
     let inventarioActivo = null;
     let resultados = [];
 
-    // Verificación inicial de sesión
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
         document.getElementById('listado-screen').style.display = 'none';
@@ -129,37 +140,42 @@
             const res = await fetch('/api/ciclicos');
             const datos = await res.json();
             renderListaDisponibles(datos);
-        } catch (e) {
-            console.error("Error de conexión al servidor");
-        }
+        } catch (e) { console.error("Error"); }
     }
 
     function renderListaDisponibles(datos) {
         const contenedor = document.getElementById('lista-pendientes');
         contenedor.innerHTML = "";
-        
-        // Filtramos solo los que no están finalizados
         const disponibles = datos.filter(d => d.estatus !== "Finalizado");
+
+        // NUEVA LÓGICA: Si no hay inventarios disponibles, mostrar mensaje profesional
+        if (disponibles.length === 0) {
+            contenedor.innerHTML = `
+                <div class="empty-state">
+                    <span style="font-size: 45px;">☕</span>
+                    <h3>¡Todo al día!</h3>
+                    <p>Por el momento no hay inventarios asignados. Excelente trabajo.</p>
+                </div>
+            `;
+            return; // Detenemos la ejecución aquí si está vacío
+        }
 
         disponibles.forEach(inv => {
             const isMine = inv.asignadoA === miNombre;
             const isBusy = inv.asignadoA && inv.asignadoA !== miNombre;
-            
             const div = document.createElement('div');
             div.className = `item-pend ${isBusy ? 'busy' : ''}`;
             div.innerHTML = `
                 <div class="talla-info">
                     <b>${inv.modelo}</b><br>
                     <small style="color:#666">${inv.color} • ${inv.totalTallas} tallas</small>
-                    <br><small style="color:#999; font-size:9px">ID: #${inv.id}</small>
                 </div>
                 <div>
-                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado por ${inv.asignadoA}</span>` : ''}
-                    ${isMine ? `<span class="tag-status tag-mine">En Proceso - Tuyo</span>` : ''}
-                    ${!inv.asignadoA ? `<span class="tag-status tag-free">Disponible</span>` : ''}
+                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado</span>` : ''}
+                    ${isMine ? `<span class="tag-status tag-mine">En Proceso</span>` : ''}
+                    ${!inv.asignadoA ? `<span class="tag-status tag-free">Libre</span>` : ''}
                 </div>
             `;
-            
             if (!isBusy) div.onclick = () => apartarInventario(inv);
             contenedor.appendChild(div);
         });
@@ -171,29 +187,17 @@
             const ahora = new Date();
             horaInicioParam = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
-
         const res = await fetch('/api/asignar-operador', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                id: inv.id, 
-                operador: miNombre,
-                horaInicio: horaInicioParam 
-            })
+            body: JSON.stringify({ id: inv.id, operador: miNombre, horaInicio: horaInicioParam })
         });
-
-        const data = await res.json();
-
-        if (data.success) {
-            const resActualizado = await fetch('/api/ciclicos');
-            const todos = await resActualizado.json();
-            const invActualizado = todos.find(i => i.id == inv.id);
-
-            resultados = invActualizado.resultados || [];
-            abrirConteo(invActualizado);
-        } else {
-            alert("Error al intentar tomar el inventario. Es posible que alguien más lo haya seleccionado.");
-            iniciarApp();
+        if ((await res.json()).success) {
+            const res2 = await fetch('/api/ciclicos');
+            const todos = await res2.json();
+            const invAct = todos.find(i => i.id == inv.id);
+            resultados = invAct.resultados || [];
+            abrirConteo(invAct);
         }
     }
 
@@ -201,42 +205,44 @@
         inventarioActivo = inv;
         document.getElementById('listado-screen').style.display = 'none';
         document.getElementById('conteo-screen').style.display = 'block';
-        
-        // Ruta para buscar la foto en /fotos/NOMBRE_DEL_MODELO.jpg
         const rutaFoto = `/fotos/${inv.modelo}.jpg`;
 
         document.getElementById('info-header').innerHTML = `
             <div style="display:flex; gap:15px; align-items:center;">
                 <img src="${rutaFoto}" class="foto-referencia" 
+                     onclick="verZoom('${rutaFoto}')"
                      onload="this.style.display='block'" 
                      onerror="this.style.display='none'">
                 <div>
                     <small style="opacity:0.8">ID: #${inv.id}</small>
                     <h2 style="color:white; margin:0;">${inv.modelo}</h2>
-                    <p style="margin:5px 0 0 0; opacity:0.9">Color: ${inv.color}</p>
+                    <p style="margin:5px 0 0 0; opacity:0.9">${inv.color}</p>
+                    <small style="font-size:10px; color:#3498db; background:white; padding:2px 5px; border-radius:4px; margin-top:5px; display:inline-block;">Click en foto para ampliar</small>
                 </div>
             </div>
         `;
         renderTallas();
     }
 
+    // Funciones de Zoom
+    function verZoom(src) {
+        document.getElementById('img-ampliada').src = src;
+        document.getElementById('modal-zoom').style.display = 'flex';
+    }
+    function cerrarZoom() {
+        document.getElementById('modal-zoom').style.display = 'none';
+    }
+
     function renderTallas() {
         const lista = document.getElementById('lista-tallas-conteo');
         lista.innerHTML = "";
-        
         inventarioActivo.tallas.forEach(talla => {
             const yaContada = resultados.find(r => r.talla === talla);
-            
             lista.innerHTML += `
                 <div class="talla-item" style="${yaContada ? 'background:#f0fdf4' : ''}">
-                    <div class="talla-info">
-                        <b>${talla}</b>
-                    </div>
+                    <div class="talla-info"><b>${talla}</b></div>
                     ${yaContada 
-                        ? `<div style="text-align:right">
-                             <span style="color:#16a34a; font-weight:bold; display:block">✔ ${yaContada.cantidad} pzs</span>
-                             <button onclick="borrarTalla('${talla}')" style="font-size:10px; color:red; border:none; background:none; cursor:pointer;">Editar</button>
-                           </div>`
+                        ? `<div><span style="color:#16a34a; font-weight:bold">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:red; cursor:pointer; font-size:10px;">Editar</button></div>`
                         : `<button class="btn-action" onclick="capturarTalla('${talla}')">CONTAR</button>`
                     }
                 </div>
@@ -246,16 +252,11 @@
     }
 
     function capturarTalla(talla) {
-        const cant = prompt(`Ingrese cantidad para Talla ${talla}:`);
-        if (cant === null || cant.trim() === "") return;
-
-        const cantidadNumerica = parseInt(cant);
-        if (isNaN(cantidadNumerica)) return alert("Ingresa un número válido");
-
-        const index = resultados.findIndex(r => r.talla === talla);
-        if(index > -1) resultados[index].cantidad = cantidadNumerica;
-        else resultados.push({ talla, cantidad: cantidadNumerica });
-        
+        const cant = prompt(`Cantidad para ${talla}:`);
+        if (!cant) return;
+        const n = parseInt(cant);
+        if (isNaN(n)) return;
+        resultados.push({ talla, cantidad: n });
         enviarAvance();
         renderTallas();
     }
@@ -267,61 +268,33 @@
     }
 
     async function enviarAvance() {
-        const totalT = inventarioActivo.totalTallas;
-        const actualT = resultados.length;
-        const porc = Math.round((actualT / totalT) * 100);
-
+        const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
         fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                id: inventarioActivo.id, 
-                progreso: porc,
-                conteoActual: actualT,
-                resultados: resultados 
-            })
+            body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados })
         });
     }
 
     function actualizarProgresoVisual() {
-        const total = inventarioActivo.totalTallas;
-        const actual = resultados.length;
-        const porc = Math.round((actual / total) * 100);
-        
+        const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
         document.getElementById('bar-progreso').style.width = porc + "%";
         document.getElementById('texto-progreso').innerText = `Progreso: ${porc}%`;
-        document.getElementById('contador-tallas').innerText = `${actual}/${total} Tallas`;
-        
-        const btn = document.getElementById('btn-final');
-        if(porc === 100) btn.style.boxShadow = "0 0 20px rgba(39,174,96,0.6)";
-        else btn.style.boxShadow = "0 4px 12px rgba(39,174,96,0.3)";
+        document.getElementById('contador-tallas').innerText = `${resultados.length}/${inventarioActivo.totalTallas}`;
     }
 
     async function finalizarInventario() {
         if (resultados.length < inventarioActivo.totalTallas) {
-            if (!confirm("Faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
+            if (!confirm("¿Enviar incompleto?")) return;
         }
-
         const ahora = new Date();
         const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
         const res = await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                id: inventarioActivo.id, 
-                progreso: 100,
-                conteoActual: resultados.length,
-                resultados: resultados,
-                horaFin: horaFinStr,
-                estatus: "Finalizado"
-            })
+            body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" })
         });
-
-        if (res.ok) {
-            alert("🚀 Reporte enviado correctamente. Buen trabajo.");
-            location.reload();
-        }
+        if (res.ok) { alert("Reporte enviado"); location.reload(); }
     }
 </script>
 </body>
