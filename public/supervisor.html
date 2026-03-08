@@ -42,7 +42,6 @@
         .proc { background: #e3f2fd; color: #0d47a1; }
         .pen { background: #fff3cd; color: #856404; }
         
-        /* ESTILO NUEVO PARA DISTINGUIR HALLAZGOS */
         .tag-hallazgo { background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fbbf24; margin-left: 5px; }
         .row-hallazgo { background-color: #fffbeb !important; }
 
@@ -200,7 +199,6 @@
             const porcentaje = c.progreso || 0;
             const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
             
-            // Detectamos si es un hallazgo libre por el nombre del operador o estatus directo
             const esHallazgo = (c.asignadoA && c.asignadoA.includes("(HALLAZGO)"));
 
             if (c.estatus !== 'Finalizado') {
@@ -331,24 +329,37 @@
         let tiempoTotal = "N/A";
         const sIn = parseTimeToSeconds(c.horaInicio);
         const sFin = parseTimeToSeconds(c.horaFin);
-
         if (sIn !== null && sFin !== null) {
             let diff = sFin - sIn;
             if (diff < 0) diff += 86400; 
-            const mins = Math.floor(diff / 60);
-            const segs = diff % 60;
-            tiempoTotal = `${mins}m ${segs}s`;
+            tiempoTotal = `${Math.floor(diff / 60)}m ${diff % 60}s`;
         }
 
-        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
-        c.resultados.forEach(r => {
-            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
-        });
+        const esHallazgo = (c.asignadoA && c.asignadoA.includes("(HALLAZGO)"));
+        let csv = "";
+
+        if (esHallazgo) {
+            // ESTRUCTURA NUEVA PARA HALLAZGOS (Marca, Tipo, etc)
+            csv = "\uFEFFID,Marca/Tipo,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
+            c.resultados.forEach(r => {
+                let marcaTipo = "GENERAL";
+                const mod = (c.modelo || "").toLowerCase();
+                if(mod.includes("traje") || mod.includes("saco")) marcaTipo = "VESTIR";
+                
+                csv += `${c.id},${marcaTipo},${(c.modelo||"").replace(/,/g," ")},${(c.color||"").replace(/,/g," ")},${(c.asignadoA||"").replace(/,/g," ")},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
+            });
+        } else {
+            // ESTRUCTURA ORIGINAL PARA CICLICOS (No tocada)
+            csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
+            c.resultados.forEach(r => {
+                csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
+            });
+        }
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
+        link.download = `Reporte_${c.modelo.replace(/\s+/g, '_')}_${c.id}.csv`;
         link.click();
     }
 
