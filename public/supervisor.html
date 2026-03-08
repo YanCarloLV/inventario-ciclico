@@ -49,7 +49,7 @@
 <body>
 
 <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
-    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;" onerror="this.src='https://placehold.co/400x120?text=ADMINISTRACION+CENTRAL'">
+    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;">
 </div>
 
 <div class="container">
@@ -68,14 +68,32 @@
             <div class="row-inputs">
                 <div>
                     <label>Modelo</label>
-                    <select id="mod" onchange="actualizarColoresSegunModelo()">
-                        <option value="" disabled selected>Cargando modelos...</option>
+                    <select id="mod">
+                        <option value="" disabled selected>Selecciona modelo...</option>
+                        <option value="33739">33739</option>
+                        <option value="4030">4030</option>
+                        <option value="4040">4040</option>
+                        <option value="TR-1">TR-1</option>
+                        <option value="TR-2">TR-2</option>
+                        <option value="C67901">C67901</option>
+                        <option value="G47815">G47815</option>
                     </select>
                 </div>
                 <div>
                     <label>Color</label>
                     <select id="col">
-                        <option value="" disabled selected>Selecciona modelo primero...</option>
+                        <option value="" disabled selected>Selecciona color...</option>
+                        <option value="AZUL FRANCIA">AZUL FRANCIA</option>
+                        <option value="AZUL">AZUL</option>
+                        <option value="NEGRO">NEGRO</option>
+                        <option value="OXFORD">OXFORD</option>
+                        <option value="MARINO">MARINO</option>
+                        <option value="GRIS CLARO">GRIS CLARO</option>
+                        <option value="R-BLUE">R-BLUE</option>
+                        <option value="CAMEL">CAMEL</option>
+                        <option value="BEIGE">BEIGE</option>
+                        <option value="VERDE HUNTER">VERDE HUNTER</option>
+                        <option value="VINO">VINO</option>
                     </select>
                 </div>
             </div>
@@ -144,44 +162,7 @@
 
 <script>
     let datosGlobales = [];
-    let catalogoProductos = []; 
     const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
-
-    async function cargarCatalogo() {
-        try {
-            const res = await fetch('/api/catalogo');
-            const data = await res.json();
-            catalogoProductos = data;
-            
-            const modSelect = document.getElementById('mod');
-            modSelect.innerHTML = '<option value="" disabled selected>Selecciona modelo...</option>';
-            
-            // Extraer modelos únicos del catálogo sembrado
-            const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))];
-            
-            if(modelosUnicos.length === 0) {
-                modSelect.innerHTML = '<option value="" disabled>No hay modelos en BD</option>';
-            } else {
-                modelosUnicos.sort().forEach(m => {
-                    modSelect.innerHTML += `<option value="${m}">${m}</option>`;
-                });
-            }
-        } catch (e) { 
-            console.error("Error al cargar catálogo:", e); 
-            document.getElementById('mod').innerHTML = '<option value="" disabled>Error al conectar</option>';
-        }
-    }
-
-    function actualizarColoresSegunModelo() {
-        const modeloSelected = document.getElementById('mod').value;
-        const colSelect = document.getElementById('col');
-        colSelect.innerHTML = '<option value="" disabled selected>Selecciona color...</option>';
-        
-        const coloresFiltrados = catalogoProductos.filter(p => p.modelo === modeloSelected);
-        coloresFiltrados.forEach(p => {
-            colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`;
-        });
-    }
 
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
@@ -200,53 +181,51 @@
     }
 
     async function cargarDatos() {
-        try {
-            const res = await fetch('/api/ciclicos');
-            const listado = await res.json();
-            datosGlobales = listado.sort((a, b) => b.id - a.id);
+        const res = await fetch('/api/ciclicos');
+        const listado = await res.json();
+        datosGlobales = listado.sort((a, b) => b.id - a.id);
 
-            const cuerpoActivos = document.querySelector("#tablaActivos tbody");
-            const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
-            
-            cuerpoActivos.innerHTML = "";
-            cuerpoHistorial.innerHTML = "";
+        const cuerpoActivos = document.querySelector("#tablaActivos tbody");
+        const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
+        
+        cuerpoActivos.innerHTML = "";
+        cuerpoHistorial.innerHTML = "";
 
-            datosGlobales.forEach(c => {
-                const porcentaje = c.progreso || 0;
-                const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
+        datosGlobales.forEach(c => {
+            const porcentaje = c.progreso || 0;
+            const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
 
-                if (c.estatus !== 'Finalizado') {
-                    cuerpoActivos.innerHTML += `
-                        <tr>
-                            <td><b>#${c.id}</b></td>
-                            <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
-                            <td>
-                                <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
-                                ${c.estatus === 'En Proceso' ? `
-                                    <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div>
-                                    <small style="font-size:10px">${porcentaje}%</small>
-                                ` : ''}
-                            </td>
-                            <td>
-                                ${c.asignadoA || '---'}
-                                ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}
-                            </td>
-                            <td>${tiempos}</td>
-                        </tr>
-                    `;
-                } else {
-                    cuerpoHistorial.innerHTML += `
-                        <tr>
-                            <td><small>#${c.id}</small></td>
-                            <td>${c.modelo} - ${c.color}</td>
-                            <td>${c.asignadoA}</td>
-                            <td>${tiempos}</td>
-                            <td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td>
-                        </tr>
-                    `;
-                }
-            });
-        } catch(e) { console.warn("Error al refrescar tabla."); }
+            if (c.estatus !== 'Finalizado') {
+                cuerpoActivos.innerHTML += `
+                    <tr>
+                        <td><b>#${c.id}</b></td>
+                        <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
+                        <td>
+                            <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
+                            ${c.estatus === 'En Proceso' ? `
+                                <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div>
+                                <small style="font-size:10px">${porcentaje}%</small>
+                            ` : ''}
+                        </td>
+                        <td>
+                            ${c.asignadoA || '---'}
+                            ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}
+                        </td>
+                        <td>${tiempos}</td>
+                    </tr>
+                `;
+            } else {
+                cuerpoHistorial.innerHTML += `
+                    <tr>
+                        <td><small>#${c.id}</small></td>
+                        <td>${c.modelo} - ${c.color}</td>
+                        <td>${c.asignadoA}</td>
+                        <td>${tiempos}</td>
+                        <td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td>
+                    </tr>
+                `;
+            }
+        });
     }
 
     async function crearCiclico() {
@@ -254,31 +233,28 @@
         const color = document.getElementById('col').value;
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
 
-        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos obligatorios.");
+        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
 
-        try {
-            const res = await fetch('/api/crear-ciclico', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ modelo, color, tallasRaw: seleccionadas.join(', ') })
-            });
+        const res = await fetch('/api/crear-ciclico', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ modelo, color, tallasRaw: seleccionadas.join(', ') })
+        });
 
-            if(res.ok) {
-                limpiarFormulario();
-                cargarDatos();
-                alert("Inventario publicado con éxito.");
-            }
-        } catch(e) { alert("Error al guardar."); }
+        if(res.ok) {
+            limpiarFormulario();
+            cargarDatos();
+        }
     }
 
     function limpiarFormulario() {
         document.getElementById('mod').selectedIndex = 0;
-        document.getElementById('col').innerHTML = '<option value="" disabled selected>Selecciona modelo primero...</option>';
+        document.getElementById('col').selectedIndex = 0;
         document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
     }
 
     async function liberarInventario(id) {
-        if(!confirm("¿Deseas liberar este inventario? El operador perderá su progreso actual.")) return;
+        if(!confirm("¿Liberar este inventario? El operador perderá el progreso.")) return;
         await fetch('/api/liberar-inventario', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -352,21 +328,19 @@
 
         let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
         c.resultados.forEach(r => {
-            csv += `${c.id},"${c.modelo}","${c.color}","${c.asignadoA}","${r.talla}",${r.cantidad},"${c.horaInicio}","${c.horaFin}","${tiempoTotal}"\n`;
+            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${c.modelo}_ID${c.id}.csv`;
+        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
         link.click();
     }
 
-    // Inicialización
-    cargarCatalogo();
     renderTallas();
     cargarDatos();
-    setInterval(cargarDatos, 15000); 
+    setInterval(cargarDatos, 7000); 
 </script>
 </body>
 </html>

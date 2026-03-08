@@ -126,13 +126,13 @@
             
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="cerrarModalCantidad()" style="flex:1; padding:15px; background:#ecf0f1; color:#7f8c8d; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Cancelar</button>
-                <button id="btn-guardar-modal" onclick="guardarCantidadModal()" style="flex:1; padding:15px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Guardar</button>
+                <button onclick="guardarCantidadModal()" style="flex:1; padding:15px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Guardar</button>
             </div>
         </div>
     </div>
 
     <div id="login-screen" class="card">
-        <img src="/logo.png" style="max-height: 80px; margin-bottom: 20px;" onerror="this.src='https://placehold.co/200x80?text=LUCIANO+FERRETTI'">
+        <img src="/logo.png" style="max-height: 80px; margin-bottom: 20px;">
         <h2>Identificación de Operador</h2>
         <input type="text" id="nombre-input" class="input-pro" placeholder="Tu nombre completo">
         <button class="btn-finish" style="margin-top:0;" onclick="guardarNombre()">Comenzar Jornada</button>
@@ -188,16 +188,6 @@
             const res = await fetch('/api/ciclicos');
             const datos = await res.json();
             renderListaDisponibles(datos);
-            
-            const backup = localStorage.getItem('backup_resultados');
-            const backupId = localStorage.getItem('backup_id');
-            if(backup && backupId) {
-                const invBack = datos.find(i => i.id == backupId && i.estatus !== "Finalizado");
-                if(invBack && invBack.asignadoA === miNombre) {
-                    resultados = JSON.parse(backup);
-                    abrirConteo(invBack);
-                }
-            }
         } catch (e) { console.error("Error al cargar"); }
     }
 
@@ -260,12 +250,9 @@
 
     function abrirConteo(inv) {
         inventarioActivo = inv;
-        localStorage.setItem('backup_id', inv.id);
         document.getElementById('listado-screen').style.display = 'none';
         document.getElementById('conteo-screen').style.display = 'block';
-        
-        // CORRECCIÓN DE RUTA DE FOTO: Ahora busca en carpeta/color
-        const rutaFoto = `/fotos/${inv.modelo}/${inv.color}.jpg`;
+        const rutaFoto = `/fotos/${inv.modelo}.jpg`;
 
         document.getElementById('info-header').innerHTML = `
             <div style="display:flex; gap:15px; align-items:center;">
@@ -297,19 +284,15 @@
         lista.innerHTML = "";
         inventarioActivo.tallas.forEach(talla => {
             const yaContada = resultados.find(r => r.talla === talla);
-            const divTalla = document.createElement('div');
-            divTalla.className = 'talla-item';
-            divTalla.id = `fila-talla-${talla.replace(/\s+/g, '')}`;
-            if(yaContada) divTalla.style.background = '#f0fdf4';
-
-            divTalla.innerHTML = `
-                <div class="talla-info"><b>${talla}</b></div>
-                ${yaContada 
-                    ? `<div><span style="color:#16a34a; font-weight:bold; font-size:18px; margin-right:10px;">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold; text-decoration:underline;">Rehacer</button></div>`
-                    : `<button class="btn-action" onclick="abrirModalCantidad('${talla}')">CONTAR</button>`
-                }
+            lista.innerHTML += `
+                <div class="talla-item" id="fila-talla-${talla.replace(/\s+/g, '')}" style="${yaContada ? 'background:#f0fdf4' : ''}">
+                    <div class="talla-info"><b>${talla}</b></div>
+                    ${yaContada 
+                        ? `<div><span style="color:#16a34a; font-weight:bold; font-size:18px; margin-right:10px;">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold; text-decoration:underline;">Rehacer</button></div>`
+                        : `<button class="btn-action" onclick="abrirModalCantidad('${talla}')">CONTAR</button>`
+                    }
+                </div>
             `;
-            lista.appendChild(divTalla);
         });
         actualizarProgresoVisual();
     }
@@ -320,7 +303,7 @@
         const inputNum = document.getElementById('input-cantidad');
         inputNum.value = "";
         document.getElementById('modal-cantidad').style.display = 'flex';
-        setTimeout(() => inputNum.focus(), 150);
+        setTimeout(() => inputNum.focus(), 100);
     }
 
     function cerrarModalCantidad() {
@@ -338,22 +321,21 @@
         const n = parseInt(valStr);
         if (isNaN(n) || n < 0) return;
 
-        if (n > 50) {
-            if (!confirm(`¿Estás seguro que hay ${n} unidades? Es una cantidad inusual.`)) return;
-        }
-
         resultados.push({ talla: tallaActivaModal, cantidad: n });
-        localStorage.setItem('backup_resultados', JSON.stringify(resultados));
-
         cerrarModalCantidad();
         enviarAvance();
+        
+        // Renderizamos y luego aplicamos el scroll inteligente
         renderTallas();
         enfocarSiguienteTalla();
     }
 
+    // MEJORA: Función para buscar la siguiente talla vacía y centrarla
     function enfocarSiguienteTalla() {
+        // Buscamos el primer botón de "CONTAR" que exista en el DOM
         const primerBotonPendiente = document.querySelector('.btn-action');
         if (primerBotonPendiente) {
+            // Hacemos scroll suave hacia el contenedor de esa talla
             primerBotonPendiente.closest('.talla-item').scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'center' 
@@ -369,20 +351,17 @@
 
     function borrarTalla(talla) {
         resultados = resultados.filter(r => r.talla !== talla);
-        localStorage.setItem('backup_resultados', JSON.stringify(resultados));
         enviarAvance();
         renderTallas();
     }
 
     async function enviarAvance() {
         const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
-        try {
-            await fetch('/api/actualizar-progreso', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados })
-            });
-        } catch (e) { console.warn("Error de conexión"); }
+        fetch('/api/actualizar-progreso', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados })
+        });
     }
 
     function actualizarProgresoVisual() {
@@ -398,16 +377,12 @@
         }
         const ahora = new Date();
         const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
         const res = await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" })
         });
-        
         if (res.ok) { 
-            localStorage.removeItem('backup_resultados');
-            localStorage.removeItem('backup_id');
             alert("¡Reporte enviado exitosamente!"); 
             location.reload(); 
         }

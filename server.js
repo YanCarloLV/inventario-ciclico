@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
-// Puerto dinámico para Render o local
+// Render usa el puerto 10000 por defecto
 const PORT = process.env.PORT || 10000; 
 
 app.use(express.json());
@@ -21,11 +21,9 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error("❌ Error de conexión:", err.message));
 
 
-// --- MODELOS DE DATOS ---
-
-// Inventarios Cíclicos
+// --- MODELO DE DATOS ---
 const CiclicoSchema = new mongoose.Schema({
-    id: Number,           
+    id: Number,           // Usaremos Date.now() para ID largo y cronológico
     modelo: String,
     color: String,
     tallas: [String],
@@ -35,19 +33,11 @@ const CiclicoSchema = new mongoose.Schema({
     estatus: { type: String, default: "Pendiente" },
     asignadoA: { type: String, default: null },
     resultados: { type: Array, default: [] },
-    horaInicio: String,   
+    horaInicio: String,   // Guardamos formato "HH:MM:SS AM/PM"
     horaFin: String
 });
 
-// Catálogo Maestro 
-// Usamos strict: false por si el seed.js añade campos extras como 'sku' o 'familia'
-const CatalogoSchema = new mongoose.Schema({
-    modelo: String,
-    color: String
-}, { strict: false });
-
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
-const Catalogo = mongoose.model('Catalogo', CatalogoSchema, 'catalogo'); 
 
 
 // --- RUTAS DE LA API ---
@@ -62,58 +52,32 @@ app.get('/api/ciclicos', async (req, res) => {
     }
 });
 
-// 2. OBTENER CATÁLOGO (Alimenta los selectores del Supervisor)
-app.get('/api/catalogo', async (req, res) => {
-    try {
-        // Buscamos todo el catálogo para que el Supervisor filtre dinámicamente
-        const items = await Catalogo.find().sort({ modelo: 1 });
-        console.log(`📦 Catálogo solicitado: ${items.length} productos encontrados.`);
-        res.json(items);
-    } catch (error) {
-        res.status(500).json({ error: "Error al cargar el catálogo" });
-    }
-});
-
-// 3. Crear Nuevo Inventario
+// 2. Crear Nuevo Inventario (ID Largo Cronológico)
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
         const { modelo, color, tallasRaw } = req.body;
-        
-        // Convertir string de tallas a Array y limpiar espacios
-        let listaTallas = [];
-        if (Array.isArray(tallasRaw)) {
-            listaTallas = tallasRaw;
-        } else {
-            listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
-        }
+        const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
 
         const nuevo = new Ciclico({
             id: Date.now(), 
             modelo,
             color,
             tallas: listaTallas,
-            totalTallas: listaTallas.length || 1,
-            estatus: "Pendiente",
-            progreso: 0,
-            conteoActual: 0,
-            resultados: []
+            totalTallas: listaTallas.length || 1
         });
 
         await nuevo.save();
-        console.log(`✨ Inventario Creado: ${modelo} - ${color}`);
         res.json(nuevo);
     } catch (error) {
-        console.error("❌ Error al crear cíclico:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// 4. Liberar Inventario (Reset)
+// 3. Liberar Inventario (Reset para el Supervisor)
 app.post('/api/liberar-inventario', async (req, res) => {
     try {
         const { id } = req.body;
-        // Buscamos por el campo 'id' numérico, no por el _id de Mongo
-        await Ciclico.findOneAndUpdate({ id: Number(id) }, {
+        await Ciclico.findOneAndUpdate({ id }, {
             estatus: "Pendiente",
             asignadoA: null,
             progreso: 0,
@@ -128,32 +92,27 @@ app.post('/api/liberar-inventario', async (req, res) => {
     }
 });
 
-// 5. Actualizar Progreso (Desde la App del Operador)
+// 4. Actualizar Progreso (Desde la App del Operador)
 app.post('/api/actualizar-progreso', async (req, res) => {
     try {
         const { id, progreso, conteoActual, resultados, horaFin, estatus } = req.body;
         
-        const updateData = { 
-            progreso: Number(progreso), 
-            conteoActual: Number(conteoActual), 
-            resultados 
-        };
-        
+        const updateData = { progreso, conteoActual, resultados };
         if (horaFin) updateData.horaFin = horaFin;
         if (estatus) updateData.estatus = estatus;
 
-        const doc = await Ciclico.findOneAndUpdate({ id: Number(id) }, updateData, { new: true });
-        res.json({ success: true, doc });
+        await Ciclico.findOneAndUpdate({ id }, updateData);
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// 6. Asignar Operador
+// 5. Asignar Operador e Inicio de Tiempo
 app.post('/api/asignar-operador', async (req, res) => {
     try {
         const { id, operador, horaInicio } = req.body;
-        await Ciclico.findOneAndUpdate({ id: Number(id) }, {
+        await Ciclico.findOneAndUpdate({ id }, {
             asignadoA: operador,
             estatus: "En Proceso",
             horaInicio: horaInicio
@@ -164,7 +123,7 @@ app.post('/api/asignar-operador', async (req, res) => {
     }
 });
 
-// --- INICIO DEL SERVIDOR ---
+// Iniciar Servidor
 app.listen(PORT, () => {
     console.log(`✅ Servidor ejecutándose en puerto ${PORT}`);
 });
