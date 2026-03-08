@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CONEXIÓN A MONGODB
-const MONGO_URI = process.env.MONGO_URI || "TU_CADENA_DE_CONEXION_AQUÍ";
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico";
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("🚀 Conectado a MongoDB - La base de datos es persistente"))
