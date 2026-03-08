@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
-// Render usa el puerto 10000 por defecto
+// Puerto dinámico para Render o local
 const PORT = process.env.PORT || 10000; 
 
 app.use(express.json());
@@ -21,9 +21,11 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error("❌ Error de conexión:", err.message));
 
 
-// --- MODELO DE DATOS ---
+// --- MODELOS DE DATOS ---
+
+// Inventarios Cíclicos
 const CiclicoSchema = new mongoose.Schema({
-    id: Number,           // Usaremos Date.now() para ID largo y cronológico
+    id: Number,           
     modelo: String,
     color: String,
     tallas: [String],
@@ -33,11 +35,18 @@ const CiclicoSchema = new mongoose.Schema({
     estatus: { type: String, default: "Pendiente" },
     asignadoA: { type: String, default: null },
     resultados: { type: Array, default: [] },
-    horaInicio: String,   // Guardamos formato "HH:MM:SS AM/PM"
+    horaInicio: String,   
     horaFin: String
 });
 
+// Catálogo Maestro (Para alimentar los selectores del Supervisor)
+const CatalogoSchema = new mongoose.Schema({
+    modelo: String,
+    color: String
+});
+
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
+const Catalogo = mongoose.model('Catalogo', CatalogoSchema, 'catalogo'); // Colección 'catalogo'
 
 
 // --- RUTAS DE LA API ---
@@ -52,10 +61,21 @@ app.get('/api/ciclicos', async (req, res) => {
     }
 });
 
-// 2. Crear Nuevo Inventario (ID Largo Cronológico)
+// 2. OBTENER CATÁLOGO (Nueva ruta para el Supervisor inteligente)
+app.get('/api/catalogo', async (req, res) => {
+    try {
+        const items = await Catalogo.find().sort({ modelo: 1 });
+        res.json(items);
+    } catch (error) {
+        res.status(500).json({ error: "Error al cargar el catálogo" });
+    }
+});
+
+// 3. Crear Nuevo Inventario (ID Largo Cronológico)
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
         const { modelo, color, tallasRaw } = req.body;
+        // Limpiamos y convertimos el string de tallas en un array limpio
         const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
 
         const nuevo = new Ciclico({
@@ -73,7 +93,7 @@ app.post('/api/crear-ciclico', async (req, res) => {
     }
 });
 
-// 3. Liberar Inventario (Reset para el Supervisor)
+// 4. Liberar Inventario (Reset para el Supervisor)
 app.post('/api/liberar-inventario', async (req, res) => {
     try {
         const { id } = req.body;
@@ -92,7 +112,7 @@ app.post('/api/liberar-inventario', async (req, res) => {
     }
 });
 
-// 4. Actualizar Progreso (Desde la App del Operador)
+// 5. Actualizar Progreso (Desde la App del Operador)
 app.post('/api/actualizar-progreso', async (req, res) => {
     try {
         const { id, progreso, conteoActual, resultados, horaFin, estatus } = req.body;
@@ -108,7 +128,7 @@ app.post('/api/actualizar-progreso', async (req, res) => {
     }
 });
 
-// 5. Asignar Operador e Inicio de Tiempo
+// 6. Asignar Operador e Inicio de Tiempo
 app.post('/api/asignar-operador', async (req, res) => {
     try {
         const { id, operador, horaInicio } = req.body;
@@ -123,7 +143,7 @@ app.post('/api/asignar-operador', async (req, res) => {
     }
 });
 
-// Iniciar Servidor
+// --- INICIO DEL SERVIDOR ---
 app.listen(PORT, () => {
     console.log(`✅ Servidor ejecutándose en puerto ${PORT}`);
 });

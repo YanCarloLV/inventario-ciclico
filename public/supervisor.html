@@ -49,7 +49,7 @@
 <body>
 
 <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
-    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;">
+    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;" onerror="this.src='https://placehold.co/400x120?text=ADMINISTRACION+CENTRAL'">
 </div>
 
 <div class="container">
@@ -68,32 +68,14 @@
             <div class="row-inputs">
                 <div>
                     <label>Modelo</label>
-                    <select id="mod">
-                        <option value="" disabled selected>Selecciona modelo...</option>
-                        <option value="33739">33739</option>
-                        <option value="4030">4030</option>
-                        <option value="4040">4040</option>
-                        <option value="TR-1">TR-1</option>
-                        <option value="TR-2">TR-2</option>
-                        <option value="C67901">C67901</option>
-                        <option value="G47815">G47815</option>
+                    <select id="mod" onchange="actualizarColoresSegunModelo()">
+                        <option value="" disabled selected>Cargando modelos...</option>
                     </select>
                 </div>
                 <div>
                     <label>Color</label>
                     <select id="col">
-                        <option value="" disabled selected>Selecciona color...</option>
-                        <option value="AZUL FRANCIA">AZUL FRANCIA</option>
-                        <option value="AZUL">AZUL</option>
-                        <option value="NEGRO">NEGRO</option>
-                        <option value="OXFORD">OXFORD</option>
-                        <option value="MARINO">MARINO</option>
-                        <option value="GRIS CLARO">GRIS CLARO</option>
-                        <option value="R-BLUE">R-BLUE</option>
-                        <option value="CAMEL">CAMEL</option>
-                        <option value="BEIGE">BEIGE</option>
-                        <option value="VERDE HUNTER">VERDE HUNTER</option>
-                        <option value="VINO">VINO</option>
+                        <option value="" disabled selected>Selecciona modelo primero...</option>
                     </select>
                 </div>
             </div>
@@ -162,7 +144,37 @@
 
 <script>
     let datosGlobales = [];
+    let catalogoProductos = []; // SUMA: Almacén para el catálogo dinámico
     const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
+
+    // SUMA: Cargar catálogo al iniciar
+    async function cargarCatalogo() {
+        try {
+            const res = await fetch('/api/catalogo');
+            catalogoProductos = await res.json();
+            
+            const modSelect = document.getElementById('mod');
+            modSelect.innerHTML = '<option value="" disabled selected>Selecciona modelo...</option>';
+            
+            // Extraer modelos únicos
+            const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))];
+            modelosUnicos.forEach(m => {
+                modSelect.innerHTML += `<option value="${m}">${m}</option>`;
+            });
+        } catch (e) { console.error("Error al cargar catálogo"); }
+    }
+
+    // SUMA: Filtrar colores automáticamente
+    function actualizarColoresSegunModelo() {
+        const modeloSelected = document.getElementById('mod').value;
+        const colSelect = document.getElementById('col');
+        colSelect.innerHTML = '<option value="" disabled selected>Selecciona color...</option>';
+        
+        const coloresFiltrados = catalogoProductos.filter(p => p.modelo === modeloSelected);
+        coloresFiltrados.forEach(p => {
+            colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`;
+        });
+    }
 
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
@@ -233,7 +245,7 @@
         const color = document.getElementById('col').value;
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
 
-        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
+        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos obligatorios.");
 
         const res = await fetch('/api/crear-ciclico', {
             method: 'POST',
@@ -249,12 +261,12 @@
 
     function limpiarFormulario() {
         document.getElementById('mod').selectedIndex = 0;
-        document.getElementById('col').selectedIndex = 0;
+        document.getElementById('col').innerHTML = '<option value="" disabled selected>Selecciona modelo primero...</option>';
         document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
     }
 
     async function liberarInventario(id) {
-        if(!confirm("¿Liberar este inventario? El operador perderá el progreso.")) return;
+        if(!confirm("¿Deseas liberar este inventario? El operador perderá su progreso actual y el inventario volverá a estar libre.")) return;
         await fetch('/api/liberar-inventario', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -290,7 +302,7 @@
                     body: JSON.stringify({ modelo: item.modelo, color: item.color, tallasRaw: item.tallas.join(', ') })
                 });
             }
-            alert("Carga masiva completada.");
+            alert("Carga masiva completada con éxito.");
             input.value = "";
             cargarDatos();
         };
@@ -328,16 +340,18 @@
 
         let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
         c.resultados.forEach(r => {
-            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
+            csv += `${c.id},"${c.modelo}","${c.color}","${c.asignadoA}","${r.talla}",${r.cantidad},"${c.horaInicio}","${c.horaFin}","${tiempoTotal}"\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
+        link.download = `Reporte_${c.modelo}_ID${c.id}.csv`;
         link.click();
     }
 
+    // Inicialización
+    cargarCatalogo();
     renderTallas();
     cargarDatos();
     setInterval(cargarDatos, 7000); 
