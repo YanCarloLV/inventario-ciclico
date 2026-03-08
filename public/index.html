@@ -104,7 +104,7 @@
         .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); width: 0%; transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
         
-        .talla-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f3f4f6; }
+        .talla-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f3f4f6; transition: background 0.3s; }
         .talla-info b { font-size: 18px; color: #2c3e50; }
         
         .btn-action { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
@@ -166,7 +166,7 @@
     let miNombre = localStorage.getItem('operador_nombre');
     let inventarioActivo = null;
     let resultados = [];
-    let tallaActivaModal = null; // Variable para saber qué talla estamos editando en el modal
+    let tallaActivaModal = null;
 
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
@@ -285,7 +285,7 @@
         inventarioActivo.tallas.forEach(talla => {
             const yaContada = resultados.find(r => r.talla === talla);
             lista.innerHTML += `
-                <div class="talla-item" style="${yaContada ? 'background:#f0fdf4' : ''}">
+                <div class="talla-item" id="fila-talla-${talla.replace(/\s+/g, '')}" style="${yaContada ? 'background:#f0fdf4' : ''}">
                     <div class="talla-info"><b>${talla}</b></div>
                     ${yaContada 
                         ? `<div><span style="color:#16a34a; font-weight:bold; font-size:18px; margin-right:10px;">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold; text-decoration:underline;">Rehacer</button></div>`
@@ -297,15 +297,12 @@
         actualizarProgresoVisual();
     }
 
-    // NUVAS FUNCIONES PARA EL MODAL NUMÉRICO
     function abrirModalCantidad(talla) {
         tallaActivaModal = talla;
         document.getElementById('modal-talla-label').innerText = talla;
         const inputNum = document.getElementById('input-cantidad');
-        inputNum.value = ""; // Limpiar input
+        inputNum.value = "";
         document.getElementById('modal-cantidad').style.display = 'flex';
-        
-        // Pequeño delay para asegurar que el teclado numérico se levante automáticamente
         setTimeout(() => inputNum.focus(), 100);
     }
 
@@ -327,10 +324,25 @@
         resultados.push({ talla: tallaActivaModal, cantidad: n });
         cerrarModalCantidad();
         enviarAvance();
+        
+        // Renderizamos y luego aplicamos el scroll inteligente
         renderTallas();
+        enfocarSiguienteTalla();
     }
 
-    // Permitir guardar al presionar la tecla "Enter" en el teclado del celular
+    // MEJORA: Función para buscar la siguiente talla vacía y centrarla
+    function enfocarSiguienteTalla() {
+        // Buscamos el primer botón de "CONTAR" que exista en el DOM
+        const primerBotonPendiente = document.querySelector('.btn-action');
+        if (primerBotonPendiente) {
+            // Hacemos scroll suave hacia el contenedor de esa talla
+            primerBotonPendiente.closest('.talla-item').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }
+    }
+
     document.getElementById('input-cantidad').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             guardarCantidadModal();
