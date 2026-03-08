@@ -2,17 +2,17 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000; // Render usa el 10000 por defecto
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CONEXIÓN A MONGODB
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico";
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("🚀 Conectado a MongoDB - La base de datos es persistente"))
-  .catch(err => console.error("❌ Error conectando a MongoDB:", err));
+  .then(() => console.log("🚀 Conectado a MongoDB Atlas"))
+  .catch(err => console.error("❌ Error de conexión:", err));
 
 // MODELO DE DATOS
 const CiclicoSchema = new mongoose.Schema({
@@ -20,7 +20,7 @@ const CiclicoSchema = new mongoose.Schema({
     modelo: String,
     color: String,
     tallas: [String],
-    totalTallas: Number,
+    totalTallas: { type: Number, default: 0 },
     conteoActual: { type: Number, default: 0 },
     progreso: { type: Number, default: 0 },
     estatus: { type: String, default: "Pendiente" },
@@ -32,93 +32,110 @@ const CiclicoSchema = new mongoose.Schema({
 
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 
-// --- RUTAS CON MONGODB ---
+// --- RUTAS BLINDADAS ---
 
-// 1. Obtener todos los inventarios
 app.get('/api/ciclicos', async (req, res) => {
-    const inventarios = await Ciclico.find().sort({ id: -1 });
-    res.json(inventarios);
+    try {
+        const inventarios = await Ciclico.find().sort({ id: -1 });
+        res.json(inventarios);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// 2. Crear Inventario
 app.post('/api/crear-ciclico', async (req, res) => {
-    const { modelo, color, tallasRaw } = req.body;
-    const listaTallas = tallasRaw.split(',').map(t => t.trim());
-    
-    const nuevo = new Ciclico({
-        id: Date.now(),
-        modelo,
-        color,
-        tallas: listaTallas,
-        totalTallas: listaTallas.length
-    });
+    try {
+        const { modelo, color, tallasRaw } = req.body;
+        const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+        
+        const nuevo = new Ciclico({
+            id: Date.now(),
+            modelo,
+            color,
+            tallas: listaTallas,
+            totalTallas: listaTallas.length || 1 // Evitamos división por cero
+        });
 
-    await nuevo.save();
-    res.json(nuevo);
-});
-
-// 3. Apartar Inventario (Control de Colisiones)
-app.post('/api/apartar-inventario', async (req, res) => {
-    const { id, nombreOperador } = req.body;
-    const inv = await Ciclico.findOne({ id });
-
-    if (inv) {
-        if (inv.asignadoA === null || inv.asignadoA === nombreOperador) {
-            inv.estatus = "En Proceso";
-            inv.asignadoA = nombreOperador;
-            if (!inv.horaInicio) inv.horaInicio = new Date().toLocaleTimeString();
-            await inv.save();
-            res.json({ success: true, inventario: inv });
-        } else {
-            res.status(403).json({ success: false, message: "Ocupado por " + inv.asignadoA });
-        }
-    } else {
-        res.status(404).json({ success: false });
+        await nuevo.save();
+        res.json(nuevo);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
-// 4. Actualizar Avance (Barra de progreso)
 app.post('/api/actualizar-progreso', async (req, res) => {
-    const { id, resultadosActuales } = req.body;
-    const inv = await Ciclico.findOne({ id });
+    try {
+        const { id, resultadosActuales } = req.body;
+        const inv = await Ciclico.findOne({ id });
 
-    if (inv) {
-        inv.resultados = resultadosActuales;
-        inv.conteoActual = resultadosActuales.length;
-        inv.progreso = Math.round((inv.conteoActual / inv.totalTallas) * 100);
-        await inv.save();
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ success: false });
+        if (inv) {
+            inv.resultados = resultadosActuales;
+            inv.conteoActual = resultadosActuales.length;
+            
+            // BLINDAJE: Si totalTallas es 0, el progreso es 0. Si no, calculamos.
+            let calculo = 0;
+            if (inv.totalTallas > 0) {
+                calculo = Math.round((inv.conteoActual / inv.totalTallas) * 100);
+            }
+            
+            // Si por alguna razón el cálculo sigue siendo NaN, forzamos a 0
+            inv.progreso = isNaN(calculo) ? 0 : calculo;
+
+            await inv.save();
+            res.json({ success: true, progreso: inv.progreso });
+        } else {
+            res.status(404).json({ success: false, message: "No encontrado" });
+        }
+    } catch (error) {
+        console.error("Error en progreso:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// 5. Finalizar
+// Ruta para apartar (Control de colisiones)
+app.post('/api/apartar-inventario', async (req, res) => {
+    try {
+        const { id, nombreOperador } = req.body;
+        const inv = await Ciclico.findOne({ id });
+        if (inv) {
+            if (!inv.asignadoA || inv.asignadoA === nombreOperador) {
+                inv.estatus = "En Proceso";
+                inv.asignadoA = nombreOperador;
+                if (!inv.horaInicio) inv.horaInicio = new Date().toLocaleTimeString();
+                await inv.save();
+                res.json({ success: true, inventario: inv });
+            } else {
+                res.status(403).json({ success: false, message: "Ocupado por " + inv.asignadoA });
+            }
+        } else { res.status(404).json({ success: false }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/finalizar-ciclico', async (req, res) => {
-    const { id, resultados } = req.body;
-    const inv = await Ciclico.findOne({ id });
-
-    if (inv) {
-        inv.estatus = "Finalizado";
-        inv.resultados = resultados;
-        inv.horaFin = new Date().toLocaleTimeString();
-        await inv.save();
+    try {
+        const { id, resultados } = req.body;
+        await Ciclico.findOneAndUpdate({ id }, {
+            estatus: "Finalizado",
+            resultados: resultados,
+            horaFin: new Date().toLocaleTimeString(),
+            progreso: 100
+        });
         res.json({ success: true });
-    } else {
-        res.status(404).json({ success: false });
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 6. Liberar (Supervisor)
 app.post('/api/liberar-inventario', async (req, res) => {
-    const { id } = req.body;
-    await Ciclico.findOneAndUpdate({ id }, {
-        estatus: "Pendiente",
-        asignadoA: null,
-        progreso: 0,
-        conteoActual: 0
-    });
-    res.json({ success: true });
+    try {
+        const { id } = req.body;
+        await Ciclico.findOneAndUpdate({ id }, {
+            estatus: "Pendiente",
+            asignadoA: null,
+            progreso: 0,
+            conteoActual: 0,
+            resultados: []
+        });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(PORT, () => console.log(`🚀 Servidor MongoDB Activo en puerto ${PORT}`));
