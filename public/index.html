@@ -37,11 +37,11 @@
         .progress-wrapper { 
             position: sticky; 
             top: 0; 
-            background-color: white; /* Fondo sólido para tapar las tallas al hacer scroll */
+            background-color: white; 
             padding: 15px 0; 
             margin: 0 0 15px 0;
-            z-index: 1000; /* Lo mantiene al frente */
-            border-bottom: 1px solid #f3f4f6; /* Línea sutil para separar la barra de las tallas */
+            z-index: 1000; 
+            border-bottom: 1px solid #f3f4f6; 
         }
         .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; position: relative; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); width: 0%; transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
@@ -97,6 +97,7 @@
     let inventarioActivo = null;
     let resultados = [];
 
+    // Verificación inicial de sesión
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
         document.getElementById('listado-screen').style.display = 'none';
@@ -118,7 +119,7 @@
             const datos = await res.json();
             renderListaDisponibles(datos);
         } catch (e) {
-            console.error("Error de conexión");
+            console.error("Error de conexión al servidor");
         }
     }
 
@@ -126,6 +127,7 @@
         const contenedor = document.getElementById('lista-pendientes');
         contenedor.innerHTML = "";
         
+        // Filtramos solo los que no están finalizados
         const disponibles = datos.filter(d => d.estatus !== "Finalizado");
 
         disponibles.forEach(inv => {
@@ -138,6 +140,7 @@
                 <div class="talla-info">
                     <b>${inv.modelo}</b><br>
                     <small style="color:#666">${inv.color} • ${inv.totalTallas} tallas</small>
+                    <br><small style="color:#999; font-size:9px">ID: #${inv.id}</small>
                 </div>
                 <div>
                     ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado por ${inv.asignadoA}</span>` : ''}
@@ -152,19 +155,35 @@
     }
 
     async function apartarInventario(inv) {
-        const res = await fetch('/api/apartar-inventario', {
+        // Generamos hora de inicio solo si es la primera vez (Estatus Pendiente)
+        let horaInicioParam = null;
+        if (!inv.asignadoA || inv.estatus === "Pendiente") {
+            const ahora = new Date();
+            horaInicioParam = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        const res = await fetch('/api/asignar-operador', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inv.id, nombreOperador: miNombre })
+            body: JSON.stringify({ 
+                id: inv.id, 
+                operador: miNombre,
+                horaInicio: horaInicioParam 
+            })
         });
+
         const data = await res.json();
 
         if (data.success) {
-            // Cargar resultados previos si el usuario ya había avanzado (Resiliencia)
-            resultados = data.inventario.resultados || [];
-            abrirConteo(data.inventario);
+            // Re-obtenemos el objeto actualizado del servidor para tener los resultados previos
+            const resActualizado = await fetch('/api/ciclicos');
+            const todos = await resActualizado.json();
+            const invActualizado = todos.find(i => i.id == inv.id);
+
+            resultados = invActualizado.resultados || [];
+            abrirConteo(invActualizado);
         } else {
-            alert("Este inventario ya fue tomado por otra persona.");
+            alert("Error al intentar tomar el inventario. Es posible que alguien más lo haya seleccionado.");
             iniciarApp();
         }
     }
@@ -197,7 +216,7 @@
                     ${yaContada 
                         ? `<div style="text-align:right">
                              <span style="color:#16a34a; font-weight:bold; display:block">✔ ${yaContada.cantidad} pzs</span>
-                             <button onclick="borrarTalla('${talla}')" style="font-size:10px; color:red; border:none; background:none;">Editar</button>
+                             <button onclick="borrarTalla('${talla}')" style="font-size:10px; color:red; border:none; background:none; cursor:pointer;">Editar</button>
                            </div>`
                         : `<button class="btn-action" onclick="capturarTalla('${talla}')">CONTAR</button>`
                     }
@@ -214,7 +233,6 @@
         const cantidadNumerica = parseInt(cant);
         if (isNaN(cantidadNumerica)) return alert("Ingresa un número válido");
 
-        // Guardar o Actualizar
         const index = resultados.findIndex(r => r.talla === talla);
         if(index > -1) resultados[index].cantidad = cantidadNumerica;
         else resultados.push({ talla, cantidad: cantidadNumerica });
@@ -230,11 +248,20 @@
     }
 
     async function enviarAvance() {
-        // Esta función envía el avance al servidor cada vez que el usuario captura algo
+        const totalT = inventarioActivo.totalTallas;
+        const actualT = resultados.length;
+        const porc = Math.round((actualT / totalT) * 100);
+
+        // Enviamos progreso al servidor para que el supervisor lo vea en tiempo real
         fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inventarioActivo.id, resultadosActuales: resultados })
+            body: JSON.stringify({ 
+                id: inventarioActivo.id, 
+                progreso: porc,
+                conteoActual: actualT,
+                resultados: resultados 
+            })
         });
     }
 
@@ -247,9 +274,9 @@
         document.getElementById('texto-progreso').innerText = `Progreso: ${porc}%`;
         document.getElementById('contador-tallas').innerText = `${actual}/${total} Tallas`;
         
-        // Efecto visual en el botón final
         const btn = document.getElementById('btn-final');
         if(porc === 100) btn.style.boxShadow = "0 0 20px rgba(39,174,96,0.6)";
+        else btn.style.boxShadow = "0 4px 12px rgba(39,174,96,0.3)";
     }
 
     async function finalizarInventario() {
@@ -257,13 +284,19 @@
             if (!confirm("Faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
         }
 
-        const res = await fetch('/api/finalizar-ciclico', {
+        const ahora = new Date();
+        const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        const res = await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
                 id: inventarioActivo.id, 
-                nombreOperador: miNombre,
-                resultados: resultados
+                progreso: 100,
+                conteoActual: resultados.length,
+                resultados: resultados,
+                horaFin: horaFinStr,
+                estatus: "Finalizado"
             })
         });
 
