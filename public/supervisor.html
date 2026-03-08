@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Supervisor Pro</title>
+    <title>Panel de Control - Supervisor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
@@ -11,41 +11,77 @@
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h1, h2 { color: #2c3e50; margin-top: 0; }
         
+        /* Formulario Layout */
         .form-main { display: flex; flex-direction: column; gap: 20px; }
         .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        
         label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; }
         select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; background: white; font-size: 14px; }
         
-        .tallas-grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 10px; }
-        .talla-col { background: white; border: 1px solid #e0e6ed; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .col-header { background: #f8f9fa; padding: 12px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .col-circle { width: 30px; height: 30px; background: #6c5ce7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
-        .select-all-box { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; color: #2c3e50; width: 100%; padding-top: 5px; }
+        /* Columnas de Tallas (Estructura Blindada) */
+        .tallas-grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .talla-col {
+            background: white;
+            border: 1px solid #e0e6ed;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .col-header {
+            background: #f8f9fa;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .col-circle {
+            width: 30px; height: 30px;
+            background: #6c5ce7; color: white;
+            border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px;
+        }
+        .select-all-box {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; font-weight: bold; color: #2c3e50;
+            width: 100%; padding-top: 5px;
+        }
         .sizes-list { max-height: 400px; overflow-y: auto; padding: 10px; }
-        .size-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #f1f1f1; font-size: 14px; color: #555; cursor: pointer; }
+        .size-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 8px; border-bottom: 1px solid #f1f1f1;
+            font-size: 14px; color: #555; cursor: pointer;
+        }
+        .size-item:hover { background: #f9f9f9; }
         .size-item input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
 
+        /* Botones */
         .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
         .btn-add { background: #3498db; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
         .btn-refresh { background: #95a5a6; color: white; }
-        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; padding: 8px 15px; }
-        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-left: 5px; border: none; cursor: pointer; }
+        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
+        /* Tabla y Efecto Profesional de Resaltado */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
         th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
-        
-        .progress-mini-bg { background: #eee; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; max-width: 100px; margin-top: 5px; }
-        .progress-mini-fill { background: #3498db; height: 100%; transition: 0.5s; }
-
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .proc { background: #e3f2fd; color: #0d47a1; }
+        .fin { background: #d4edda; color: #155724; }
         .pen { background: #fff3cd; color: #856404; }
-        
-        .tag-hallazgo { background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fbbf24; margin-left: 5px; }
-        .row-hallazgo { background-color: #fffbeb !important; }
 
-        @keyframes highlightNew { 0% { background-color: #d4edda; } 100% { background-color: transparent; } }
+        /* Animación para nuevos registros */
+        @keyframes highlightNew {
+            0% { background-color: #d4edda; }
+            100% { background-color: transparent; }
+        }
         .new-row { animation: highlightNew 3s ease-out; }
     </style>
 </head>
@@ -105,19 +141,19 @@
             <div class="tallas-grid-container">
                 <div class="talla-col">
                     <div class="col-header"><div class="col-circle">C</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Todas</label>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todas</label>
                     </div>
                     <div id="list-C" class="sizes-list"></div>
                 </div>
                 <div class="talla-col">
                     <div class="col-header"><div class="col-circle" style="background:#4834d4">R</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Todas</label>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todas</label>
                     </div>
                     <div id="list-R" class="sizes-list"></div>
                 </div>
                 <div class="talla-col">
                     <div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Todas</label>
+                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todas</label>
                     </div>
                     <div id="list-L" class="sizes-list"></div>
                 </div>
@@ -128,33 +164,19 @@
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <h2 style="color: #e67e22;">🚀 Inventarios Activos (En Curso)</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>📊 Monitor de Actividad</h2>
             <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
         </div>
-        <table id="tablaActivos">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Modelo/Color</th>
-                    <th>Estado / Progreso</th>
-                    <th>Operador</th>
-                    <th>Tiempos</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <div class="card" style="opacity: 0.9;">
-        <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
-        <table id="tablaHistorial">
+        <table id="tabla">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Modelo/Color</th>
                     <th>Operador</th>
                     <th>Tiempos</th>
+                    <th>Duración</th>
+                    <th>Estatus</th>
                     <th>Reporte</th>
                 </tr>
             </thead>
@@ -164,7 +186,8 @@
 </div>
 
 <script>
-    let datosGlobales = [];
+    let datos = [];
+    let ultimoIdCreado = null;
     const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
 
     function renderTallas() {
@@ -187,63 +210,42 @@
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
         
-        datosGlobales = listado.sort((a, b) => b.id - a.id);
+        // ORDENAMIENTO CRONOLÓGICO INVERSO (Más reciente primero)
+        datos = listado.sort((a, b) => b.id - a.id);
 
-        const cuerpoActivos = document.querySelector("#tablaActivos tbody");
-        const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
-        
-        cuerpoActivos.innerHTML = "";
-        cuerpoHistorial.innerHTML = "";
+        const cuerpo = document.querySelector("#tabla tbody");
+        cuerpo.innerHTML = "";
 
-        datosGlobales.forEach(c => {
-            const porcentaje = c.progreso || 0;
-            const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
+        datos.forEach(c => {
+            // Aplicar clase de resaltado si es el que se acaba de crear
+            const isNew = c.id === ultimoIdCreado ? 'class="new-row"' : '';
             
-            const esHallazgo = (c.asignadoA && c.asignadoA.includes("(HALLAZGO)"));
-
-            if (c.estatus !== 'Finalizado') {
-                cuerpoActivos.innerHTML += `
-                    <tr class="${esHallazgo ? 'row-hallazgo' : ''}">
-                        <td><b>#${c.id}</b></td>
-                        <td>
-                            ${c.modelo} ${esHallazgo ? '<span class="tag-hallazgo">HALLAZGO</span>' : ''}
-                            <br> <small style="color:gray">${c.color}</small>
-                        </td>
-                        <td>
-                            <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
-                            ${c.estatus === 'En Proceso' ? `
-                                <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div>
-                                <small style="font-size:10px">${porcentaje}%</small>
-                            ` : ''}
-                        </td>
-                        <td>
-                            ${c.asignadoA || '---'}
-                            ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}
-                        </td>
-                        <td>${tiempos}</td>
-                    </tr>
-                `;
-            } else {
-                cuerpoHistorial.innerHTML += `
-                    <tr class="${esHallazgo ? 'row-hallazgo' : ''}">
-                        <td><small>#${c.id}</small></td>
-                        <td>
-                            ${c.modelo} - ${c.color}
-                            ${esHallazgo ? '<span class="tag-hallazgo">HALLAZGO</span>' : ''}
-                        </td>
-                        <td>${c.asignadoA}</td>
-                        <td>${tiempos}</td>
-                        <td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td>
-                    </tr>
-                `;
-            }
+            cuerpo.innerHTML += `
+                <tr ${isNew}>
+                    <td><b>#${c.id}</b></td>
+                    <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
+                    <td>${c.realizadoPor || '---'}</td>
+                    <td><small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small></td>
+                    <td>${c.tiempoTotal || '---'}</td>
+                    <td><span class="status ${c.estatus === 'Finalizado' ? 'fin' : 'pen'}">${c.estatus}</span></td>
+                    <td>
+                        ${c.estatus === 'Finalizado' 
+                            ? `<button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button>` 
+                            : '⌛ Esperando...'}
+                    </td>
+                </tr>
+            `;
         });
+        
+        // Limpiar la referencia del último ID después de renderizar para que no brille siempre
+        setTimeout(() => { ultimoIdCreado = null; }, 3500);
     }
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
-        const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
+        const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked'))
+                                   .map(cb => cb.value);
 
         if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
 
@@ -254,27 +256,20 @@
         });
 
         if(res.ok) {
-            limpiarFormulario();
+            const nuevoInventario = await res.json();
+            ultimoIdCreado = nuevoInventario.id; // Guardamos el ID para resaltarlo
+            
+            // Limpiar formulario
+            document.getElementById('mod').selectedIndex = 0;
+            document.getElementById('col').selectedIndex = 0;
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
+            alert("Inventario creado correctamente.");
             cargarDatos();
         }
     }
 
-    function limpiarFormulario() {
-        document.getElementById('mod').selectedIndex = 0;
-        document.getElementById('col').selectedIndex = 0;
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-    }
-
-    async function liberarInventario(id) {
-        if(!confirm("¿Liberar este inventario? El operador perderá el progreso.")) return;
-        await fetch('/api/liberar-inventario', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id })
-        });
-        cargarDatos();
-    }
-
+    // El resto de funciones (Excel) se mantienen igual...
     function procesarExcel(input) {
         const file = input.files[0];
         if (!file) return;
@@ -284,7 +279,6 @@
             const workbook = XLSX.read(data, { type: 'array' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             const grupos = {};
-
             rows.forEach(row => {
                 const mod = row.Modelo; const col = row.Color; const tal = row.Talla;
                 if(mod && col && tal) {
@@ -293,7 +287,6 @@
                     grupos[key].tallas.push(tal);
                 }
             });
-
             for (const key in grupos) {
                 const item = grupos[key];
                 await fetch('/api/crear-ciclico', {
@@ -309,66 +302,22 @@
         reader.readAsArrayBuffer(file);
     }
 
-    function parseTimeToSeconds(timeStr) {
-        if (!timeStr || timeStr === '--') return null;
-        const parts = timeStr.match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);
-        if (!parts) return null;
-        let h = parseInt(parts[1]);
-        const m = parseInt(parts[2]);
-        const s = parseInt(parts[3]);
-        const ampm = parts[4];
-        if (ampm && ampm.toUpperCase() === "PM" && h < 12) h += 12;
-        if (ampm && ampm.toUpperCase() === "AM" && h === 12) h = 0;
-        return (h * 3600) + (m * 60) + s;
-    }
-
     function descargarExcel(id) {
-        const c = datosGlobales.find(item => item.id === id);
-        if(!c) return;
-
-        let tiempoTotal = "N/A";
-        const sIn = parseTimeToSeconds(c.horaInicio);
-        const sFin = parseTimeToSeconds(c.horaFin);
-        if (sIn !== null && sFin !== null) {
-            let diff = sFin - sIn;
-            if (diff < 0) diff += 86400; 
-            tiempoTotal = `${Math.floor(diff / 60)}m ${diff % 60}s`;
-        }
-
-        const esHallazgo = (c.asignadoA && c.asignadoA.includes("(HALLAZGO)"));
-        let csv = "";
-
-        if (esHallazgo) {
-            // ESTRUCTURA DESGLOSADA SEGÚN TU LIBRETA (Marca, Tipo, Modelo, Color, Talla, Qty)
-            csv = "\uFEFFID,Marca,Tipo,Modelo,Color,Talla,Cantidad,Operador,Inicio,Fin,Tiempo Total\n";
-            c.resultados.forEach(r => {
-                // Limpiamos comas para no romper el CSV y extraemos campos del hallazgo
-                const marca = (r.marca || "S/M").replace(/,/g, " ");
-                const tipo = (r.tipo || "S/T").replace(/,/g, " ");
-                const modelo = (r.modelo || "S/M").replace(/,/g, " ");
-                const color = (r.color || "S/C").replace(/,/g, " ");
-                const operador = (c.asignadoA || "").replace("(HALLAZGO)", "").trim();
-
-                csv += `${c.id},${marca},${tipo},${modelo},${color},${r.talla},${r.cantidad},${operador},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
-            });
-        } else {
-            // ESTRUCTURA ORIGINAL PARA CICLICOS (NO TOCADA)
-            csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
-            c.resultados.forEach(r => {
-                csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
-            });
-        }
-
+        const c = datos.find(item => item.id === id);
+        let csv = "ID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Total\n";
+        c.resultados.forEach(r => {
+            csv += `${c.id},${c.modelo},${c.color},${c.realizadoPor},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${c.tiempoTotal}\n`;
+        });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${esHallazgo ? 'HALLAZGO' : 'CICLICO'}_${c.id}.csv`;
+        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
         link.click();
     }
 
     renderTallas();
     cargarDatos();
-    setInterval(cargarDatos, 7000); 
+    setInterval(cargarDatos, 30000);
 </script>
 </body>
 </html>
