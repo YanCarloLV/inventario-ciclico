@@ -1,78 +1,131 @@
+// ==========================================
+// server.js - Versión de Alta Estabilidad
+// ==========================================
+
 const express = require('express');
-const mongoose = require('mongoose'); 
+const mongoose = require('mongoose');
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-app.use(express.static('public'));
+// Render usa el puerto 10000 por defecto
+const PORT = process.env.PORT || 10000; 
+
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// 🔗 CONEXIÓN PERMANENTE
-// Pega aquí la dirección que copiaste de MongoDB
-const mongoURI = "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico"; 
+// --- CONFIGURACIÓN DE MONGODB ---
+// Mantenemos tu conexión original para no afectar los datos existentes
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico";
 
-mongoose.connect(mongoURI)
-  .then(() => console.log("✅ Conectado a MongoDB - Los datos ya no se borrarán"))
-  .catch(err => console.error("❌ Error al conectar:", err));
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("🚀 Conexión establecida con MongoDB Atlas"))
+  .catch(err => console.error("❌ Error de conexión:", err.message));
 
-// 📝 ESTRUCTURA DE LOS DATOS
+
+// --- MODELO DE DATOS ---
 const CiclicoSchema = new mongoose.Schema({
-  id: Number,
-  modelo: String,
-  color: String,
-  fecha: String,
-  tallas: [String],
-  estatus: { type: String, default: "Pendiente" },
-  realizadoPor: String,
-  resultados: Array,
-  horaInicio: String,
-  horaFin: String,
-  tiempoTotal: String
+    id: Number,           // Usaremos Date.now() para ID largo y cronológico
+    modelo: String,
+    color: String,
+    tallas: [String],
+    totalTallas: { type: Number, default: 0 },
+    conteoActual: { type: Number, default: 0 },
+    progreso: { type: Number, default: 0 },
+    estatus: { type: String, default: "Pendiente" },
+    asignadoA: { type: String, default: null },
+    resultados: { type: Array, default: [] },
+    horaInicio: String,   // Guardamos formato "HH:MM:SS AM/PM"
+    horaFin: String
 });
 
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 
-// --- RUTAS DEL SERVIDOR ---
 
-// 1. Ver todos
-app.get("/api/ciclicos", async (req, res) => {
-  const lista = await Ciclico.find().sort({ id: -1 });
-  res.json(lista);
+// --- RUTAS DE LA API ---
+
+// 1. Obtener todos los inventarios
+app.get('/api/ciclicos', async (req, res) => {
+    try {
+        // Ordenamos por ID de mayor a menor (el más reciente siempre arriba)
+        const inventarios = await Ciclico.find().sort({ id: -1 });
+        res.json(inventarios);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// 2. Crear nuevo (Supervisor)
-app.post("/api/crear-ciclico", async (req, res) => {
-  const { modelo, color, tallasRaw } = req.body;
-  const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
-  
-  const ultimo = await Ciclico.findOne().sort({ id: -1 });
-  const nuevoId = ultimo ? ultimo.id + 1 : 100;
+// 2. Crear Nuevo Inventario (ID Largo Cronológico)
+app.post('/api/crear-ciclico', async (req, res) => {
+    try {
+        const { modelo, color, tallasRaw } = req.body;
+        const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
 
-  const nuevo = new Ciclico({
-    id: nuevoId,
-    modelo,
-    color,
-    fecha: new Date().toLocaleDateString('es-MX'),
-    tallas: listaTallas
-  });
+        const nuevo = new Ciclico({
+            id: Date.now(), // Genera un ID como 1741457890123 (Siempre mayor al anterior)
+            modelo,
+            color,
+            tallas: listaTallas,
+            totalTallas: listaTallas.length || 1
+        });
 
-  await nuevo.save();
-  res.json({ success: true });
+        await nuevo.save();
+        res.json(nuevo);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// 3. Guardar resultado (Celular)
-app.post("/api/finalizar-conteo", async (req, res) => {
-  const { id, realizadoPor, resultados, horaInicioStr, horaFinStr, duracionMinutos } = req.body;
-  
-  await Ciclico.findOneAndUpdate({ id: id }, {
-    estatus: "Finalizado",
-    realizadoPor: realizadoPor,
-    resultados: resultados,
-    horaInicio: horaInicioStr,
-    horaFin: horaFinStr,
-    tiempoTotal: `${duracionMinutos} min`
-  });
-
-  res.json({ success: true });
+// 3. Liberar Inventario (Reset para el Supervisor)
+app.post('/api/liberar-inventario', async (req, res) => {
+    try {
+        const { id } = req.body;
+        await Ciclico.findOneAndUpdate({ id }, {
+            estatus: "Pendiente",
+            asignadoA: null,
+            progreso: 0,
+            conteoActual: 0,
+            resultados: [],
+            horaInicio: null,
+            horaFin: null
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`Servidor profesional activo`));
+// 4. Actualizar Progreso (Desde la App del Operador)
+app.post('/api/actualizar-progreso', async (req, res) => {
+    try {
+        const { id, progreso, conteoActual, resultados, horaFin, estatus } = req.body;
+        
+        const updateData = { progreso, conteoActual, resultados };
+        if (horaFin) updateData.horaFin = horaFin;
+        if (estatus) updateData.estatus = estatus;
+
+        await Ciclico.findOneAndUpdate({ id }, updateData);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 5. Asignar Operador e Inicio de Tiempo
+app.post('/api/asignar-operador', async (req, res) => {
+    try {
+        const { id, operador, horaInicio } = req.body;
+        await Ciclico.findOneAndUpdate({ id }, {
+            asignadoA: operador,
+            estatus: "En Proceso",
+            horaInicio: horaInicio
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Iniciar Servidor
+app.listen(PORT, () => {
+    console.log(`✅ Servidor ejecutándose en puerto ${PORT}`);
+});

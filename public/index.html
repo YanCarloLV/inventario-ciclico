@@ -1,249 +1,310 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>App de Inventario Cíclico</title>
-  <style>
-    /* Estilos base */
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; color: #333; }
-    .header-dark { background: #1a252f; color: white; padding: 20px 15px; text-align: center; border-bottom: 4px solid #34495e; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-    .header-blue { background: #2c3e50; color: white; padding: 15px; text-align: center; }
-    .container { padding: 15px; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 15px; }
-    .btn { background: linear-gradient(180deg, #2980b9 0%, #1a5276 100%); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: background 0.2s; }
-    .btn:active { transform: scale(0.98); background: #154360; }
-    .btn-success { background: linear-gradient(180deg, #27ae60 0%, #1e8449 100%); }
-    .input-box { width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 20px; margin-top: 10px; box-sizing: border-box; display: block; text-align: center; }
-    .img-placeholder { background: #f8f9fa; border-radius: 12px; font-size: 70px; text-align: center; padding: 20px; margin: 10px 0; border: 1px solid #eee; }
-    .progress-badge { background: #34495e; color: #bdc3c7; padding: 4px 12px; border-radius: 20px; display: inline-block; font-size: 12px; margin-top: 8px; font-weight: bold; }
-    .text-center { text-align: center; }
-    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventarios - Operador Pro</title>
+    <style>
+        /* Estilos heredados del diseño original para mantener la experiencia visual */
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 20px; transition: 0.3s; }
+        h2 { margin-top: 0; color: #1a1a1a; font-size: 22px; }
+        
+        /* Login Screen Estilizado */
+        #login-screen { display: none; max-width: 400px; margin: 100px auto; text-align: center; }
+        .input-pro { width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        .input-pro:focus { border-color: #3498db; box-shadow: 0 0 0 4px rgba(52,152,219,0.1); }
+
+        /* Lista de Inventarios */
+        .item-pend { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 18px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 12px;
+            background: #fff; cursor: pointer; transition: 0.2s;
+        }
+        .item-pend:active { transform: scale(0.98); }
+        .item-pend.busy { opacity: 0.6; cursor: not-allowed; background: #f5f5f5; filter: grayscale(1); }
+        
+        .tag-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 700; text-transform: uppercase; }
+        .tag-busy { background: #ffeaa7; color: #d63031; }
+        .tag-mine { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+        .tag-free { background: #f3f4f6; color: #374151; }
+
+        /* Pantalla de Conteo Activo */
+        #conteo-screen { display: none; }
+        .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        
+        /* Barra de Progreso Pro (AHORA FLOTANTE/STICKY) */
+        .progress-wrapper { 
+            position: sticky; 
+            top: 0; 
+            background-color: white; 
+            padding: 15px 0; 
+            margin: 0 0 15px 0;
+            z-index: 1000; 
+            border-bottom: 1px solid #f3f4f6; 
+        }
+        .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); width: 0%; transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        
+        /* Lista de Tallas */
+        .talla-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 15px; border-bottom: 1px solid #f3f4f6;
+        }
+        .talla-item:last-child { border-bottom: none; }
+        .talla-info b { font-size: 18px; color: #2c3e50; }
+        
+        .btn-action { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-finish { background: #27ae60; color: white; width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 25px; box-shadow: 0 4px 12px rgba(39,174,96,0.3); }
+        .btn-back { background: transparent; color: #94a3b8; border: none; margin-top: 15px; width: 100%; font-size: 14px; text-decoration: underline; }
+    </style>
 </head>
 <body>
 
-<div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
-    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;">
-    <h2 style="margin-top: 10px; color: #333;">Sistema de Inventarios</h2>
-</div>
+    <div id="login-screen" class="card">
+        <img src="/logo.png" style="max-height: 80px; margin-bottom: 20px;">
+        <h2>Identificación de Operador</h2>
+        <input type="text" id="nombre-input" class="input-pro" placeholder="Tu nombre completo">
+        <button class="btn-finish" style="margin-top:0;" onclick="guardarNombre()">Comenzar Jornada</button>
+    </div>
 
-<div id="app">
-     <div class="header-blue"><h2>Cargando sistema...</h2></div>
-</div>
+    <div id="listado-screen">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <h2 id="saludo-user" style="margin:0;">Cargando...</h2>
+            <button onclick="localStorage.clear(); location.reload();" style="font-size:10px; border:none; background:none; color:gray;">Cerrar Sesión</button>
+        </div>
+        <div id="lista-pendientes"></div>
+    </div>
+
+    <div id="conteo-screen">
+        <div class="header-active" id="info-header"></div>
+        <div class="card">
+            <div class="progress-wrapper">
+                <div style="display:flex; justify-content:space-between; font-size: 12px; margin-bottom: 5px;">
+                    <b id="texto-progreso">Progreso: 0%</b>
+                    <span id="contador-tallas">0/0 Tallas</span>
+                </div>
+                <div class="progress-bg"><div id="bar-progreso" class="progress-fill"></div></div>
+            </div>
+            <div id="lista-tallas-conteo"></div>
+            <button class="btn-finish" id="btn-final" onclick="finalizarInventario()">✅ Enviar Reporte Final</button>
+            <button class="btn-back" onclick="location.reload()">Regresar al menú principal</button>
+        </div>
+    </div>
 
 <script>
-    // --- ESTADO Y CONFIGURACIÓN ---
-    let ciclicos = [];
-    const UMBRAL_ALERTA = 100; 
-    const STORAGE_KEY = 'progreso_inventario_ciclico';
+    let miNombre = localStorage.getItem('operador_nombre');
+    let inventarioActivo = null;
+    let resultados = [];
 
-    let countState = { 
-        id: null, 
-        name: '', 
-        modelo: '',
-        currentIndex: 0, 
-        resultados: [],
-        startTime: null 
-    };
+    // Verificación inicial de sesión
+    if (!miNombre) {
+        document.getElementById('login-screen').style.display = 'block';
+        document.getElementById('listado-screen').style.display = 'none';
+    } else {
+        iniciarApp();
+    }
 
-    // 1. Iniciar App y recuperar sesión si existe
-    async function init() {
+    function guardarNombre() {
+        const nom = document.getElementById('nombre-input').value.trim();
+        if (nom.length < 3) return alert("Por favor ingresa un nombre válido");
+        localStorage.setItem('operador_nombre', nom);
+        location.reload();
+    }
+
+    async function iniciarApp() {
+        document.getElementById('saludo-user').innerText = `👷 ${miNombre}`;
         try {
             const res = await fetch('/api/ciclicos');
-            ciclicos = await res.json();
-
-            // Lógica Offline: Recuperar progreso del LocalStorage
-            const guardado = localStorage.getItem(STORAGE_KEY);
-            if (guardado) {
-                const data = JSON.parse(guardado);
-                if (confirm(`Hola ${data.name}, detectamos un conteo pendiente de ${data.modelo}. ¿Deseas retomarlo?`)) {
-                    countState = data;
-                    renderCountScreen();
-                    return;
-                } else {
-                    localStorage.removeItem(STORAGE_KEY);
-                }
-            }
-            renderList();
-        } catch (error) {
-            document.getElementById('app').innerHTML = '<div class="container"><div class="card">Error al conectar con el servidor.</div></div>';
+            const datos = await res.json();
+            renderListaDisponibles(datos);
+        } catch (e) {
+            console.error("Error de conexión al servidor");
         }
     }
 
-    // 2. Pantalla principal
-    function renderList() {
-        let html = `<div class="header-blue"><h2>📦 Inventarios Pendientes</h2></div><div class="container">`;
-        const pendientes = ciclicos.filter(c => c.estatus === "Pendiente");
+    function renderListaDisponibles(datos) {
+        const contenedor = document.getElementById('lista-pendientes');
+        contenedor.innerHTML = "";
         
-        if (pendientes.length === 0) {
-            html += `<div class="card text-center"><p>No hay cíclicos pendientes. ✨</p></div>`;
-        } else {
-            pendientes.forEach(c => {
-                html += `
-                <div class="card" onclick="startNamePrompt(${c.id})">
-                    <h3 style="margin:0; color:#2c3e50;">Conteo #${c.id}</h3>
-                    <p style="margin:5px 0 15px 0; font-size:18px;"><strong>${c.modelo}</strong> - ${c.color}</p>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:gray; font-size: 14px;">📅 ${c.fecha}</span>
-                        <span style="color:#2980b9; font-weight:bold;">Iniciar ➡</span>
-                    </div>
-                </div>`;
-            });
-        }
-        html += `</div>`;
-        document.getElementById('app').innerHTML = html;
-    }
+        // Filtramos solo los que no están finalizados
+        const disponibles = datos.filter(d => d.estatus !== "Finalizado");
 
-    // 3. Identificación
-    function startNamePrompt(id) {
-        countState.id = id;
-        document.getElementById('app').innerHTML = `
-        <div class="header-blue"><h2>Identificación</h2></div>
-        <div class="container">
-            <div class="card text-center">
-                <p style="font-size: 18px; margin-bottom: 20px;">Ingresa tu nombre:</p>
-                <input type="text" id="operatorName" class="input-box" placeholder="Tu nombre..." autocomplete="off">
-                <br>
-                <button class="btn" onclick="startCount()">Comenzar Inventario</button>
-                <p style="color:#7f8c8d; font-size:14px; margin-top:25px;" onclick="renderList()">⬅ Volver</p>
-            </div>
-        </div>`;
-    }
-
-    function startCount() {
-        const name = document.getElementById('operatorName').value.trim();
-        if(!name) return alert('Nombre obligatorio.');
-        
-        const ciclico = ciclicos.find(c => c.id === countState.id);
-        countState.name = name;
-        countState.modelo = ciclico.modelo;
-        countState.currentIndex = 0;
-        countState.resultados = [];
-        countState.startTime = new Date();
-        
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(countState)); // Guardar progreso inicial
-        renderCountScreen();
-    }
-
-    // 4. Pantalla de Conteo con Alertas
-    function renderCountScreen() {
-        const ciclico = ciclicos.find(c => c.id === countState.id);
-        const currentTalla = ciclico.tallas[countState.currentIndex];
-        const total = ciclico.tallas.length;
-
-        document.getElementById('app').innerHTML = `
-        <div class="header-dark">
-            <h3 style="margin:0;">Conteo #${ciclico.id}</h3>
-            <p style="margin:5px 0 0 0; color:#bdc3c7; font-size:14px;">${ciclico.modelo} | ${ciclico.color}</p>
-            <div class="progress-badge">TALLA ${countState.currentIndex + 1} DE ${total}</div>
-        </div>
-        <div class="container">
-            <div class="card" style="margin-top:-10px;">
-                <div class="img-placeholder">👔</div>
-                <h2 class="text-center">Talla: ${currentTalla}</h2>
-                <hr>
-                <label style="font-weight:bold;">CANTIDAD FÍSICA:</label>
-                <input type="number" id="cantidad" class="input-box" placeholder="0" inputmode="numeric">
-                <br>
-                <button class="btn" onclick="saveAndContinue()">Guardar y Siguiente ➡</button>
-            </div>
-        </div>`;
-        document.getElementById('cantidad').focus();
-    }
-
-    function saveAndContinue() {
-        const input = document.getElementById('cantidad');
-        const cant = parseInt(input.value);
-        
-        if(isNaN(cant) || cant < 0) return alert('Cantidad no válida.');
-
-        // Validación Anti-Error
-        if (cant > UMBRAL_ALERTA) {
-            if (!confirm(`⚠️ ¿Confirmas que hay ${cant} piezas? Es una cantidad inusual.`)) return;
-        }
-
-        const ciclico = ciclicos.find(c => c.id === countState.id);
-        countState.resultados[countState.currentIndex] = { talla: ciclico.tallas[countState.currentIndex], cantidad: cant };
-        
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(countState)); // Guardar progreso
-
-        if (countState.currentIndex + 1 < ciclico.tallas.length) {
-            countState.currentIndex++;
-            renderCountScreen();
-        } else {
-            renderReviewScreen();
-        }
-    }
-
-    // 5. Pantalla de Revisión Final
-    function renderReviewScreen() {
-        let tablaHtml = countState.resultados.map(r => `
-            <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
-                <span>Talla <strong>${r.talla}</strong></span>
-                <span style="color:#2980b9; font-weight:bold;">${r.cantidad} pzs</span>
-            </div>
-        `).join('');
-
-        document.getElementById('app').innerHTML = `
-            <div class="header-blue"><h2>Revisión Final</h2></div>
-            <div class="container">
-                <div class="card">
-                    <p class="text-center">Verifica antes de enviar:</p>
-                    <div style="background:#f8f9fa; border-radius:8px; margin-bottom:20px;">${tablaHtml}</div>
-                    <button class="btn btn-success" onclick="finishAndSend()">✅ Confirmar y Enviar</button>
-                    <button class="btn" style="background:#bdc3c7; margin-top:10px;" onclick="regresarTalla()">✏️ Corregir</button>
+        disponibles.forEach(inv => {
+            const isMine = inv.asignadoA === miNombre;
+            const isBusy = inv.asignadoA && inv.asignadoA !== miNombre;
+            
+            const div = document.createElement('div');
+            div.className = `item-pend ${isBusy ? 'busy' : ''}`;
+            div.innerHTML = `
+                <div class="talla-info">
+                    <b>${inv.modelo}</b><br>
+                    <small style="color:#666">${inv.color} • ${inv.totalTallas} tallas</small>
+                    <br><small style="color:#999; font-size:9px">ID: #${inv.id}</small>
                 </div>
-            </div>`;
+                <div>
+                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado por ${inv.asignadoA}</span>` : ''}
+                    ${isMine ? `<span class="tag-status tag-mine">En Proceso - Tuyo</span>` : ''}
+                    ${!inv.asignadoA ? `<span class="tag-status tag-free">Disponible</span>` : ''}
+                </div>
+            `;
+            
+            if (!isBusy) div.onclick = () => apartarInventario(inv);
+            contenedor.appendChild(div);
+        });
     }
 
-    function regresarTalla() {
-        countState.currentIndex = countState.resultados.length - 1;
-        renderCountScreen();
-    }
+    async function apartarInventario(inv) {
+        // Generamos hora de inicio solo si es la primera vez (Estatus Pendiente)
+        let horaInicioParam = null;
+        if (!inv.asignadoA || inv.estatus === "Pendiente") {
+            const ahora = new Date();
+            horaInicioParam = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
 
-    // 6. Envío final y limpieza
-    async function finishAndSend() {
-        const endTime = new Date();
-        const diffMins = Math.round((endTime - new Date(countState.startTime)) / 60000);
-        const opciones = { hour: '2-digit', minute: '2-digit', hour12: true };
+        const res = await fetch('/api/asignar-operador', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                id: inv.id, 
+                operador: miNombre,
+                horaInicio: horaInicioParam 
+            })
+        });
 
-        document.getElementById('app').innerHTML = `<div class="header-blue"><h2>Enviando...</h2></div>`;
+        const data = await res.json();
 
-        try {
-            await fetch('/api/finalizar-conteo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    id: countState.id,
-                    realizadoPor: countState.name,
-                    resultados: countState.resultados,
-                    horaInicioStr: new Date(countState.startTime).toLocaleTimeString('es-MX', opciones),
-                    horaFinStr: endTime.toLocaleTimeString('es-MX', opciones),
-                    duracionMinutos: diffMins
-                })
-            });
-            localStorage.removeItem(STORAGE_KEY); // Limpiar celular
-            renderSuccessScreen();
-        } catch (error) {
-            alert('Error al enviar. El progreso se mantendrá en el equipo.');
+        if (data.success) {
+            // Re-obtenemos el objeto actualizado del servidor para tener los resultados previos
+            const resActualizado = await fetch('/api/ciclicos');
+            const todos = await resActualizado.json();
+            const invActualizado = todos.find(i => i.id == inv.id);
+
+            resultados = invActualizado.resultados || [];
+            abrirConteo(invActualizado);
+        } else {
+            alert("Error al intentar tomar el inventario. Es posible que alguien más lo haya seleccionado.");
+            iniciarApp();
         }
     }
 
-    function renderSuccessScreen() {
-        document.getElementById('app').innerHTML = `
-        <div class="header-blue" style="background:#27ae60;"><h2>✅ Completado</h2></div>
-        <div class="container text-center">
-            <div class="card">
-                <h1 style="font-size:60px;">🚀</h1>
-                <h3>¡Buen trabajo, ${countState.name}!</h3>
-                <p>Inventario enviado correctamente.</p>
-                <button class="btn btn-success" onclick="location.reload()">Regresar al Inicio</button>
-            </div>
-        </div>`;
+    function abrirConteo(inv) {
+        inventarioActivo = inv;
+        document.getElementById('listado-screen').style.display = 'none';
+        document.getElementById('conteo-screen').style.display = 'block';
+        
+        document.getElementById('info-header').innerHTML = `
+            <small style="opacity:0.8">ID: #${inv.id}</small>
+            <h2 style="color:white; margin:0;">${inv.modelo}</h2>
+            <p style="margin:5px 0 0 0; opacity:0.9">Color: ${inv.color}</p>
+        `;
+        renderTallas();
     }
 
-    init();
+    function renderTallas() {
+        const lista = document.getElementById('lista-tallas-conteo');
+        lista.innerHTML = "";
+        
+        inventarioActivo.tallas.forEach(talla => {
+            const yaContada = resultados.find(r => r.talla === talla);
+            
+            lista.innerHTML += `
+                <div class="talla-item" style="${yaContada ? 'background:#f0fdf4' : ''}">
+                    <div class="talla-info">
+                        <b>${talla}</b>
+                    </div>
+                    ${yaContada 
+                        ? `<div style="text-align:right">
+                             <span style="color:#16a34a; font-weight:bold; display:block">✔ ${yaContada.cantidad} pzs</span>
+                             <button onclick="borrarTalla('${talla}')" style="font-size:10px; color:red; border:none; background:none; cursor:pointer;">Editar</button>
+                           </div>`
+                        : `<button class="btn-action" onclick="capturarTalla('${talla}')">CONTAR</button>`
+                    }
+                </div>
+            `;
+        });
+        actualizarProgresoVisual();
+    }
+
+    function capturarTalla(talla) {
+        const cant = prompt(`Ingrese cantidad para Talla ${talla}:`);
+        if (cant === null || cant.trim() === "") return;
+
+        const cantidadNumerica = parseInt(cant);
+        if (isNaN(cantidadNumerica)) return alert("Ingresa un número válido");
+
+        const index = resultados.findIndex(r => r.talla === talla);
+        if(index > -1) resultados[index].cantidad = cantidadNumerica;
+        else resultados.push({ talla, cantidad: cantidadNumerica });
+        
+        enviarAvance();
+        renderTallas();
+    }
+
+    function borrarTalla(talla) {
+        resultados = resultados.filter(r => r.talla !== talla);
+        enviarAvance();
+        renderTallas();
+    }
+
+    async function enviarAvance() {
+        const totalT = inventarioActivo.totalTallas;
+        const actualT = resultados.length;
+        const porc = Math.round((actualT / totalT) * 100);
+
+        // Enviamos progreso al servidor para que el supervisor lo vea en tiempo real
+        fetch('/api/actualizar-progreso', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                id: inventarioActivo.id, 
+                progreso: porc,
+                conteoActual: actualT,
+                resultados: resultados 
+            })
+        });
+    }
+
+    function actualizarProgresoVisual() {
+        const total = inventarioActivo.totalTallas;
+        const actual = resultados.length;
+        const porc = Math.round((actual / total) * 100);
+        
+        document.getElementById('bar-progreso').style.width = porc + "%";
+        document.getElementById('texto-progreso').innerText = `Progreso: ${porc}%`;
+        document.getElementById('contador-tallas').innerText = `${actual}/${total} Tallas`;
+        
+        const btn = document.getElementById('btn-final');
+        if(porc === 100) btn.style.boxShadow = "0 0 20px rgba(39,174,96,0.6)";
+        else btn.style.boxShadow = "0 4px 12px rgba(39,174,96,0.3)";
+    }
+
+    async function finalizarInventario() {
+        if (resultados.length < inventarioActivo.totalTallas) {
+            if (!confirm("Faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
+        }
+
+        const ahora = new Date();
+        const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        const res = await fetch('/api/actualizar-progreso', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                id: inventarioActivo.id, 
+                progreso: 100,
+                conteoActual: resultados.length,
+                resultados: resultados,
+                horaFin: horaFinStr,
+                estatus: "Finalizado"
+            })
+        });
+
+        if (res.ok) {
+            alert("🚀 Reporte enviado correctamente. Buen trabajo.");
+            location.reload();
+        }
+    }
 </script>
 </body>
 </html>
