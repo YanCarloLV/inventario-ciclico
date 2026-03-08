@@ -41,6 +41,10 @@
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .proc { background: #e3f2fd; color: #0d47a1; }
         .pen { background: #fff3cd; color: #856404; }
+        
+        /* ESTILO NUEVO PARA DISTINGUIR HALLAZGOS */
+        .tag-hallazgo { background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fbbf24; margin-left: 5px; }
+        .row-hallazgo { background-color: #fffbeb !important; }
 
         @keyframes highlightNew { 0% { background-color: #d4edda; } 100% { background-color: transparent; } }
         .new-row { animation: highlightNew 3s ease-out; }
@@ -184,7 +188,6 @@
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
         
-        // ORDEN CRONOLÓGICO: El ID más grande (timestamp nuevo) siempre arriba
         datosGlobales = listado.sort((a, b) => b.id - a.id);
 
         const cuerpoActivos = document.querySelector("#tablaActivos tbody");
@@ -196,12 +199,18 @@
         datosGlobales.forEach(c => {
             const porcentaje = c.progreso || 0;
             const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
+            
+            // Detectamos si es un hallazgo libre por el nombre del operador o estatus directo
+            const esHallazgo = (c.asignadoA && c.asignadoA.includes("(HALLAZGO)"));
 
             if (c.estatus !== 'Finalizado') {
                 cuerpoActivos.innerHTML += `
-                    <tr>
+                    <tr class="${esHallazgo ? 'row-hallazgo' : ''}">
                         <td><b>#${c.id}</b></td>
-                        <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
+                        <td>
+                            ${c.modelo} ${esHallazgo ? '<span class="tag-hallazgo">HALLAZGO</span>' : ''}
+                            <br> <small style="color:gray">${c.color}</small>
+                        </td>
                         <td>
                             <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
                             ${c.estatus === 'En Proceso' ? `
@@ -218,9 +227,12 @@
                 `;
             } else {
                 cuerpoHistorial.innerHTML += `
-                    <tr>
+                    <tr class="${esHallazgo ? 'row-hallazgo' : ''}">
                         <td><small>#${c.id}</small></td>
-                        <td>${c.modelo} - ${c.color}</td>
+                        <td>
+                            ${c.modelo} - ${c.color}
+                            ${esHallazgo ? '<span class="tag-hallazgo">HALLAZGO</span>' : ''}
+                        </td>
                         <td>${c.asignadoA}</td>
                         <td>${tiempos}</td>
                         <td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td>
@@ -299,7 +311,6 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // LÓGICA DE TIEMPOS ROBUSTA PARA EXCEL
     function parseTimeToSeconds(timeStr) {
         if (!timeStr || timeStr === '--') return null;
         const parts = timeStr.match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);

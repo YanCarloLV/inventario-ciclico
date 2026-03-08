@@ -57,6 +57,28 @@
         .btn-action { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
         .btn-finish { background: #27ae60; color: white; width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 25px; box-shadow: 0 4px 12px rgba(39,174,96,0.3); }
         .btn-back { background: transparent; color: #94a3b8; border: none; margin-top: 15px; width: 100%; font-size: 14px; text-decoration: underline; }
+
+        /* Estilos nuevos para el botón de Hallazgo */
+        .hallazgo-banner {
+            border: 2px dashed #e67e22; 
+            background: #fffaf5; 
+            text-align: center; 
+            padding: 15px; 
+            margin-bottom: 20px;
+            border-radius: 16px;
+        }
+        .btn-hallazgo {
+            background: #e67e22; 
+            color: white; 
+            border: none; 
+            padding: 12px 25px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            width: 100%;
+            font-size: 16px;
+            box-shadow: 0 4px 10px rgba(230,126,34,0.2);
+        }
     </style>
 </head>
 <body>
@@ -73,6 +95,14 @@
             <h2 id="saludo-user" style="margin:0;">Cargando...</h2>
             <button onclick="localStorage.clear(); location.reload();" style="font-size:10px; border:none; background:none; color:gray;">Cerrar Sesión</button>
         </div>
+
+        <div class="hallazgo-banner">
+            <p style="margin: 0 0 10px 0; color: #d35400; font-weight: bold; font-size: 14px;">¿Mercancía sin inventario programado?</p>
+            <button onclick="location.href='captura_libre.html'" class="btn-hallazgo">
+                ➕ Iniciar Hoja de Hallazgo
+            </button>
+        </div>
+
         <div id="lista-pendientes"></div>
     </div>
 

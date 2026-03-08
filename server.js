@@ -14,7 +14,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- CONFIGURACIÓN DE MONGODB ---
-// Mantenemos tu conexión original para no afectar los datos existentes
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico";
 
 mongoose.connect(MONGO_URI)
@@ -24,7 +23,7 @@ mongoose.connect(MONGO_URI)
 
 // --- MODELO DE DATOS ---
 const CiclicoSchema = new mongoose.Schema({
-    id: Number,           // Usaremos Date.now() para ID largo y cronológico
+    id: Number,           
     modelo: String,
     color: String,
     tallas: [String],
@@ -34,7 +33,7 @@ const CiclicoSchema = new mongoose.Schema({
     estatus: { type: String, default: "Pendiente" },
     asignadoA: { type: String, default: null },
     resultados: { type: Array, default: [] },
-    horaInicio: String,   // Guardamos formato "HH:MM:SS AM/PM"
+    horaInicio: String,   
     horaFin: String
 });
 
@@ -46,7 +45,6 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // 1. Obtener todos los inventarios
 app.get('/api/ciclicos', async (req, res) => {
     try {
-        // Ordenamos por ID de mayor a menor (el más reciente siempre arriba)
         const inventarios = await Ciclico.find().sort({ id: -1 });
         res.json(inventarios);
     } catch (error) {
@@ -54,20 +52,46 @@ app.get('/api/ciclicos', async (req, res) => {
     }
 });
 
-// 2. Crear Nuevo Inventario (ID Largo Cronológico)
+// 2. Crear Nuevo Inventario (Soporta Cíclico Normal y Hallazgo Libre)
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
-        const { modelo, color, tallasRaw } = req.body;
-        const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+        const { modelo, color, tallasRaw, tallas, resultados, asignadoA, estatus, totalTallas, horaInicio, horaFin } = req.body;
+        
+        let listaTallas = [];
+        let configFinal = {};
 
-        const nuevo = new Ciclico({
-            id: Date.now(), // Genera un ID como 1741457890123 (Siempre mayor al anterior)
-            modelo,
-            color,
-            tallas: listaTallas,
-            totalTallas: listaTallas.length || 1
-        });
+        // LÓGICA PARA CAPTURA LIBRE (HALLAZGOS)
+        if (estatus === "Finalizado") {
+            listaTallas = tallas || [];
+            configFinal = {
+                id: Date.now(),
+                modelo,
+                color,
+                tallas: listaTallas,
+                resultados: resultados || [],
+                asignadoA: asignadoA || "Sistema",
+                estatus: "Finalizado",
+                totalTallas: totalTallas || listaTallas.length,
+                progreso: 100,
+                conteoActual: totalTallas || listaTallas.length,
+                horaInicio: horaInicio || new Date().toLocaleTimeString(),
+                horaFin: horaFin || new Date().toLocaleTimeString()
+            };
+        } 
+        // LÓGICA PARA INVENTARIO PROGRAMADO (SUPERVISOR)
+        else {
+            listaTallas = tallasRaw ? tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "") : [];
+            configFinal = {
+                id: Date.now(),
+                modelo,
+                color,
+                tallas: listaTallas,
+                totalTallas: listaTallas.length || 1,
+                estatus: "Pendiente"
+            };
+        }
 
+        const nuevo = new Ciclico(configFinal);
         await nuevo.save();
         res.json(nuevo);
     } catch (error) {
