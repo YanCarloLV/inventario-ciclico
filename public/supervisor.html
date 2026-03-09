@@ -10,12 +10,10 @@
         .container { max-width: 1100px; margin: auto; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h1, h2 { color: #2c3e50; margin-top: 0; }
-        
         .form-main { display: flex; flex-direction: column; gap: 20px; }
         .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; }
         select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; background: white; font-size: 14px; }
-        
         .tallas-grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 10px; }
         .talla-col { background: white; border: 1px solid #e0e6ed; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .col-header { background: #f8f9fa; padding: 12px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -23,27 +21,19 @@
         .select-all-box { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; color: #2c3e50; width: 100%; padding-top: 5px; }
         .sizes-list { max-height: 400px; overflow-y: auto; padding: 10px; }
         .size-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #f1f1f1; font-size: 14px; color: #555; cursor: pointer; }
-        .size-item input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
-
         .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
         .btn-add { background: #3498db; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
         .btn-refresh { background: #95a5a6; color: white; }
         .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; padding: 8px 15px; }
-        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; margin-left: 5px; border: none; cursor: pointer; }
-
+        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
         th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
-        
         .progress-mini-bg { background: #eee; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; max-width: 100px; margin-top: 5px; }
         .progress-mini-fill { background: #3498db; height: 100%; transition: 0.5s; }
-
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .proc { background: #e3f2fd; color: #0d47a1; }
         .pen { background: #fff3cd; color: #856404; }
-
-        @keyframes highlightNew { 0% { background-color: #d4edda; } 100% { background-color: transparent; } }
-        .new-row { animation: highlightNew 3s ease-out; }
     </style>
 </head>
 <body>
@@ -82,24 +72,9 @@
 
             <label>Selección de Tallas por Categoría:</label>
             <div class="tallas-grid-container">
-                <div class="talla-col">
-                    <div class="col-header"><div class="col-circle">C</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Todas</label>
-                    </div>
-                    <div id="list-C" class="sizes-list"></div>
-                </div>
-                <div class="talla-col">
-                    <div class="col-header"><div class="col-circle" style="background:#4834d4">R</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Todas</label>
-                    </div>
-                    <div id="list-R" class="sizes-list"></div>
-                </div>
-                <div class="talla-col">
-                    <div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div>
-                        <label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Todas</label>
-                    </div>
-                    <div id="list-L" class="sizes-list"></div>
-                </div>
+                <div class="talla-col"><div class="col-header"><div class="col-circle">C</div><label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Todas</label></div><div id="list-C" class="sizes-list"></div></div>
+                <div class="talla-col"><div class="col-header"><div class="col-circle" style="background:#4834d4">R</div><label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Todas</label></div><div id="list-R" class="sizes-list"></div></div>
+                <div class="talla-col"><div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div><label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Todas</label></div><div id="list-L" class="sizes-list"></div></div>
             </div>
 
             <button class="btn btn-add" onclick="crearCiclico()">🚀 Guardar y Publicar Inventario</button>
@@ -108,19 +83,11 @@
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <h2 style="color: #e67e22;">🚀 Inventarios Activos (En Curso)</h2>
+            <h2 style="color: #e67e22;">🚀 Inventarios Activos</h2>
             <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
         </div>
         <table id="tablaActivos">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Modelo/Color</th>
-                    <th>Estado / Progreso</th>
-                    <th>Operador</th>
-                    <th>Tiempos</th>
-                </tr>
-            </thead>
+            <thead><tr><th>ID</th><th>Modelo/Color</th><th>Estado / Progreso</th><th>Operador</th><th>Tiempos</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -128,278 +95,196 @@
     <div class="card" style="opacity: 0.9;">
         <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
         <table id="tablaHistorial">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Modelo/Color</th>
-                    <th>Operador</th>
-                    <th>Tiempos</th>
-                    <th>Reporte</th>
-                </tr>
-            </thead>
+            <thead><tr><th>ID</th><th>Modelo/Color</th><th>Operador</th><th>Tiempos</th><th>Reporte</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // ==========================================
-    // 1. CATÁLOGO MAESTRO ACTUALIZADO
-    // ==========================================
-    // 'foto' es el nombre del archivo físico sin .jpg
     const modelosEspeciales = ["4040", "4030", "33739", "TR-1", "TR-2"];
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO"];
 
     let catalogoProductos = [
         // --- SUPER 120'S CLÁSICO ---
-        { modelo: "C67901-1", color: "NEGRO SOLIDO", foto: "C67901-1" },
-        { modelo: "C67901-2B", color: "NUEVO AZUL", foto: "C67901-2B" },
-        { modelo: "C67901-3", color: "GRIS OXFORD", foto: "C67901-3" },
-        { modelo: "C67901-4", color: "GRIS LIGERO", foto: "C67901-4" },
-        { modelo: "C67901-5A", color: "BLANCO", foto: "C67901-5A" },
-        { modelo: "C67901-11", color: "BEIGE SOLIDO", foto: "C67901-11" },
-        { modelo: "C67901-16", color: "CAMEL", foto: "C67901-16" },
-        { modelo: "C67901-17", color: "AZUL FRANCIA", foto: "C67901-17" },
-        { modelo: "C67901-19", color: "AZUL CIELO", foto: "C67901-19" },
-        { modelo: "C67901-24", color: "GRIS INGLES", foto: "C67901-24" },
-
+        { modelo: "C67901-1", color: "NEGRO SOLIDO" }, { modelo: "C67901-2B", color: "NUEVO AZUL" },
+        { modelo: "C67901-3", color: "GRIS OXFORD" }, { modelo: "C67901-4", color: "GRIS LIGERO" },
+        { modelo: "C67901-5A", color: "BLANCO" }, { modelo: "C67901-11", color: "BEIGE SOLIDO" },
+        { modelo: "C67901-16", color: "CAMEL" }, { modelo: "C67901-17", color: "AZUL FRANCIA" },
+        { modelo: "C67901-19", color: "AZUL CIELO" }, { modelo: "C67901-24", color: "GRIS INGLES" },
         // --- SUPER 120'S PRIVILEGE ---
-        { modelo: "G45001-1", color: "GRIS SOLIDO", foto: "G45001-1" },
-        { modelo: "G45001-2", color: "GRIS INGLES", foto: "G45001-2" },
-        { modelo: "G45001-3", color: "TAUPE GRANOLA", foto: "G45001-3" },
-        { modelo: "G47815-1", color: "NEGRO SOLIDO", foto: "G47815-1" },
-        { modelo: "G47815-2B", color: "MARINO NUEVO", foto: "G47815-2B" },
-        { modelo: "G47815-3", color: "GRIS CLARO", foto: "G47815-3" },
-        { modelo: "G47815-4A", color: "NUEVO BEIGE", foto: "G47815-4A" },
-        { modelo: "G47815-5", color: "BLANCO NATURAL", foto: "G47815-5" },
-        { modelo: "G47815-5A", color: "BLANCO", foto: "G47815-5A" },
-        { modelo: "G47815-8", color: "CAFE SOLIDO", foto: "G47815-8" },
-        { modelo: "G47815-9", color: "AZUL LIGERO", foto: "G47815-9" },
-        { modelo: "G47815-10", color: "VERDE BOSQUE", foto: "G47815-10" },
-        { modelo: "G47815-11", color: "OLIVO SOLIDO", foto: "G47815-11" },
-        { modelo: "G47815-12", color: "VINO", foto: "G47815-12" },
-        { modelo: "G47815-16", color: "CAMEL SOLIDO", foto: "G47815-16" },
-        { modelo: "G47815-17", color: "AZUL FRANCES", foto: "G47815-17" },
-        { modelo: "G47815-18", color: "AZUL PLUMA", foto: "G47815-18" },
-        { modelo: "G47815-19", color: "AZUL INDIGO", foto: "G47815-19" },
-        { modelo: "G47815-20", color: "VERDE HUNTER", foto: "G47815-20" },
-        { modelo: "G47815-30", color: "ROSA", foto: "G47815-30" },
-        { modelo: "G47815-50", color: "VERDE AZULADO", foto: "G47815-50" },
-        { modelo: "G49412-1", color: "OXFORD SOLIDO", foto: "G49412-1" },
-        { modelo: "G49412-2", color: "GRIS MEDIO", foto: "G49412-2" },
-
+        { modelo: "G45001-1", color: "GRIS SOLIDO" }, { modelo: "G45001-2", color: "GRIS INGLES" },
+        { modelo: "G45001-3", color: "TAUPE GRANOLA" }, { modelo: "G47815-1", color: "NEGRO SOLIDO" },
+        { modelo: "G47815-2B", color: "MARINO NUEVO" }, { modelo: "G47815-3", color: "GRIS CLARO" },
+        { modelo: "G47815-4A", color: "NUEVO BEIGE" }, { modelo: "G47815-5", color: "BLANCO NATURAL" },
+        { modelo: "G47815-5A", color: "BLANCO" }, { modelo: "G47815-8", color: "CAFE SOLIDO" },
+        { modelo: "G47815-9", color: "AZUL LIGERO" }, { modelo: "G47815-10", color: "VERDE BOSQUE" },
+        { modelo: "G47815-11", color: "OLIVO SOLIDO" }, { modelo: "G47815-12", color: "VINO" },
+        { modelo: "G47815-16", color: "CAMEL SOLIDO" }, { modelo: "G47815-17", color: "AZUL FRANCES" },
+        { modelo: "G47815-18", color: "AZUL PLUMA" }, { modelo: "G47815-19", color: "AZUL INDIGO" },
+        { modelo: "G47815-20", color: "VERDE HUNTER" }, { modelo: "G47815-30", color: "ROSA" },
+        { modelo: "G47815-50", color: "VERDE AZULADO" }, { modelo: "G49412-1", color: "OXFORD SOLIDO" },
+        { modelo: "G49412-2", color: "GRIS MEDIO" },
+        // --- PRIVILEGE COLLECTION (CUADROS) ---
+        { modelo: "679683-2", color: "TAUPE ENTRE CRUZADO" }, { modelo: "679727-1", color: "OXFORD AZUL" },
+        { modelo: "679728-1", color: "AZUL MALVA" }, { modelo: "679729-1", color: "AZUL NEGRO" },
+        { modelo: "679730-1", color: "MARINO A CUADROS" }, { modelo: "679731-1", color: "AZUL A CUADROS" },
+        { modelo: "679732-1", color: "GRIS CLARO AZUL" }, { modelo: "679733-1", color: "AZUL OXIDADO" },
+        { modelo: "679733-2", color: "GRIS AZUL" }, { modelo: "679734-1", color: "CAMELLO AZUL" },
         // --- SUPER 140'S ---
-        { modelo: "M40901-1", color: "NEGRO", foto: "M40901-1" },
-        { modelo: "M40901-2B", color: "MARINO SOLIDO", foto: "M40901-2B" },
-        { modelo: "M40901-6", color: "AZUL FRANCIA", foto: "M40901-6" },
-
+        { modelo: "M40901-1", color: "NEGRO" }, { modelo: "M40901-2A", color: "MARINO" },
+        { modelo: "M40901-2B", color: "MARINO SOLIDO" }, { modelo: "M40901-6", color: "AZUL FRANCIA" },
+        { modelo: "M40901-9", color: "AZUL CIELO" }, { modelo: "M46306-3", color: "CHARCOAL" },
+        { modelo: "M46306-1", color: "GRIS" }, { modelo: "M46306-2", color: "GRIS" },
+        { modelo: "M46306-4", color: "GRIS CLARO" }, { modelo: "M46306-5", color: "TAUPE" },
+        { modelo: "M40901-8", color: "CAFE" }, { modelo: "M40901-7", color: "TAUPE" },
+        { modelo: "M40901-16", color: "CAMEL" }, { modelo: "M40901-11", color: "BEIGE" },
+        { modelo: "M87183-2", color: "AZUL CIELO" }, { modelo: "M87853-1", color: "MARINO A CUADROS" },
+        { modelo: "M46500-1", color: "GRIS OJO DE PAJARO" }, { modelo: "M46500-2", color: "AZUL OJO DE PAJARO" },
+        { modelo: "M46501-3", color: "GRIS CLARO" }, { modelo: "M46501-4", color: "TAUPE OJO DE PAJARO" },
+        { modelo: "M46501-5", color: "AZUL CLARO" }, { modelo: "M78200-4", color: "AZUL CLARO" },
+        { modelo: "M78200-5", color: "AZUL PIEL DE TIBURON" }, { modelo: "M87164-1", color: "TINTA AZUL" },
+        { modelo: "M87184-1", color: "NEGRO A RALLAS" }, { modelo: "M87184-2", color: "MARINO A RALLAS" },
+        { modelo: "M87184-3", color: "GRIS A RALLAS" }, { modelo: "M87130-1", color: "MARINO A RALLAS" },
+        { modelo: "M87185-1", color: "GRIS CLARO" }, { modelo: "M87185-2", color: "BEIGE PIEL DE TIBURON" },
+        { modelo: "M87817-1", color: "MARINO HARRINGBONE" }, { modelo: "M87817-2B", color: "MARINO" },
+        { modelo: "M87855-1", color: "GRIS CAFE" }, { modelo: "M87856-1", color: "GRIS AZUL TARTÁN" },
+        { modelo: "M87857-1", color: "MARINO" }, { modelo: "M87858-1", color: "OXFORD AZUL" },
+        { modelo: "M87859-1", color: "AZUL A CUADROS" }, { modelo: "M87860-1", color: "AZUL TAUPE" },
+        { modelo: "M87860-2", color: "CAFE CAMELLO" }, { modelo: "M87861-1", color: "MARINO A CUADROS" },
+        // --- LANA SEDA ---
+        { modelo: "B66050-1", color: "NEGRO SOLIDO" }, { modelo: "B66050-2B", color: "MARINO" },
+        { modelo: "B66051-1A", color: "GRIS SOLIDO" }, { modelo: "B66051-2", color: "GRIS CLARO" },
         // --- SUPER 150'S CASHMERE ---
-        { modelo: "E59663-1", color: "NEGRO SOLIDO", foto: "E59663-1" },
-        { modelo: "E59663-2", color: "MARINO SOLIDO", foto: "E59663-2" },
-        { modelo: "E59663-3", color: "OXFORD SOLIDO", foto: "E59663-3" }
+        { modelo: "E59663-1", color: "NEGRO SOLIDO" }, { modelo: "E59663-2", color: "MARINO SOLIDO" },
+        { modelo: "E59663-6", color: "AZUL SOLIDO" }, { modelo: "E59663-3", color: "OXFORD SOLIDO" },
+        { modelo: "E59663-5", color: "GRIS SOLIDO" }, { modelo: "E59663-4", color: "GRIS CLARO" },
+        { modelo: "E84586-1", color: "GRIS PIEL DE TIBURON" }, { modelo: "E84593-1", color: "MARINO A CUADROS" },
+        { modelo: "E84587-1", color: "OXFORD VINO" }, { modelo: "E84588-1", color: "TAUPE A CUADROS" },
+        { modelo: "E84589-1", color: "CAFE AZUL" }, { modelo: "E84590-1", color: "MARINO A CUADROS" },
+        { modelo: "E84591-1", color: "GRIS AZUL" }, { modelo: "E84592-1", color: "NEGRO TONAL" },
+        { modelo: "E84592-2", color: "MARINO TONAL" }, { modelo: "E84594-1", color: "MARINO A CUADROS" },
+        { modelo: "E84582-1", color: "AZUL TEAKWEAVE" }, { modelo: "E84584-2", color: "GRIS A CUADROS" },
+        { modelo: "E84584-3", color: "BEIGE A CUADROS" }
     ];
 
-    // Autogenerar los modelos especiales en el catálogo
+    // Autogenerar los modelos especiales 4040, 4030, etc.
     modelosEspeciales.forEach(m => {
         coloresEspeciales.forEach(c => {
-            catalogoProductos.push({
-                modelo: m,
-                color: c,
-                foto: `${m}_${c.replace(/\s+/g, '_')}` // Ejemplo: 4040_AZUL_REY
-            });
+            catalogoProductos.push({ modelo: m, color: c });
         });
     });
 
-    let datosGlobales = [];
-    const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
+    // Función para obtener nombre de foto
+    function obtenerNombreFoto(modelo, color) {
+        if (modelosEspeciales.includes(modelo)) {
+            return `${modelo}_${color.replace(/\s+/g, '_')}`;
+        }
+        return modelo;
+    }
 
-    // ==========================================
-    // 2. FUNCIONES DE CATÁLOGO
-    // ==========================================
     function cargarCatalogo() {
         const modSelect = document.getElementById('mod');
         modSelect.innerHTML = '<option value="" disabled selected>Selecciona modelo...</option>';
         const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))];
-        modelosUnicos.sort().forEach(m => {
-            modSelect.innerHTML += `<option value="${m}">${m}</option>`;
-        });
+        modelosUnicos.sort().forEach(m => { modSelect.innerHTML += `<option value="${m}">${m}</option>`; });
     }
 
     function actualizarColoresSegunModelo() {
         const modeloSelected = document.getElementById('mod').value;
         const colSelect = document.getElementById('col');
         colSelect.innerHTML = '<option value="" disabled selected>Selecciona color...</option>';
-        const coloresFiltrados = catalogoProductos.filter(p => p.modelo === modeloSelected);
-        coloresFiltrados.forEach(p => {
+        catalogoProductos.filter(p => p.modelo === modeloSelected).forEach(p => {
             colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`;
         });
     }
 
-    // ==========================================
-    // 3. LÓGICA FUNCIONAL
-    // ==========================================
+    const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
-            const container = document.getElementById(`list-${cat}`);
-            container.innerHTML = tallasBase.map(t => `
-                <label class="size-item">
-                    <input type="checkbox" class="check-${cat}" value="${t}${cat}">
-                    <span>${t}</span>
-                </label>
+            document.getElementById(`list-${cat}`).innerHTML = tallasBase.map(t => `
+                <label class="size-item"><input type="checkbox" class="check-${cat}" value="${t}${cat}"> <span>${t}</span></label>
             `).join('');
         });
     }
 
-    function toggleGroup(cat, isChecked) {
-        document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked);
-    }
+    function toggleGroup(cat, isChecked) { document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked); }
 
     async function cargarDatos() {
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
-        datosGlobales = listado.sort((a, b) => b.id - a.id);
+        const datosGlobales = listado.sort((a, b) => b.id - a.id);
         const cuerpoActivos = document.querySelector("#tablaActivos tbody");
         const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
-        cuerpoActivos.innerHTML = "";
-        cuerpoHistorial.innerHTML = "";
+        cuerpoActivos.innerHTML = ""; cuerpoHistorial.innerHTML = "";
 
         datosGlobales.forEach(c => {
-            const porcentaje = c.progreso || 0;
             const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
             if (c.estatus !== 'Finalizado') {
-                cuerpoActivos.innerHTML += `
-                    <tr>
-                        <td><b>#${c.id}</b></td>
-                        <td>${c.modelo} <br> <small style="color:gray">${c.color}</small></td>
-                        <td>
-                            <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
-                            ${c.estatus === 'En Proceso' ? `<div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${porcentaje}%"></div></div><small style="font-size:10px">${porcentaje}%</small>` : ''}
-                        </td>
-                        <td>${c.asignadoA || '---'} ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}</td>
-                        <td>${tiempos}</td>
-                    </tr>`;
+                cuerpoActivos.innerHTML += `<tr><td><b>#${c.id}</b></td><td>${c.modelo}<br><small>${c.color}</small></td><td><span class="status ${c.estatus==='En Proceso'?'proc':'pen'}">${c.estatus}</span>${c.estatus==='En Proceso'?`<div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${c.progreso}%"></div></div>`:''}</td><td>${c.asignadoA||'---'} ${c.estatus==='En Proceso'?`<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>`:''}</td><td>${tiempos}</td></tr>`;
             } else {
-                cuerpoHistorial.innerHTML += `
-                    <tr>
-                        <td><small>#${c.id}</small></td>
-                        <td>${c.modelo} - ${c.color}</td>
-                        <td>${c.asignadoA}</td>
-                        <td>${tiempos}</td>
-                        <td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td>
-                    </tr>`;
+                cuerpoHistorial.innerHTML += `<tr><td><small>#${c.id}</small></td><td>${c.modelo} - ${c.color}</td><td>${c.asignadoA}</td><td>${tiempos}</td><td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td></tr>`;
             }
         });
+        window.datosGlobales = datosGlobales;
     }
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
-
         if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
-
-        // Buscamos el nombre de la foto correspondiente en el catálogo
-        const itemCatalogo = catalogoProductos.find(p => p.modelo === modelo && p.color === color);
-        const nombreFoto = itemCatalogo ? itemCatalogo.foto : modelo;
-
+        
         const res = await fetch('/api/crear-ciclico', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                modelo, 
-                color, 
-                foto: nombreFoto, // Enviamos el identificador de foto correcto
-                tallasRaw: seleccionadas.join(', ') 
-            })
+            body: JSON.stringify({ modelo, color, foto: obtenerNombreFoto(modelo, color), tallasRaw: seleccionadas.join(', ') })
         });
-
-        if(res.ok) { limpiarFormulario(); cargarDatos(); }
-    }
-
-    function limpiarFormulario() {
-        document.getElementById('mod').selectedIndex = 0;
-        document.getElementById('col').innerHTML = '<option value="" disabled selected>Selecciona color...</option>';
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        if(res.ok) { 
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            cargarDatos(); 
+        }
     }
 
     async function liberarInventario(id) {
-        if(!confirm("¿Liberar este inventario? El operador perderá el progreso.")) return;
-        await fetch('/api/liberar-inventario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
-        cargarDatos();
+        if(confirm("¿Liberar inventario?")) {
+            await fetch('/api/liberar-inventario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+            cargarDatos();
+        }
     }
 
     function procesarExcel(input) {
-        const file = input.files[0];
-        if (!file) return;
         const reader = new FileReader();
-        reader.onload = async function(e) {
+        reader.onload = async (e) => {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             const grupos = {};
-            rows.forEach(row => {
-                const mod = row.Modelo; const col = row.Color; const tal = row.Talla;
-                if(mod && col && tal) {
-                    const key = `${mod}-${col}`;
-                    if(!grupos[key]) grupos[key] = { modelo: mod, color: col, tallas: [] };
-                    grupos[key].tallas.push(tal);
-                }
+            rows.forEach(r => {
+                const k = `${r.Modelo}-${r.Color}`;
+                if(!grupos[k]) grupos[k] = { m: r.Modelo, c: r.Color, t: [] };
+                grupos[k].t.push(r.Talla);
             });
-            for (const key in grupos) {
-                const item = grupos[key];
-                const itemCat = catalogoProductos.find(p => p.modelo == item.modelo && p.color == item.color);
-                const fotoExcel = itemCat ? itemCat.foto : item.modelo;
-                await fetch('/api/crear-ciclico', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ modelo: item.modelo, color: item.color, foto: fotoExcel, tallasRaw: item.tallas.join(', ') }) 
-                });
+            for(let k in grupos) {
+                const g = grupos[k];
+                await fetch('/api/crear-ciclico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ modelo: g.m, color: g.c, foto: obtenerNombreFoto(g.m, g.c), tallasRaw: g.t.join(', ') }) });
             }
-            alert("Carga masiva completada."); input.value = ""; cargarDatos();
+            alert("Carga completada"); cargarDatos();
         };
-        reader.readAsArrayBuffer(file);
-    }
-
-    function parseTimeToSeconds(timeStr) {
-        if (!timeStr || timeStr === '--') return null;
-        const parts = timeStr.match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);
-        if (!parts) return null;
-        let h = parseInt(parts[1]); const m = parseInt(parts[2]); const s = parseInt(parts[3]);
-        const ampm = parts[4];
-        if (ampm && ampm.toUpperCase() === "PM" && h < 12) h += 12;
-        if (ampm && ampm.toUpperCase() === "AM" && h === 12) h = 0;
-        return (h * 3600) + (m * 60) + s;
+        reader.readAsArrayBuffer(input.files[0]);
     }
 
     function descargarExcel(id) {
-        const c = datosGlobales.find(item => item.id === id);
-        if(!c) return;
-
-        let tiempoTotal = "N/A";
-        const sIn = parseTimeToSeconds(c.horaInicio);
-        const sFin = parseTimeToSeconds(c.horaFin);
-        if (sIn !== null && sFin !== null) {
-            let diff = sFin - sIn; if (diff < 0) diff += 86400; 
-            const mins = Math.floor(diff / 60); const segs = diff % 60;
-            tiempoTotal = `${mins}m ${segs}s`;
-        }
-
-        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin,Tiempo Total\n";
-        c.resultados.forEach(r => {
-            csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin},${tiempoTotal}\n`;
-        });
-
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const c = window.datosGlobales.find(i => i.id === id);
+        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin\n";
+        c.resultados.forEach(r => { csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin}\n`; });
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `Reporte_${c.modelo}_${c.id}.csv`;
-        link.click();
+                link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+        link.download = `Reporte_${c.modelo}_${c.id}.csv`; link.click();
     }
 
-    cargarCatalogo();
-    renderTallas();
-    cargarDatos();
-    setInterval(cargarDatos, 7000); 
+    cargarCatalogo(); renderTallas(); cargarDatos();
+    setInterval(cargarDatos, 10000);
 </script>
 </body>
 </html>
