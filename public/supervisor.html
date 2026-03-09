@@ -34,6 +34,7 @@
         .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .proc { background: #e3f2fd; color: #0d47a1; }
         .pen { background: #fff3cd; color: #856404; }
+        .percent-text { font-size: 10px; font-weight: bold; color: #3498db; display: block; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -168,14 +169,12 @@
         { modelo: "E84584-3", color: "BEIGE A CUADROS" }
     ];
 
-    // Autogenerar los modelos especiales 4040, 4030, etc.
     modelosEspeciales.forEach(m => {
         coloresEspeciales.forEach(c => {
             catalogoProductos.push({ modelo: m, color: c });
         });
     });
 
-    // Función para obtener nombre de foto
     function obtenerNombreFoto(modelo, color) {
         if (modelosEspeciales.includes(modelo)) {
             return `${modelo}_${color.replace(/\s+/g, '_')}`;
@@ -221,7 +220,28 @@
         datosGlobales.forEach(c => {
             const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
             if (c.estatus !== 'Finalizado') {
-                cuerpoActivos.innerHTML += `<tr><td><b>#${c.id}</b></td><td>${c.modelo}<br><small>${c.color}</small></td><td><span class="status ${c.estatus==='En Proceso'?'proc':'pen'}">${c.estatus}</span>${c.estatus==='En Proceso'?`<div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${c.progreso}%"></div></div>`:''}</td><td>${c.asignadoA||'---'} ${c.estatus==='En Proceso'?`<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>`:''}</td><td>${tiempos}</td></tr>`;
+                // AQUÍ SE AGREGA EL TEXTO DEL PORCENTAJE DEBAJO DE LA BARRA
+                let progresoHTML = '';
+                if(c.estatus === 'En Proceso') {
+                    progresoHTML = `
+                        <div class="progress-mini-bg">
+                            <div class="progress-mini-fill" style="width:${c.progreso}%"></div>
+                        </div>
+                        <span class="percent-text">Progreso ${c.progreso}%</span>
+                    `;
+                }
+
+                cuerpoActivos.innerHTML += `
+                    <tr>
+                        <td><b>#${c.id}</b></td>
+                        <td>${c.modelo}<br><small>${c.color}</small></td>
+                        <td>
+                            <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
+                            ${progresoHTML}
+                        </td>
+                        <td>${c.asignadoA || '---'} ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}</td>
+                        <td>${tiempos}</td>
+                    </tr>`;
             } else {
                 cuerpoHistorial.innerHTML += `<tr><td><small>#${c.id}</small></td><td>${c.modelo} - ${c.color}</td><td>${c.asignadoA}</td><td>${tiempos}</td><td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td></tr>`;
             }
@@ -279,7 +299,7 @@
         let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin\n";
         c.resultados.forEach(r => { csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin}\n`; });
         const link = document.createElement("a");
-                link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
         link.download = `Reporte_${c.modelo}_${c.id}.csv`; link.click();
     }
 
