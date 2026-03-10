@@ -3,177 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Supervisor Pro - Actualización Crítica v2.1</title>
+    <title>Victoria Admin | Intelligence</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: auto; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); margin-bottom: 25px; border-top: 5px solid #3498db; }
-        .card-historial { border-top: 5px solid #95a5a6; }
-        h1 { color: #2c3e50; font-size: 28px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 25px; }
-        h2 { font-size: 20px; color: #34495e; margin-top: 0; }
-        
-        /* Formulario Layout */
-        .form-main { display: flex; flex-direction: column; gap: 20px; }
-        .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        label { display: block; font-size: 14px; font-weight: 600; color: #555; margin-bottom: 8px; }
-        select { width: 100%; padding: 12px; border: 2px solid #dfe6e9; border-radius: 10px; font-size: 15px; outline: none; transition: 0.3s; }
-        select:focus { border-color: #3498db; }
-        
-        /* Tallas Grid */
-        .tallas-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 10px; }
-        .talla-col { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
-        .col-header { background: #f8f9fa; padding: 15px; border-bottom: 1px solid #eee; text-align: center; }
-        .col-circle { width: 35px; height: 35px; background: #6c5ce7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: bold; }
-        .sizes-list { max-height: 350px; overflow-y: auto; padding: 10px; }
-        .size-item { display: flex; align-items: center; gap: 15px; padding: 10px; border-bottom: 1px solid #f9f9f9; font-size: 15px; cursor: pointer; transition: 0.2s; }
-        .size-item:hover { background: #f1f2f6; }
-        .size-item input { transform: scale(1.3); }
+        :root {
+            --victoria-navy: #002147;
+            --victoria-gold: #C5A059;
+            --victoria-bg: #F4F7FA;
+            --sidebar-w: 260px;
+        }
 
-        /* Botones */
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
-        .btn-add { background: #3498db; color: white; font-size: 16px; width: 100%; margin-top: 10px; }
-        .btn-add:hover { background: #2980b9; transform: translateY(-2px); }
-        .btn-refresh { background: #55efc4; color: #00b894; }
-        .btn-dl { background: #27ae60; color: white; text-decoration: none; }
-        .btn-danger { background: #ff7675; color: white; }
-        .btn-delete-hist { background: #d63031; color: white; border-radius: 5px; padding: 6px 12px; font-size: 11px; }
-
-        /* Tablas */
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
-        th { background: #f8f9fa; color: #7f8c8d; text-align: left; padding: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
-        td { padding: 15px; border-bottom: 1px solid #f1f1f1; font-size: 15px; }
-        .status { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .proc { background: #e3f2fd; color: #1976d2; }
-        .pen { background: #fff3e0; color: #e65100; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* Barra de Progreso */
-        .prog-container { width: 120px; }
-        .prog-bg { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; }
-        .prog-fill { background: #3498db; height: 100%; transition: 0.4s; }
-        .prog-text { font-size: 11px; font-weight: bold; color: #3498db; margin-top: 5px; display: block; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--victoria-bg);
+            color: #1D1D1F;
+            display: flex; min-height: 100vh;
+        }
 
-        /* Filtro */
-        .filter-section { background: #f1f2f6; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
-        .filter-section select { width: auto; min-width: 250px; }
+        /* Sidebar Elegante */
+        aside {
+            width: var(--sidebar-w);
+            background: var(--victoria-navy);
+            padding: 40px 25px;
+            display: flex; flex-direction: column;
+            position: fixed; height: 100vh;
+            color: white; z-index: 1000;
+        }
+
+        .side-logo { margin-bottom: 50px; text-align: center; }
+        .side-logo img { width: 150px; filter: invert(1); }
+
+        .nav-link {
+            padding: 14px 18px; border-radius: 12px;
+            color: rgba(255,255,255,0.7); text-decoration: none;
+            font-weight: 500; font-size: 14px; display: flex;
+            align-items: center; gap: 12px; margin-bottom: 8px;
+            transition: 0.3s;
+        }
+
+        .nav-link:hover { background: rgba(255,255,255,0.1); color: white; }
+        .nav-link.active { background: var(--victoria-gold); color: white; box-shadow: 0 10px 20px rgba(197, 160, 89, 0.2); }
+
+        /* Contenido Principal */
+        main { flex: 1; margin-left: var(--sidebar-w); padding: 50px; }
+
+        .header-top {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 40px;
+        }
+
+        .header-top h1 { font-size: 32px; font-weight: 800; color: var(--victoria-navy); letter-spacing: -1px; }
+
+        /* Card System */
+        .v-card {
+            background: white; border-radius: 24px; padding: 30px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.04); margin-bottom: 30px;
+        }
+
+        .v-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 25px; color: var(--victoria-navy); display: flex; align-items: center; gap: 10px; }
+        .v-card h2::before { content: ""; width: 4px; height: 18px; background: var(--victoria-gold); border-radius: 2px; }
+
+        /* Grid Form */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .input-box label { display: block; font-size: 12px; font-weight: 700; color: #86868B; margin-bottom: 8px; text-transform: uppercase; }
+
+        select, input {
+            width: 100%; padding: 14px 18px; border-radius: 14px;
+            border: 1.5px solid #F2F2F7; background: #F9FAFB;
+            font-size: 15px; outline: none; transition: 0.3s;
+        }
+        select:focus { border-color: var(--victoria-navy); background: white; }
+
+        /* Tallas Columns */
+        .talla-flex { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .talla-group { background: #F9FAFB; padding: 20px; border-radius: 18px; border: 1px solid #F2F2F7; }
+        .talla-group h4 { font-size: 11px; font-weight: 800; color: var(--victoria-gold); margin-bottom: 15px; text-align: center; }
+        
+        .scroll-checks { max-height: 180px; overflow-y: auto; }
+        .check-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .check-item input { width: 18px; height: 18px; border-radius: 6px; }
+
+        /* Buttons Victoria */
+        .v-btn {
+            padding: 14px 28px; border-radius: 14px; font-weight: 700;
+            border: none; cursor: pointer; transition: 0.3s;
+            display: inline-flex; align-items: center; gap: 10px; font-size: 14px;
+        }
+        .v-btn-primary { background: var(--victoria-navy); color: white; }
+        .v-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,33,71,0.2); }
+        .v-btn-outline { background: white; border: 1.5px solid #E5E5E7; color: var(--victoria-navy); }
+
+        /* Tables Victoria */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 15px; font-size: 11px; font-weight: 800; color: #86868B; text-transform: uppercase; border-bottom: 2px solid #F2F2F7; }
+        td { padding: 20px 15px; border-bottom: 1px solid #F9FAFB; font-size: 14px; }
+
+        .progress-pill {
+            background: #F2F2F7; height: 6px; border-radius: 3px;
+            width: 80px; position: relative; overflow: hidden;
+        }
+        .progress-fill { height: 100%; background: var(--victoria-navy); border-radius: 3px; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .dot-green { background: #34C759; }
+        .dot-blue { background: #0071E3; }
     </style>
 </head>
 <body>
 
-<div style="text-align: center; margin-bottom: 30px;">
-    <img src="/logo.png" alt="Logo Empresa" style="max-height: 100px;">
-</div>
+<aside>
+    <div class="side-logo">
+        <img src="https://mens-international.com/wp-content/uploads/2021/05/Logo-Victoria-Trajes-y-Uniformes.png" alt="Victoria">
+    </div>
+    <nav>
+        <a href="#" class="nav-link active">📊 Inteligencia de Datos</a>
+        <a href="#" class="nav-link">📦 Gestión de Stock</a>
+        <a href="#" class="nav-link" onclick="eliminarTodoElHistorial()" style="color:#FF3B30; margin-top: 100px;">🗑️ Purgar Datos</a>
+    </nav>
+</aside>
 
-<div class="container">
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-            <h2>🚀 Nuevo Inventario Ciclico</h2>
-            <label class="btn btn-dl" style="cursor:pointer; font-size: 12px;">
+<main>
+    <header class="header-top">
+        <div>
+            <h1>Panel de Control</h1>
+            <p style="color:#86868B; font-weight: 500;">Bienvenido al centro de mando Victoria.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <label class="v-btn v-btn-outline" style="cursor:pointer">
                 📂 Importar Excel
-                <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="procesarExcel(this)">
+                <input type="file" id="excelInput" style="display:none" onchange="procesarExcel(this)">
             </label>
+            <button class="v-btn v-btn-primary" onclick="cargarDatos()">🔄 Sincronizar</button>
+        </div>
+    </header>
+
+    <div class="v-card">
+        <h2>Crear Nuevo Inventario Cíclico</h2>
+        <div class="form-row">
+            <div class="input-box">
+                <label>Modelo del Producto</label>
+                <select id="mod" onchange="actualizarColoresSegunModelo()"></select>
+            </div>
+            <div class="input-box">
+                <label>Color / Variante</label>
+                <select id="col"></select>
+            </div>
         </div>
 
-        <div class="form-main">
-            <div class="row-inputs">
-                <div>
-                    <label>Modelo del Producto</label>
-                    <select id="mod" onchange="actualizarColoresSegunModelo()">
-                        <option value="" disabled selected>Seleccione el modelo...</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Variante de Color</label>
-                    <select id="col">
-                        <option value="" disabled selected>Seleccione el color...</option>
-                    </select>
-                </div>
+        <div class="talla-flex">
+            <div class="talla-group">
+                <h4>CORTO (C)</h4>
+                <label class="check-item"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> <small>Todo</small></label>
+                <div id="list-C" class="scroll-checks"></div>
             </div>
-
-            <label>Tallas a Inventariar:</label>
-            <div class="tallas-grid-container">
-                <div class="talla-col">
-                    <div class="col-header">
-                        <div class="col-circle">C</div>
-                        <label style="font-size:12px;"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todos</label>
-                    </div>
-                    <div id="list-C" class="sizes-list"></div>
-                </div>
-                <div class="talla-col">
-                    <div class="col-header">
-                        <div class="col-circle" style="background:#4834d4">R</div>
-                        <label style="font-size:12px;"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todos</label>
-                    </div>
-                    <div id="list-R" class="sizes-list"></div>
-                </div>
-                <div class="talla-col">
-                    <div class="col-header">
-                        <div class="col-circle" style="background:#eb4d4b">L</div>
-                        <label style="font-size:12px;"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todos</label>
-                    </div>
-                    <div id="list-L" class="sizes-list"></div>
-                </div>
+            <div class="talla-group">
+                <h4>REGULAR (R)</h4>
+                <label class="check-item"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> <small>Todo</small></label>
+                <div id="list-R" class="scroll-checks"></div>
             </div>
-
-            <button class="btn btn-add" onclick="crearCiclico()">✅ PUBLICAR INVENTARIO EN APP</button>
+            <div class="talla-group">
+                <h4>LARGO (L)</h4>
+                <label class="check-item"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> <small>Todo</small></label>
+                <div id="list-L" class="scroll-checks"></div>
+            </div>
         </div>
+        <button class="v-btn v-btn-primary" style="width:100%; margin-top:30px; justify-content:center;" onclick="crearCiclico()">Publicar Inventario</button>
     </div>
 
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-            <h2>⚡ Monitoreo en Tiempo Real</h2>
-            <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Refrescar Datos</button>
-        </div>
+    <div class="v-card">
+        <h2>Órdenes en Proceso</h2>
         <table id="tablaActivos">
             <thead>
                 <tr>
                     <th>Folio</th>
-                    <th>Modelo y Color</th>
-                    <th>Estado / Avance</th>
+                    <th>Producto</th>
+                    <th>Estado de Avance</th>
                     <th>Operador</th>
-                    <th>Inicio</th>
+                    <th>Gestión</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="v-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+            <h2>Historial de Ejecución</h2>
+            <select id="filtroFecha" onchange="cargarDatos()" style="width:220px;">
+                <option value="HOY">Hoy (Monterrey)</option>
+                <option value="TODOS">Ver Todo el Historial</option>
+            </select>
+        </div>
+        <table id="tablaHistorial">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th>Responsable</th>
+                    <th>Duración</th>
                     <th>Acción</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
     </div>
-
-    <div class="card card-historial">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-            <h2>📂 Historial de Inventarios Finalizados</h2>
-            <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Todo el Historial</button>
-        </div>
-
-        <div class="filter-section">
-            <label>📅 Filtro de Fecha:</label>
-            <select id="filtroFecha" onchange="cargarDatos()">
-                <option value="HOY">Ver solo registros de HOY (Monterrey)</option>
-                <option value="TODOS">Ver registros históricos completos</option>
-            </select>
-        </div>
-
-        <table id="tablaHistorial">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Fecha</th>
-                    <th>Modelo/Color</th>
-                    <th>Operador</th>
-                    <th>Tiempo Total</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-</div>
+</main>
 
 <script>
-    // --- CATALOGO MAESTRO RESTAURADO AL 100% ---
+    // CATÁLOGO ÍNTEGRO (REGLA DE ORO)
     const modelosEspeciales = ["4040", "4030", "33739", "TR-1", "TR-2"];
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO"];
-
     let catalogoProductos = [
         { modelo: "C67901-1", color: "NEGRO SOLIDO" }, { modelo: "C67901-2B", color: "NUEVO AZUL" },
         { modelo: "C67901-3", color: "GRIS OXFORD" }, { modelo: "C67901-4", color: "GRIS LIGERO" },
@@ -230,17 +274,11 @@
         { modelo: "E84582-1", color: "AZUL TEAKWEAVE" }, { modelo: "E84584-2", color: "GRIS A CUADROS" },
         { modelo: "E84584-3", color: "BEIGE A CUADROS" }
     ];
+    modelosEspeciales.forEach(m => { coloresEspeciales.forEach(c => { catalogoProductos.push({ modelo: m, color: c }); }); });
 
-    modelosEspeciales.forEach(m => {
-        coloresEspeciales.forEach(c => {
-            catalogoProductos.push({ modelo: m, color: c });
-        });
-    });
-
-    // --- CARGA DE SELECTORES ---
     function cargarCatalogo() {
         const modSelect = document.getElementById('mod');
-        modSelect.innerHTML = '<option value="" disabled selected>Seleccione el modelo...</option>';
+        modSelect.innerHTML = '<option value="" disabled selected>Seleccionar modelo...</option>';
         const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))];
         modelosUnicos.sort().forEach(m => { modSelect.innerHTML += `<option value="${m}">${m}</option>`; });
     }
@@ -248,40 +286,24 @@
     function actualizarColoresSegunModelo() {
         const modeloSelected = document.getElementById('mod').value;
         const colSelect = document.getElementById('col');
-        colSelect.innerHTML = '<option value="" disabled selected>Seleccione el color...</option>';
+        colSelect.innerHTML = '<option value="" disabled selected>Seleccionar color...</option>';
         catalogoProductos.filter(p => p.modelo === modeloSelected).forEach(p => {
             colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`;
         });
     }
 
-    // --- RENDERIZADO DE TALLAS ---
     const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
             document.getElementById(`list-${cat}`).innerHTML = tallasBase.map(t => `
-                <label class="size-item">
-                    <input type="checkbox" class="check-${cat}" value="${t}${cat}"> 
-                    <span>${t}${cat}</span>
-                </label>
+                <label class="check-item"><input type="checkbox" class="check-${cat}" value="${t}${cat}"> ${t}${cat}</label>
             `).join('');
         });
     }
+    function toggleGroup(cat, isChecked) { document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked); }
 
-    function toggleGroup(cat, isChecked) {
-        document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked);
-    }
-
-    // ==========================================
-    // NORMALIZACIÓN DE FECHAS Y TIEMPOS (ROBUSTO)
-    // ==========================================
-    
-    // Función para que la fecha siempre sea DD/MM/YYYY sin importar el navegador
     function obtenerFechaHoyMonterrey() {
-        const d = new Date();
-        const dia = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', day: '2-digit'});
-        const mes = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', month: '2-digit'});
-        const anio = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', year: 'numeric'});
-        return `${dia}/${mes}/${anio}`;
+        return new Intl.DateTimeFormat('es-MX', {timeZone: 'America/Monterrey', day: '2-digit', month: '2-digit', year: 'numeric'}).format(new Date());
     }
 
     function calcularDiferenciaTiempo(inicio, fin) {
@@ -292,193 +314,92 @@
                 let [h, m, s] = time.split(':');
                 if (h === '12') h = '00';
                 if (mod === 'PM') h = parseInt(h, 10) + 12;
-                const d = new Date();
-                d.setHours(h, m, s, 0);
-                return d.getTime();
+                const d = new Date(); d.setHours(h, m, s, 0); return d.getTime();
             };
             let diff = parsear(fin) - parsear(inicio);
-            if (diff < 0) diff += 86400000; // Caso cruce de medianoche
+            if (diff < 0) diff += 86400000;
             const segs = Math.floor(diff / 1000);
             return new Date(segs * 1000).toISOString().substr(11, 8);
         } catch (e) { return "---"; }
     }
 
-    // ==========================================
-    // GESTIÓN DE DATOS (CRUD Y FILTROS)
-    // ==========================================
-
     async function cargarDatos() {
         try {
             const res = await fetch('/api/ciclicos');
             const listado = await res.json();
-            
             const filtro = document.getElementById('filtroFecha').value;
             const hoyRef = obtenerFechaHoyMonterrey();
-
             const activosBody = document.querySelector("#tablaActivos tbody");
             const historialBody = document.querySelector("#tablaHistorial tbody");
             activosBody.innerHTML = ""; historialBody.innerHTML = "";
-
-            // Guardamos en global para descargar CSV
             window.datosGlobales = listado;
 
             listado.forEach(c => {
                 if (c.estatus !== 'Finalizado') {
-                    // Render Activos
                     activosBody.innerHTML += `
                         <tr>
                             <td><b>${c.id}</b></td>
-                            <td>${c.modelo}<br><small>${c.color}</small></td>
+                            <td>${c.modelo}<br><small style="color:#86868B">${c.color}</small></td>
                             <td>
-                                <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
-                                ${c.estatus === 'En Proceso' ? `
-                                    <div class="prog-container">
-                                        <div class="prog-bg"><div class="prog-fill" style="width:${c.progreso}%"></div></div>
-                                        <span class="prog-text">${c.progreso}% completado</span>
-                                    </div>` : ''}
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="progress-pill"><div class="progress-fill" style="width:${c.progreso}%"></div></div>
+                                    <span style="font-size:11px; font-weight:800; color:var(--victoria-navy)">${c.progreso}%</span>
+                                </div>
                             </td>
-                            <td>${c.asignadoA || 'Sin asignar'}</td>
-                            <td><small>${c.horaInicio || '--:--'}</small></td>
-                            <td>
-                                ${c.estatus === 'En Proceso' ? `<button class="btn-danger" style="padding:5px;" onclick="liberarInventario('${c.id}')">🔓 Liberar</button>` : '---'}
-                            </td>
+                            <td><span class="status-dot ${c.estatus === 'En Proceso' ? 'dot-blue' : 'dot-green'}"></span>${c.asignadoA || 'Pendiente'}</td>
+                            <td><button class="v-btn v-btn-outline" style="padding:6px 12px; font-size:10px;" onclick="liberarInventario('${c.id}')">LIBERAR</button></td>
                         </tr>`;
                 } else {
-                    // Filtro de Historial
                     if (filtro === "HOY" && c.fecha !== hoyRef) return;
-
                     const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
-
                     historialBody.innerHTML += `
                         <tr>
                             <td><small>${c.id}</small></td>
                             <td>${c.fecha}</td>
-                            <td>${c.modelo} - ${c.color}</td>
+                            <td><b>${c.modelo}</b><br><small>${c.color}</small></td>
                             <td>${c.asignadoA}</td>
                             <td><b>${tTotal}</b></td>
-                            <td>
-                                <button class="btn btn-dl" style="padding:5px 10px;" onclick="descargarCSV('${c.id}')">📥 CSV</button>
-                                <button class="btn-delete-hist" onclick="eliminarFila('${c.id}')">🗑️</button>
+                            <td style="display:flex; gap:8px;">
+                                <button class="v-btn v-btn-primary" style="padding:8px 12px; font-size:11px;" onclick="descargarCSV('${c.id}')">CSV</button>
+                                <button class="v-btn" style="padding:8px; background:#FFF0F0; color:#FF3B30;" onclick="eliminarFila('${c.id}')">🗑️</button>
                             </td>
                         </tr>`;
                 }
             });
-        } catch (err) { console.error("Error cargando tabla:", err); }
+        } catch (err) { console.error(err); }
     }
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
-        const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
-        
-        if(!modelo || !color || seleccionadas.length === 0) {
-            alert("⚠️ Por favor completa Modelo, Color y al menos una Talla.");
-            return;
-        }
-        
+        const seleccionadas = Array.from(document.querySelectorAll('.scroll-checks input[type="checkbox"]:checked')).map(cb => cb.value);
+        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
         const res = await fetch('/api/crear-ciclico', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ modelo, color, tallasRaw: seleccionadas.join(', ') })
         });
-        
-        if(res.ok) { 
-            // Limpiar checks
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            cargarDatos();
-            alert("✅ Inventario publicado correctamente.");
-        }
+        if(res.ok) { document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); cargarDatos(); alert("Publicado."); }
     }
 
-    async function liberarInventario(id) {
-        if(confirm("¿Deseas desbloquear este inventario para que otro operador pueda tomarlo?")) {
-            await fetch('/api/liberar-inventario', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ id }) 
-            });
-            cargarDatos();
-        }
-    }
-
-    async function eliminarFila(id) {
-        if(!confirm(`¿Eliminar definitivamente el registro ${id}?`)) return;
-        await fetch(`/api/eliminar-ciclico/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        cargarDatos();
-    }
-
-    async function eliminarTodoElHistorial() {
-        if(!confirm("⚠️ ATENCIÓN: Se borrarán TODOS los registros finalizados de la base de datos. ¿Continuar?")) return;
-        const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
-        const data = await res.json();
-        alert(`Limpieza exitosa. Se borraron ${data.conteo} registros.`);
-        cargarDatos();
-    }
-
-    // ==========================================
-    // DESCARGA DE REPORTE CSV (MEJORADA)
-    // ==========================================
     function descargarCSV(folio) {
-        console.log("Intentando descargar folio:", folio);
         const item = window.datosGlobales.find(i => i.id === folio);
-        
-        if(!item) {
-            alert("Error: No se encontró la información del inventario.");
-            return;
-        }
-
+        if(!item) return;
         const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
-        
-        // Encabezados según requerimiento: ID, Fecha, Modelo, Color, Operador, Talla, Cantidad, Tiempo Total
-        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-        
-        item.resultados.forEach(r => {
-            contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`;
-        });
-
-        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
+        let csv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
+        item.resultados.forEach(r => { csv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement("a");
-        a.href = url;
-        a.download = `Reporte_Ciclico_${item.modelo}_${item.fecha.replace(/\//g, '-')}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.href = URL.createObjectURL(blob);
+        a.download = `Reporte_${item.modelo}_${item.id}.csv`; a.click();
     }
 
-    function procesarExcel(input) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            const grupos = {};
-            rows.forEach(r => {
-                const k = `${r.Modelo}-${r.Color}`;
-                if(!grupos[k]) grupos[k] = { m: r.Modelo, c: r.Color, t: [] };
-                grupos[k].t.push(r.Talla);
-            });
-            for(let k in grupos) {
-                const g = grupos[k];
-                await fetch('/api/crear-ciclico', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ modelo: g.m, color: g.c, tallasRaw: g.t.join(', ') }) 
-                });
-            }
-            alert("Excel procesado con éxito."); 
-            cargarDatos();
-        };
-        reader.readAsArrayBuffer(input.files[0]);
-    }
+    async function liberarInventario(id) { if(confirm("¿Liberar?")) { await fetch('/api/liberar-inventario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) }); cargarDatos(); } }
+    async function eliminarFila(id) { if(confirm("¿Eliminar?")) { await fetch(`/api/eliminar-ciclico/${encodeURIComponent(id)}`, { method: 'DELETE' }); cargarDatos(); } }
+    async function eliminarTodoElHistorial() { if(confirm("¿BORRAR TODO?")) { await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' }); cargarDatos(); } }
 
-    // Inicio de sistema
-    cargarCatalogo(); 
-    renderTallas(); 
-    cargarDatos();
-    
-    // Auto-actualización cada 8 segundos
-    setInterval(cargarDatos, 8000);
+    cargarCatalogo(); renderTallas(); cargarDatos();
+    setInterval(cargarDatos, 12000);
 </script>
 </body>
 </html>

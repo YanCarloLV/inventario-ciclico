@@ -2,389 +2,295 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Inventarios - Operador Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Victoria | Operador Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; color: #333; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 20px; transition: 0.3s; }
-        h2 { margin-top: 0; color: #1a1a1a; font-size: 22px; }
-        
-        /* Login Screen */
-        #login-screen { display: none; max-width: 400px; margin: 100px auto; text-align: center; }
-        .input-pro { width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; font-size: 16px; box-sizing: border-box; outline: none; }
-
-        /* Lista de Inventarios */
-        .item-pend { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 18px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 12px;
-            background: #fff; cursor: pointer; transition: 0.2s;
+        :root {
+            --victoria-navy: #002147;
+            --victoria-gold: #C5A059;
+            --apple-bg: #FBFBFD;
+            --glass: rgba(255, 255, 255, 0.9);
+            --text-dark: #1D1D1F;
         }
-        .item-pend:active { transform: scale(0.98); }
-        .item-pend.busy { opacity: 0.6; cursor: not-allowed; background: #f5f5f5; filter: grayscale(1); }
-        
-        .tag-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 700; text-transform: uppercase; }
-        .tag-busy { background: #ffeaa7; color: #d63031; }
-        .tag-mine { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
-        .tag-free { background: #f3f4f6; color: #374151; }
 
-        /* Empty State (Sin Inventarios) */
-        .empty-state { text-align: center; padding: 40px 20px; background: white; border-radius: 12px; border: 2px dashed #cbd5e1; color: #64748b; margin-top: 10px; }
-        .empty-state h3 { color: #334155; margin: 15px 0 5px 0; font-size: 18px; }
-
-        /* Pantalla de Conteo Activo */
-        #conteo-screen { display: none; }
-        .header-active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        /* ESTILO PARA LA FOTO Y EL ZOOM */
-        .foto-referencia {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 10px;
-            border: 2px solid rgba(255,255,255,0.2);
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--apple-bg);
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        /* Animación suave de entrada */
+        @keyframes appleReveal {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .reveal { animation: appleReveal 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+        header {
+            position: sticky; top: 0; z-index: 100;
+            background: var(--glass);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 18px 25px;
+            display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        header img { height: 32px; filter: brightness(0.2); }
+
+        .container { padding: 25px; max-width: 480px; margin: auto; }
+
+        /* Tarjeta de Login */
+        .card-login {
             background: white;
-            cursor: zoom-in;
-            display: none;
-        }
-
-        /* Capa de Zoom (Modal) */
-        #modal-zoom {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-            cursor: zoom-out;
-        }
-        #modal-zoom img {
-            max-width: 90%;
-            max-height: 80%;
-            border-radius: 10px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
-        }
-
-        /* Modal para Teclado Numérico */
-        #modal-cantidad {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 3000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-caja {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            width: 85%;
-            max-width: 320px;
+            border-radius: 28px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 40px rgba(0,33,71,0.05);
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid rgba(0,0,0,0.03);
         }
-        .input-num {
-            width: 100%;
-            padding: 15px;
-            font-size: 28px;
-            text-align: center;
-            border: 2px solid #3498db;
-            border-radius: 12px;
-            margin: 15px 0;
-            box-sizing: border-box;
-            outline: none;
-            color: #2c3e50;
-            font-weight: bold;
-        }
-        .input-num:focus { border-color: #2980b9; box-shadow: 0 0 8px rgba(52, 152, 219, 0.3); }
 
-        /* Barra de Progreso */
-        .progress-wrapper { position: sticky; top: 0; background-color: white; padding: 15px 0; margin-bottom: 15px; z-index: 1000; border-bottom: 1px solid #f3f4f6; }
-        .progress-bg { background: #e5e7eb; height: 14px; border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); width: 0%; transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
-        
-        .talla-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f3f4f6; transition: background 0.3s; }
-        .talla-info b { font-size: 18px; color: #2c3e50; }
-        
-        .btn-action { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .btn-finish { background: #27ae60; color: white; width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 25px; }
-        .btn-back { background: transparent; color: #94a3b8; border: none; margin-top: 15px; width: 100%; font-size: 14px; text-decoration: underline; }
+        .card-login h2 { font-weight: 800; font-size: 26px; margin-bottom: 10px; color: var(--victoria-navy); }
+
+        .apple-input {
+            width: 100%; padding: 18px; border-radius: 15px;
+            border: 1.5px solid #E5E5E7; background: #F5F5F7;
+            font-size: 16px; margin: 25px 0; outline: none;
+            transition: all 0.3s;
+        }
+
+        .apple-input:focus { border-color: var(--victoria-gold); background: white; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.1); }
+
+        .btn-victoria {
+            background: var(--victoria-navy); color: white;
+            border: none; padding: 18px; border-radius: 15px;
+            font-size: 17px; font-weight: 600; width: 100%;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-victoria:active { transform: scale(0.96); opacity: 0.9; }
+
+        /* Lista de Tareas Estilo "Collection" */
+        .task-item {
+            background: white; border-radius: 22px; padding: 22px;
+            margin-bottom: 15px; display: flex; align-items: center;
+            justify-content: space-between; border: 1px solid rgba(0,0,0,0.02);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            transition: 0.3s;
+        }
+
+        .task-item:active { background: #F2F2F7; transform: scale(0.98); }
+
+        .task-info h3 { font-size: 18px; font-weight: 700; color: var(--victoria-navy); }
+        .task-info p { font-size: 14px; color: #86868B; margin-top: 2px; }
+
+        .folio-tag {
+            background: #F2F2F7; padding: 6px 12px; border-radius: 10px;
+            font-size: 11px; font-weight: 800; color: var(--victoria-navy);
+        }
+
+        /* Área de Conteo */
+        .product-header { text-align: center; margin-bottom: 35px; }
+        .product-header h2 { font-size: 34px; font-weight: 800; color: var(--victoria-navy); letter-spacing: -1px; }
+
+        .counter-row {
+            background: white; border-radius: 20px; padding: 18px 25px;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px; border: 1px solid #F2F2F7;
+        }
+
+        .talla-name { font-weight: 700; font-size: 19px; }
+
+        .stepper-control { display: flex; align-items: center; gap: 20px; }
+        .btn-circle {
+            width: 48px; height: 48px; border-radius: 50%;
+            border: 1.5px solid #E5E5E7; background: white;
+            font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
+        .count-num { font-size: 24px; font-weight: 800; min-width: 35px; text-align: center; color: var(--victoria-navy); }
+
+        .footer-action {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 25px; background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Success State */
+        .success-screen { text-align: center; padding-top: 60px; display: none; }
+        .success-screen .icon { 
+            width: 90px; height: 90px; background: var(--victoria-gold); 
+            color: white; border-radius: 50%; display: flex; 
+            align-items: center; justify-content: center; font-size: 45px; margin: 0 auto 30px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="modal-zoom" onclick="cerrarZoom()">
-        <img id="img-ampliada" src="">
-    </div>
+<header>
+    <img src="https://mens-international.com/wp-content/uploads/2021/05/Logo-Victoria-Trajes-y-Uniformes.png" alt="Victoria">
+</header>
 
-    <div id="modal-cantidad">
-        <div class="modal-caja">
-            <h3 style="margin-top:0; color:#2c3e50;">Cantidad para la talla</h3>
-            <h1 id="modal-talla-label" style="margin:5px 0; color:#e67e22; font-size: 36px;">--</h1>
-            <input type="number" id="input-cantidad" class="input-num" inputmode="numeric" pattern="[0-9]*" placeholder="0">
-            
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button onclick="cerrarModalCantidad()" style="flex:1; padding:15px; background:#ecf0f1; color:#7f8c8d; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Cancelar</button>
-                <button onclick="guardarCantidadModal()" style="flex:1; padding:15px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px;">Guardar</button>
-            </div>
+<div class="container">
+    <div id="view-login" class="reveal">
+        <div class="card-login">
+            <h2>Gestión de Ciclos</h2>
+            <p style="color:#86868B">Inicie sesión para acceder a sus tareas asignadas.</p>
+            <input type="text" id="operadorNombre" class="apple-input" placeholder="Nombre del Operador">
+            <button class="btn-victoria" onclick="ingresar()">Comenzar Jornada</button>
         </div>
     </div>
 
-    <div id="login-screen" class="card">
-        <img src="/logo.png" style="max-height: 80px; margin-bottom: 20px;">
-        <h2>Identificación de Operador</h2>
-        <input type="text" id="nombre-input" class="input-pro" placeholder="Tu nombre completo">
-        <button class="btn-finish" style="margin-top:0;" onclick="guardarNombre()">Comenzar Jornada</button>
+    <div id="view-list" class="reveal" style="display: none;">
+        <h2 style="margin-bottom: 25px; font-size: 22px; font-weight: 800;">Tareas del Día</h2>
+        <div id="task-list"></div>
     </div>
 
-    <div id="listado-screen">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-            <h2 id="saludo-user" style="margin:0;">Cargando...</h2>
-            <button onclick="localStorage.clear(); location.reload();" style="font-size:10px; border:none; background:none; color:gray;">Cerrar Sesión</button>
+    <div id="view-counting" class="reveal" style="display: none;">
+        <div class="product-header">
+            <span id="folio-label" style="font-weight: 800; color: var(--victoria-gold); font-size: 13px;"></span>
+            <h2 id="display-modelo">---</h2>
+            <p id="display-color" style="color: #86868B; font-weight: 500;"></p>
         </div>
-        <div id="lista-pendientes"></div>
+
+        <div id="counting-grid"></div>
+        <div style="height: 140px;"></div>
+
+        <div class="footer-action">
+            <button class="btn-victoria" onclick="finalizarInventario()">Finalizar y Registrar</button>
+        </div>
     </div>
 
-    <div id="conteo-screen">
-        <div class="header-active" id="info-header"></div>
-        <div class="card">
-            <div class="progress-wrapper">
-                <div style="display:flex; justify-content:space-between; font-size: 12px; margin-bottom: 5px;">
-                    <b id="texto-progreso">Progreso: 0%</b>
-                    <span id="contador-tallas">0/0 Tallas</span>
-                </div>
-                <div class="progress-bg"><div id="bar-progreso" class="progress-fill"></div></div>
-            </div>
-            <div id="lista-tallas-conteo"></div>
-            <button class="btn-finish" id="btn-final" onclick="finalizarInventario()">✅ Enviar Reporte Final</button>
-            <button class="btn-back" onclick="location.reload()">Regresar al menú principal</button>
-        </div>
+    <div id="view-success" class="success-screen reveal">
+        <div class="icon">✓</div>
+        <h2 style="font-weight: 800;">Registro Exitoso</h2>
+        <p style="color:#86868B; margin: 15px 0 40px;">Los datos han sido enviados al panel de supervisor.</p>
+        <button class="btn-victoria" style="background: var(--victoria-gold);" onclick="location.reload()">Nueva Tarea</button>
     </div>
+</div>
 
 <script>
-    let miNombre = localStorage.getItem('operador_nombre');
+    let operador = "";
     let inventarioActivo = null;
-    let resultados = [];
-    let tallaActivaModal = null;
+    let datosConteo = {};
 
-    if (!miNombre) {
-        document.getElementById('login-screen').style.display = 'block';
-        document.getElementById('listado-screen').style.display = 'none';
-    } else {
-        iniciarApp();
+    async function ingresar() {
+        const nombre = document.getElementById('operadorNombre').value.trim();
+        if(!nombre) return;
+        operador = nombre;
+        document.getElementById('view-login').style.display = 'none';
+        document.getElementById('view-list').style.display = 'block';
+        refrescarTareas();
     }
 
-    function guardarNombre() {
-        const nom = document.getElementById('nombre-input').value.trim();
-        if (nom.length < 3) return alert("Por favor ingresa un nombre válido");
-        localStorage.setItem('operador_nombre', nom);
-        location.reload();
-    }
+    async function refrescarTareas() {
+        const res = await fetch('/api/ciclicos');
+        const data = await res.json();
+        const container = document.getElementById('task-list');
+        container.innerHTML = "";
 
-    async function iniciarApp() {
-        document.getElementById('saludo-user').innerText = `👷 ${miNombre}`;
-        try {
-            const res = await fetch('/api/ciclicos');
-            const datos = await res.json();
-            renderListaDisponibles(datos);
-        } catch (e) { console.error("Error al cargar"); }
-    }
+        const filtro = data.filter(i => i.estatus === 'Pendiente' || (i.estatus === 'En Proceso' && i.asignadoA === operador));
 
-    function renderListaDisponibles(datos) {
-        const contenedor = document.getElementById('lista-pendientes');
-        contenedor.innerHTML = "";
-        const disponibles = datos.filter(d => d.estatus !== "Finalizado");
-
-        if (disponibles.length === 0) {
-            contenedor.innerHTML = `
-                <div class="empty-state">
-                    <span style="font-size: 45px;">☕</span>
-                    <h3>¡Todo al día!</h3>
-                    <p>Por el momento no hay inventarios asignados. Excelente trabajo.</p>
-                </div>
-            `;
+        if(filtro.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:50px; color:#AEAEB2;">No hay tareas disponibles.</div>`;
             return;
         }
 
-        disponibles.forEach(inv => {
-            const isMine = inv.asignadoA === miNombre;
-            const isBusy = inv.asignadoA && inv.asignadoA !== miNombre;
+        filtro.forEach(t => {
             const div = document.createElement('div');
-            div.className = `item-pend ${isBusy ? 'busy' : ''}`;
+            div.className = "task-item";
+            div.onclick = () => abrirInventario(t);
             div.innerHTML = `
-                <div class="talla-info">
-                    <b>${inv.modelo}</b><br>
-                    <small style="color:#666">${inv.color} • ${inv.totalTallas} tallas</small>
+                <div class="task-info">
+                    <h3>${t.modelo}</h3>
+                    <p>${t.color}</p>
                 </div>
-                <div>
-                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado</span>` : ''}
-                    ${isMine ? `<span class="tag-status tag-mine">En Proceso</span>` : ''}
-                    ${!inv.asignadoA ? `<span class="tag-status tag-free">Libre</span>` : ''}
-                </div>
+                <div class="folio-tag">${t.id}</div>
             `;
-            if (!isBusy) div.onclick = () => apartarInventario(inv);
-            contenedor.appendChild(div);
+            container.appendChild(div);
         });
     }
 
-    async function apartarInventario(inv) {
-        let horaInicioParam = null;
-        if (!inv.asignadoA || inv.estatus === "Pendiente") {
-            const ahora = new Date();
-            horaInicioParam = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-        const res = await fetch('/api/asignar-operador', {
+    async function abrirInventario(t) {
+        inventarioActivo = t;
+        const hora = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        
+        await fetch('/api/asignar-operador', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inv.id, operador: miNombre, horaInicio: horaInicioParam })
+            body: JSON.stringify({ id: t.id, operador: operador, horaInicio: hora })
         });
-        if ((await res.json()).success) {
-            const res2 = await fetch('/api/ciclicos');
-            const todos = await res2.json();
-            const invAct = todos.find(i => i.id == inv.id);
-            resultados = invAct.resultados || [];
-            abrirConteo(invAct);
-        }
-    }
 
-    function abrirConteo(inv) {
-        inventarioActivo = inv;
-        document.getElementById('listado-screen').style.display = 'none';
-        document.getElementById('conteo-screen').style.display = 'block';
-        const rutaFoto = `/fotos/${inv.modelo}.jpg`;
+        document.getElementById('view-list').style.display = 'none';
+        document.getElementById('view-counting').style.display = 'block';
+        
+        document.getElementById('folio-label').innerText = `ORDEN ${t.id}`;
+        document.getElementById('display-modelo').innerText = t.modelo;
+        document.getElementById('display-color').innerText = t.color;
 
-        document.getElementById('info-header').innerHTML = `
-            <div style="display:flex; gap:15px; align-items:center;">
-                <img src="${rutaFoto}" class="foto-referencia" 
-                     onclick="verZoom('${rutaFoto}')"
-                     onload="this.style.display='block'" 
-                     onerror="this.style.display='none'">
-                <div>
-                    <small style="opacity:0.8">ID: #${inv.id}</small>
-                    <h2 style="color:white; margin:0;">${inv.modelo}</h2>
-                    <p style="margin:5px 0 0 0; opacity:0.9">${inv.color}</p>
-                    <small style="font-size:10px; color:#3498db; background:white; padding:2px 5px; border-radius:4px; margin-top:5px; display:inline-block;">Click en foto para ampliar</small>
-                </div>
-            </div>
-        `;
-        renderTallas();
-    }
-
-    function verZoom(src) {
-        document.getElementById('img-ampliada').src = src;
-        document.getElementById('modal-zoom').style.display = 'flex';
-    }
-    function cerrarZoom() {
-        document.getElementById('modal-zoom').style.display = 'none';
-    }
-
-    function renderTallas() {
-        const lista = document.getElementById('lista-tallas-conteo');
-        lista.innerHTML = "";
-        inventarioActivo.tallas.forEach(talla => {
-            const yaContada = resultados.find(r => r.talla === talla);
-            lista.innerHTML += `
-                <div class="talla-item" id="fila-talla-${talla.replace(/\s+/g, '')}" style="${yaContada ? 'background:#f0fdf4' : ''}">
-                    <div class="talla-info"><b>${talla}</b></div>
-                    ${yaContada 
-                        ? `<div><span style="color:#16a34a; font-weight:bold; font-size:18px; margin-right:10px;">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:none; color:#e74c3c; cursor:pointer; font-size:12px; font-weight:bold; text-decoration:underline;">Rehacer</button></div>`
-                        : `<button class="btn-action" onclick="abrirModalCantidad('${talla}')">CONTAR</button>`
-                    }
+        const grid = document.getElementById('counting-grid');
+        grid.innerHTML = "";
+        t.tallas.forEach(talla => {
+            datosConteo[talla] = 0;
+            grid.innerHTML += `
+                <div class="counter-row">
+                    <span class="talla-name">${talla}</span>
+                    <div class="stepper-control">
+                        <button class="btn-circle" onclick="updateCount('${talla}', -1)">-</button>
+                        <span class="count-num" id="qty-${talla}">0</span>
+                        <button class="btn-circle" onclick="updateCount('${talla}', 1)" style="background:var(--victoria-navy); color:white; border:none;">+</button>
+                    </div>
                 </div>
             `;
         });
-        actualizarProgresoVisual();
     }
 
-    function abrirModalCantidad(talla) {
-        tallaActivaModal = talla;
-        document.getElementById('modal-talla-label').innerText = talla;
-        const inputNum = document.getElementById('input-cantidad');
-        inputNum.value = "";
-        document.getElementById('modal-cantidad').style.display = 'flex';
-        setTimeout(() => inputNum.focus(), 100);
+    function updateCount(talla, val) {
+        datosConteo[talla] = Math.max(0, datosConteo[talla] + val);
+        document.getElementById(`qty-${talla}`).innerText = datosConteo[talla];
+        actualizarProgresoAPI();
     }
 
-    function cerrarModalCantidad() {
-        document.getElementById('modal-cantidad').style.display = 'none';
-        tallaActivaModal = null;
-    }
+    async function actualizarProgresoAPI() {
+        const total = inventarioActivo.tallas.length;
+        const realizados = Object.values(datosConteo).filter(v => v > 0).length;
+        const pct = Math.round((realizados / total) * 100);
 
-    function guardarCantidadModal() {
-        const valStr = document.getElementById('input-cantidad').value;
-        if (!valStr || valStr === "") {
-            alert("Por favor, ingresa una cantidad válida.");
-            return;
-        }
-        
-        const n = parseInt(valStr);
-        if (isNaN(n) || n < 0) return;
-
-        resultados.push({ talla: tallaActivaModal, cantidad: n });
-        cerrarModalCantidad();
-        enviarAvance();
-        
-        // Renderizamos y luego aplicamos el scroll inteligente
-        renderTallas();
-        enfocarSiguienteTalla();
-    }
-
-    // MEJORA: Función para buscar la siguiente talla vacía y centrarla
-    function enfocarSiguienteTalla() {
-        // Buscamos el primer botón de "CONTAR" que exista en el DOM
-        const primerBotonPendiente = document.querySelector('.btn-action');
-        if (primerBotonPendiente) {
-            // Hacemos scroll suave hacia el contenedor de esa talla
-            primerBotonPendiente.closest('.talla-item').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
-            });
-        }
-    }
-
-    document.getElementById('input-cantidad').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-            guardarCantidadModal();
-        }
-    });
-
-    function borrarTalla(talla) {
-        resultados = resultados.filter(r => r.talla !== talla);
-        enviarAvance();
-        renderTallas();
-    }
-
-    async function enviarAvance() {
-        const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
         fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados })
+            body: JSON.stringify({ 
+                id: inventarioActivo.id, 
+                progreso: pct,
+                conteoActual: realizados,
+                resultados: Object.keys(datosConteo).map(t => ({ talla: t, cantidad: datosConteo[t] }))
+            })
         });
-    }
-
-    function actualizarProgresoVisual() {
-        const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
-        document.getElementById('bar-progreso').style.width = porc + "%";
-        document.getElementById('texto-progreso').innerText = `Progreso: ${porc}%`;
-        document.getElementById('contador-tallas').innerText = `${resultados.length}/${inventarioActivo.totalTallas}`;
     }
 
     async function finalizarInventario() {
-        if (resultados.length < inventarioActivo.totalTallas) {
-            if (!confirm("Aún faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
-        }
-        const ahora = new Date();
-        const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        if(!confirm("¿Confirmar envío de conteo?")) return;
+        const hora = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        
         const res = await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" })
+            body: JSON.stringify({ 
+                id: inventarioActivo.id, 
+                progreso: 100,
+                estatus: "Finalizado",
+                horaFin: hora,
+                resultados: Object.keys(datosConteo).map(t => ({ talla: t, cantidad: datosConteo[t] }))
+            })
         });
-        if (res.ok) { 
-            alert("¡Reporte enviado exitosamente!"); 
-            location.reload(); 
+
+        if(res.ok) {
+            document.getElementById('view-counting').style.display = 'none';
+            document.getElementById('view-success').style.display = 'block';
         }
     }
 </script>
