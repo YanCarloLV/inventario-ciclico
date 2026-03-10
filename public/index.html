@@ -43,11 +43,10 @@
         .logo-wrap {
             background: white;
             display: inline-block;
-            padding: 12px 30px; /* Ajustado para el logo más grande */
-            border-radius: 35px; /* Ajustado para el logo más grande */
+            padding: 12px 30px;
+            border-radius: 35px;
             box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3);
         }
-        /* Logo más grande para el operador */
         header img { height: 60px; object-fit: contain; vertical-align: middle; }
 
         .card { 
@@ -127,8 +126,8 @@
         }
         .input-num:focus { border-color: var(--brand-orange); box-shadow: 0 0 0 4px rgba(255,140,0,0.1); }
 
-        /* Barra de Progreso */
-        .progress-wrapper { position: sticky; top: 80px; background-color: var(--card-bg); padding: 15px 0; margin-bottom: 15px; z-index: 90; border-bottom: 1px solid #F2F2F7; }
+        /* Barra de Progreso CORREGIDA: top: 128px compensa el header grande */
+        .progress-wrapper { position: sticky; top: 128px; background-color: var(--card-bg); padding: 15px 0; margin-bottom: 15px; z-index: 90; border-bottom: 1px solid #F2F2F7; }
         .progress-bg { background: #E5E5EA; height: 12px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--brand-orange); width: 0%; transition: 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
         
@@ -212,7 +211,6 @@
     </div>
 
 <script>
-    // SE MANTIENE EL 100% DE LA LÓGICA ORIGINAL
     let miNombre = localStorage.getItem('operador_nombre');
     let inventarioActivo = null;
     let resultados = [];
