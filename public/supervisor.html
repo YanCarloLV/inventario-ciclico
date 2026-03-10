@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Supervisor Pro</title>
+    <title>Panel de Control - Supervisor Pro v2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 1100px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
         h1, h2 { color: #2c3e50; margin-top: 0; }
         .form-main { display: flex; flex-direction: column; gap: 20px; }
         .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -26,6 +26,9 @@
         .btn-refresh { background: #95a5a6; color: white; }
         .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; padding: 8px 15px; }
         .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; }
+        .btn-delete-row { background: #ff7675; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 10px; }
+        .btn-danger { background: #d63031; color: white; font-size: 12px; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
         th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
@@ -35,6 +38,9 @@
         .proc { background: #e3f2fd; color: #0d47a1; }
         .pen { background: #fff3cd; color: #856404; }
         .percent-text { font-size: 10px; font-weight: bold; color: #3498db; display: block; margin-top: 2px; }
+
+        /* Filtro de Fecha */
+        .filter-box { display: flex; gap: 10px; align-items: center; background: #edf2f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -93,10 +99,24 @@
         </table>
     </div>
 
-    <div class="card" style="opacity: 0.9;">
-        <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-danger" onclick="eliminarTodosFinalizados()">🗑️ Borrar Todo el Historial</button>
+            </div>
+        </div>
+
+        <div class="filter-box">
+            <span>📅 Filtrar Fecha:</span>
+            <select id="filtroFecha" onchange="cargarDatos()">
+                <option value="HOY">Solo Hoy</option>
+                <option value="TODOS">Ver Todo el Historial</option>
+            </select>
+        </div>
+
         <table id="tablaHistorial">
-            <thead><tr><th>ID</th><th>Modelo/Color</th><th>Operador</th><th>Tiempos</th><th>Reporte</th></tr></thead>
+            <thead><tr><th>ID</th><th>Fecha</th><th>Modelo/Color</th><th>Operador</th><th>Tiempo Total</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -107,13 +127,11 @@
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO"];
 
     let catalogoProductos = [
-        // --- SUPER 120'S CLÁSICO ---
         { modelo: "C67901-1", color: "NEGRO SOLIDO" }, { modelo: "C67901-2B", color: "NUEVO AZUL" },
         { modelo: "C67901-3", color: "GRIS OXFORD" }, { modelo: "C67901-4", color: "GRIS LIGERO" },
         { modelo: "C67901-5A", color: "BLANCO" }, { modelo: "C67901-11", color: "BEIGE SOLIDO" },
         { modelo: "C67901-16", color: "CAMEL" }, { modelo: "C67901-17", color: "AZUL FRANCIA" },
         { modelo: "C67901-19", color: "AZUL CIELO" }, { modelo: "C67901-24", color: "GRIS INGLES" },
-        // --- SUPER 120'S PRIVILEGE ---
         { modelo: "G45001-1", color: "GRIS SOLIDO" }, { modelo: "G45001-2", color: "GRIS INGLES" },
         { modelo: "G45001-3", color: "TAUPE GRANOLA" }, { modelo: "G47815-1", color: "NEGRO SOLIDO" },
         { modelo: "G47815-2B", color: "MARINO NUEVO" }, { modelo: "G47815-3", color: "GRIS CLARO" },
@@ -126,13 +144,11 @@
         { modelo: "G47815-20", color: "VERDE HUNTER" }, { modelo: "G47815-30", color: "ROSA" },
         { modelo: "G47815-50", color: "VERDE AZULADO" }, { modelo: "G49412-1", color: "OXFORD SOLIDO" },
         { modelo: "G49412-2", color: "GRIS MEDIO" },
-        // --- PRIVILEGE COLLECTION (CUADROS) ---
         { modelo: "679683-2", color: "TAUPE ENTRE CRUZADO" }, { modelo: "679727-1", color: "OXFORD AZUL" },
         { modelo: "679728-1", color: "AZUL MALVA" }, { modelo: "679729-1", color: "AZUL NEGRO" },
         { modelo: "679730-1", color: "MARINO A CUADROS" }, { modelo: "679731-1", color: "AZUL A CUADROS" },
         { modelo: "679732-1", color: "GRIS CLARO AZUL" }, { modelo: "679733-1", color: "AZUL OXIDADO" },
         { modelo: "679733-2", color: "GRIS AZUL" }, { modelo: "679734-1", color: "CAMELLO AZUL" },
-        // --- SUPER 140'S ---
         { modelo: "M40901-1", color: "NEGRO" }, { modelo: "M40901-2A", color: "MARINO" },
         { modelo: "M40901-2B", color: "MARINO SOLIDO" }, { modelo: "M40901-6", color: "AZUL FRANCIA" },
         { modelo: "M40901-9", color: "AZUL CIELO" }, { modelo: "M46306-3", color: "CHARCOAL" },
@@ -153,10 +169,8 @@
         { modelo: "M87857-1", color: "MARINO" }, { modelo: "M87858-1", color: "OXFORD AZUL" },
         { modelo: "M87859-1", color: "AZUL A CUADROS" }, { modelo: "M87860-1", color: "AZUL TAUPE" },
         { modelo: "M87860-2", color: "CAFE CAMELLO" }, { modelo: "M87861-1", color: "MARINO A CUADROS" },
-        // --- LANA SEDA ---
         { modelo: "B66050-1", color: "NEGRO SOLIDO" }, { modelo: "B66050-2B", color: "MARINO" },
         { modelo: "B66051-1A", color: "GRIS SOLIDO" }, { modelo: "B66051-2", color: "GRIS CLARO" },
-        // --- SUPER 150'S CASHMERE ---
         { modelo: "E59663-1", color: "NEGRO SOLIDO" }, { modelo: "E59663-2", color: "MARINO SOLIDO" },
         { modelo: "E59663-6", color: "AZUL SOLIDO" }, { modelo: "E59663-3", color: "OXFORD SOLIDO" },
         { modelo: "E59663-5", color: "GRIS SOLIDO" }, { modelo: "E59663-4", color: "GRIS CLARO" },
@@ -209,18 +223,41 @@
 
     function toggleGroup(cat, isChecked) { document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked); }
 
+    // --- LOGICA DE TIEMPOS PARA CSV ---
+    function calcularDiferenciaTiempo(inicio, fin) {
+        if (!inicio || !fin) return "00:00:00";
+        try {
+            const parseHora = (h) => {
+                const [time, modifier] = h.split(' ');
+                let [hours, minutes, seconds] = time.split(':');
+                if (hours === '12') hours = '00';
+                if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+                const d = new Date();
+                d.setHours(hours, minutes, seconds, 0);
+                return d.getTime();
+            };
+            const diff = parseHora(fin) - parseHora(inicio);
+            const totalSeconds = Math.floor(diff / 1000);
+            const hrs = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+            const mins = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+            const secs = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${hrs}:${mins}:${secs}`;
+        } catch (e) { return "Error"; }
+    }
+
     async function cargarDatos() {
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
+        const filtro = document.getElementById('filtroFecha').value;
+        const hoy = new Date().toLocaleDateString('es-MX');
+
         const datosGlobales = listado.sort((a, b) => b.id - a.id);
         const cuerpoActivos = document.querySelector("#tablaActivos tbody");
         const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
         cuerpoActivos.innerHTML = ""; cuerpoHistorial.innerHTML = "";
 
         datosGlobales.forEach(c => {
-            const tiempos = `<small>In: ${c.horaInicio || '--'}<br>Fin: ${c.horaFin || '--'}</small>`;
             if (c.estatus !== 'Finalizado') {
-                // AQUÍ SE AGREGA EL TEXTO DEL PORCENTAJE DEBAJO DE LA BARRA
                 let progresoHTML = '';
                 if(c.estatus === 'En Proceso') {
                     progresoHTML = `
@@ -240,13 +277,41 @@
                             ${progresoHTML}
                         </td>
                         <td>${c.asignadoA || '---'} ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}</td>
-                        <td>${tiempos}</td>
+                        <td><small>In: ${c.horaInicio || '--'}</small></td>
                     </tr>`;
             } else {
-                cuerpoHistorial.innerHTML += `<tr><td><small>#${c.id}</small></td><td>${c.modelo} - ${c.color}</td><td>${c.asignadoA}</td><td>${tiempos}</td><td><button class="btn btn-dl" onclick="descargarExcel(${c.id})">📥 Excel</button></td></tr>`;
+                // Aplicar Filtro
+                if (filtro === "HOY" && c.fecha !== hoy) return;
+
+                const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
+
+                cuerpoHistorial.innerHTML += `
+                    <tr>
+                        <td><small>#${c.id}</small></td>
+                        <td>${c.fecha || hoy}</td>
+                        <td>${c.modelo} - ${c.color}</td>
+                        <td>${c.asignadoA}</td>
+                        <td><b>${tTotal}</b></td>
+                        <td>
+                            <button class="btn btn-dl" style="padding: 5px 10px;" onclick="descargarExcel(${c.id})">📥 CSV</button>
+                            <button class="btn-delete-row" onclick="eliminarFila(${c.id})">🗑️</button>
+                        </td>
+                    </tr>`;
             }
         });
         window.datosGlobales = datosGlobales;
+    }
+
+    async function eliminarFila(id) {
+        if (!confirm("¿Eliminar este registro permanentemente?")) return;
+        const res = await fetch(`/api/eliminar-ciclico/${id}`, { method: 'DELETE' });
+        if (res.ok) cargarDatos();
+    }
+
+    async function eliminarTodosFinalizados() {
+        if (!confirm("⚠️ ¿ESTÁS SEGURO? Se borrarán todos los registros finalizados de la base de datos.")) return;
+        const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
+        if (res.ok) cargarDatos();
     }
 
     async function crearCiclico() {
@@ -296,8 +361,15 @@
 
     function descargarExcel(id) {
         const c = window.datosGlobales.find(i => i.id === id);
-        let csv = "\uFEFFID,Modelo,Color,Operador,Talla,Cantidad,Inicio,Fin\n";
-        c.resultados.forEach(r => { csv += `${c.id},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${c.horaInicio},${c.horaFin}\n`; });
+        const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
+        
+        // Estructura solicitada: Ya no Inicio/Fin, sino Tiempo Total
+        let csv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
+        
+        c.resultados.forEach(r => { 
+            csv += `${c.id},${c.fecha},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${tTotal}\n`; 
+        });
+
         const link = document.createElement("a");
         link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
         link.download = `Reporte_${c.modelo}_${c.id}.csv`; link.click();

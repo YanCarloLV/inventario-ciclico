@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión de Alta Estabilidad
+// server.js - Versión 2.0 (Gestión de Historial y Fechas)
 // ==========================================
 
 const express = require('express');
@@ -7,7 +7,6 @@ const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
-// Render usa el puerto 10000 por defecto
 const PORT = process.env.PORT || 10000; 
 
 app.use(express.json());
@@ -23,7 +22,7 @@ mongoose.connect(MONGO_URI)
 
 // --- MODELO DE DATOS ---
 const CiclicoSchema = new mongoose.Schema({
-    id: Number,           // Usaremos Date.now() para ID largo y cronológico
+    id: Number,           
     modelo: String,
     color: String,
     tallas: [String],
@@ -33,8 +32,9 @@ const CiclicoSchema = new mongoose.Schema({
     estatus: { type: String, default: "Pendiente" },
     asignadoA: { type: String, default: null },
     resultados: { type: Array, default: [] },
-    horaInicio: String,   // Guardamos formato "HH:MM:SS AM/PM"
-    horaFin: String
+    horaInicio: String,   
+    horaFin: String,
+    fecha: { type: String, default: () => new Date().toLocaleDateString('es-MX') } // Nueva columna de fecha
 });
 
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
@@ -52,7 +52,7 @@ app.get('/api/ciclicos', async (req, res) => {
     }
 });
 
-// 2. Crear Nuevo Inventario (ID Largo Cronológico)
+// 2. Crear Nuevo Inventario
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
         const { modelo, color, tallasRaw } = req.body;
@@ -63,7 +63,8 @@ app.post('/api/crear-ciclico', async (req, res) => {
             modelo,
             color,
             tallas: listaTallas,
-            totalTallas: listaTallas.length || 1
+            totalTallas: listaTallas.length || 1,
+            fecha: new Date().toLocaleDateString('es-MX') // Aseguramos la fecha al crear
         });
 
         await nuevo.save();
@@ -73,7 +74,7 @@ app.post('/api/crear-ciclico', async (req, res) => {
     }
 });
 
-// 3. Liberar Inventario (Reset para el Supervisor)
+// 3. Liberar Inventario
 app.post('/api/liberar-inventario', async (req, res) => {
     try {
         const { id } = req.body;
@@ -92,7 +93,7 @@ app.post('/api/liberar-inventario', async (req, res) => {
     }
 });
 
-// 4. Actualizar Progreso (Desde la App del Operador)
+// 4. Actualizar Progreso
 app.post('/api/actualizar-progreso', async (req, res) => {
     try {
         const { id, progreso, conteoActual, resultados, horaFin, estatus } = req.body;
@@ -108,7 +109,7 @@ app.post('/api/actualizar-progreso', async (req, res) => {
     }
 });
 
-// 5. Asignar Operador e Inicio de Tiempo
+// 5. Asignar Operador
 app.post('/api/asignar-operador', async (req, res) => {
     try {
         const { id, operador, horaInicio } = req.body;
@@ -123,7 +124,26 @@ app.post('/api/asignar-operador', async (req, res) => {
     }
 });
 
-// Iniciar Servidor
+// 6. ELIMINAR UN INVENTARIO (NUEVO)
+app.delete('/api/eliminar-ciclico/:id', async (req, res) => {
+    try {
+        await Ciclico.findOneAndDelete({ id: req.params.id });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 7. ELIMINAR TODO EL HISTORIAL FINALIZADO (NUEVO)
+app.delete('/api/eliminar-todos-finalizados', async (req, res) => {
+    try {
+        await Ciclico.deleteMany({ estatus: "Finalizado" });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`✅ Servidor ejecutándose en puerto ${PORT}`);
 });
