@@ -1,142 +1,185 @@
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Supervisor Pro v2 (Historial y IDs Consecutivos)</title>
+    <title>Panel Supervisor Pro - Actualización Crítica v2.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 1100px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
-        h1, h2 { color: #2c3e50; margin-top: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); margin-bottom: 25px; border-top: 5px solid #3498db; }
+        .card-historial { border-top: 5px solid #95a5a6; }
+        h1 { color: #2c3e50; font-size: 28px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 25px; }
+        h2 { font-size: 20px; color: #34495e; margin-top: 0; }
+        
+        /* Formulario Layout */
         .form-main { display: flex; flex-direction: column; gap: 20px; }
-        .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        label { display: block; font-size: 13px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; }
-        select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; background: white; font-size: 14px; }
-        .tallas-grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 10px; }
-        .talla-col { background: white; border: 1px solid #e0e6ed; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .col-header { background: #f8f9fa; padding: 12px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .col-circle { width: 30px; height: 30px; background: #6c5ce7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
-        .select-all-box { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; color: #2c3e50; width: 100%; padding-top: 5px; }
-        .sizes-list { max-height: 400px; overflow-y: auto; padding: 10px; }
-        .size-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #f1f1f1; font-size: 14px; color: #555; cursor: pointer; }
-        .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
-        .btn-add { background: #3498db; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
-        .btn-refresh { background: #95a5a6; color: white; }
-        .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; padding: 8px 15px; }
-        .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; }
+        .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        label { display: block; font-size: 14px; font-weight: 600; color: #555; margin-bottom: 8px; }
+        select { width: 100%; padding: 12px; border: 2px solid #dfe6e9; border-radius: 10px; font-size: 15px; outline: none; transition: 0.3s; }
+        select:focus { border-color: #3498db; }
         
-        /* Estilos para eliminación */
-        .btn-delete-row { background: #ff7675; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 10px; }
-        .btn-danger { background: #d63031; color: white; font-size: 12px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #f8f9fa; color: #2c3e50; font-size: 14px; }
-        .progress-mini-bg { background: #eee; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; max-width: 100px; margin-top: 5px; }
-        .progress-mini-fill { background: #3498db; height: 100%; transition: 0.5s; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .proc { background: #e3f2fd; color: #0d47a1; }
-        .pen { background: #fff3cd; color: #856404; }
-        .percent-text { font-size: 10px; font-weight: bold; color: #3498db; display: block; margin-top: 2px; }
+        /* Tallas Grid */
+        .tallas-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 10px; }
+        .talla-col { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+        .col-header { background: #f8f9fa; padding: 15px; border-bottom: 1px solid #eee; text-align: center; }
+        .col-circle { width: 35px; height: 35px; background: #6c5ce7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: bold; }
+        .sizes-list { max-height: 350px; overflow-y: auto; padding: 10px; }
+        .size-item { display: flex; align-items: center; gap: 15px; padding: 10px; border-bottom: 1px solid #f9f9f9; font-size: 15px; cursor: pointer; transition: 0.2s; }
+        .size-item:hover { background: #f1f2f6; }
+        .size-item input { transform: scale(1.3); }
 
-        /* Estilo Filtro Fecha */
-        .filter-box { display: flex; gap: 10px; align-items: center; background: #edf2f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
+        /* Botones */
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+        .btn-add { background: #3498db; color: white; font-size: 16px; width: 100%; margin-top: 10px; }
+        .btn-add:hover { background: #2980b9; transform: translateY(-2px); }
+        .btn-refresh { background: #55efc4; color: #00b894; }
+        .btn-dl { background: #27ae60; color: white; text-decoration: none; }
+        .btn-danger { background: #ff7675; color: white; }
+        .btn-delete-hist { background: #d63031; color: white; border-radius: 5px; padding: 6px 12px; font-size: 11px; }
+
+        /* Tablas */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        th { background: #f8f9fa; color: #7f8c8d; text-align: left; padding: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 15px; border-bottom: 1px solid #f1f1f1; font-size: 15px; }
+        .status { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .proc { background: #e3f2fd; color: #1976d2; }
+        .pen { background: #fff3e0; color: #e65100; }
+        
+        /* Barra de Progreso */
+        .prog-container { width: 120px; }
+        .prog-bg { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; }
+        .prog-fill { background: #3498db; height: 100%; transition: 0.4s; }
+        .prog-text { font-size: 11px; font-weight: bold; color: #3498db; margin-top: 5px; display: block; }
+
+        /* Filtro */
+        .filter-section { background: #f1f2f6; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        .filter-section select { width: auto; min-width: 250px; }
     </style>
 </head>
 <body>
 
-<div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
-    <img src="/logo.png" alt="Logo" style="max-height: 120px; width: auto; display: block; margin: 0 auto;">
+<div style="text-align: center; margin-bottom: 30px;">
+    <img src="/logo.png" alt="Logo Empresa" style="max-height: 100px;">
 </div>
 
 <div class="container">
-    <h1>📋 Gestión de Inventarios Cíclicos</h1>
-
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-            <h2>➕ Crear Nuevo Inventario</h2>
-            <label class="btn btn-dl" style="cursor:pointer;">
-                📥 Cargar desde Excel
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <h2>🚀 Nuevo Inventario Ciclico</h2>
+            <label class="btn btn-dl" style="cursor:pointer; font-size: 12px;">
+                📂 Importar Excel
                 <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="procesarExcel(this)">
             </label>
         </div>
-        
+
         <div class="form-main">
             <div class="row-inputs">
                 <div>
-                    <label>Modelo</label>
+                    <label>Modelo del Producto</label>
                     <select id="mod" onchange="actualizarColoresSegunModelo()">
-                        <option value="" disabled selected>Selecciona modelo...</option>
+                        <option value="" disabled selected>Seleccione el modelo...</option>
                     </select>
                 </div>
                 <div>
-                    <label>Color</label>
+                    <label>Variante de Color</label>
                     <select id="col">
-                        <option value="" disabled selected>Selecciona color...</option>
+                        <option value="" disabled selected>Seleccione el color...</option>
                     </select>
                 </div>
             </div>
 
-            <label>Selección de Tallas por Categoría:</label>
+            <label>Tallas a Inventariar:</label>
             <div class="tallas-grid-container">
-                <div class="talla-col"><div class="col-header"><div class="col-circle">C</div><label class="select-all-box"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Todas</label></div><div id="list-C" class="sizes-list"></div></div>
-                <div class="talla-col"><div class="col-header"><div class="col-circle" style="background:#4834d4">R</div><label class="select-all-box"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Todas</label></div><div id="list-R" class="sizes-list"></div></div>
-                <div class="talla-col"><div class="col-header"><div class="col-circle" style="background:#eb4d4b">L</div><label class="select-all-box"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Todas</label></div><div id="list-L" class="sizes-list"></div></div>
+                <div class="talla-col">
+                    <div class="col-header">
+                        <div class="col-circle">C</div>
+                        <label style="font-size:12px;"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todos</label>
+                    </div>
+                    <div id="list-C" class="sizes-list"></div>
+                </div>
+                <div class="talla-col">
+                    <div class="col-header">
+                        <div class="col-circle" style="background:#4834d4">R</div>
+                        <label style="font-size:12px;"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todos</label>
+                    </div>
+                    <div id="list-R" class="sizes-list"></div>
+                </div>
+                <div class="talla-col">
+                    <div class="col-header">
+                        <div class="col-circle" style="background:#eb4d4b">L</div>
+                        <label style="font-size:12px;"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todos</label>
+                    </div>
+                    <div id="list-L" class="sizes-list"></div>
+                </div>
             </div>
 
-            <button class="btn btn-add" onclick="crearCiclico()">🚀 Guardar y Publicar Inventario</button>
+            <button class="btn btn-add" onclick="crearCiclico()">✅ PUBLICAR INVENTARIO EN APP</button>
         </div>
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <h2 style="color: #e67e22;">🚀 Inventarios Activos</h2>
-            <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Actualizar</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h2>⚡ Monitoreo en Tiempo Real</h2>
+            <button class="btn btn-refresh" onclick="cargarDatos()">🔄 Refrescar Datos</button>
         </div>
         <table id="tablaActivos">
-            <thead><tr><th>ID</th><th>Modelo/Color</th><th>Estado / Progreso</th><th>Operador</th><th>Tiempos</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Folio</th>
+                    <th>Modelo y Color</th>
+                    <th>Estado / Avance</th>
+                    <th>Operador</th>
+                    <th>Inicio</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
             <tbody></tbody>
         </table>
     </div>
 
-    <div class="card" style="opacity: 0.9;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
-            <div style="display:flex; gap:10px;">
-                <button class="btn btn-danger" onclick="eliminarTodosFinalizados()">🗑️ Borrar Todo el Historial</button>
-            </div>
+    <div class="card card-historial">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <h2>📂 Historial de Inventarios Finalizados</h2>
+            <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Todo el Historial</button>
         </div>
 
-        <div class="filter-box">
-            <span>📅 Filtrar Fecha:</span>
+        <div class="filter-section">
+            <label>📅 Filtro de Fecha:</label>
             <select id="filtroFecha" onchange="cargarDatos()">
-                <option value="HOY">Solo Hoy (Hoy en Monterrey)</option>
-                <option value="TODOS">Ver Todo el Historial</option>
+                <option value="HOY">Ver solo registros de HOY (Monterrey)</option>
+                <option value="TODOS">Ver registros históricos completos</option>
             </select>
         </div>
 
         <table id="tablaHistorial">
-            <thead><tr><th>ID</th><th>Fecha</th><th>Modelo/Color</th><th>Operador</th><th>Tiempo Total</th><th>Acciones</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Modelo/Color</th>
+                    <th>Operador</th>
+                    <th>Tiempo Total</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
             <tbody></tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // Modelos especiales definidos por el usuario
+    // --- CATALOGO MAESTRO RESTAURADO AL 100% ---
     const modelosEspeciales = ["4040", "4030", "33739", "TR-1", "TR-2"];
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO"];
 
-    // Catálogo Maestro Integra Restaurado COMPLETAMENTE
     let catalogoProductos = [
-        // --- SUPER 120'S CLÁSICO ---
         { modelo: "C67901-1", color: "NEGRO SOLIDO" }, { modelo: "C67901-2B", color: "NUEVO AZUL" },
         { modelo: "C67901-3", color: "GRIS OXFORD" }, { modelo: "C67901-4", color: "GRIS LIGERO" },
         { modelo: "C67901-5A", color: "BLANCO" }, { modelo: "C67901-11", color: "BEIGE SOLIDO" },
         { modelo: "C67901-16", color: "CAMEL" }, { modelo: "C67901-17", color: "AZUL FRANCIA" },
         { modelo: "C67901-19", color: "AZUL CIELO" }, { modelo: "C67901-24", color: "GRIS INGLES" },
-        // --- SUPER 120'S PRIVILEGE ---
         { modelo: "G45001-1", color: "GRIS SOLIDO" }, { modelo: "G45001-2", color: "GRIS INGLES" },
         { modelo: "G45001-3", color: "TAUPE GRANOLA" }, { modelo: "G47815-1", color: "NEGRO SOLIDO" },
         { modelo: "G47815-2B", color: "MARINO NUEVO" }, { modelo: "G47815-3", color: "GRIS CLARO" },
@@ -149,13 +192,11 @@
         { modelo: "G47815-20", color: "VERDE HUNTER" }, { modelo: "G47815-30", color: "ROSA" },
         { modelo: "G47815-50", color: "VERDE AZULADO" }, { modelo: "G49412-1", color: "OXFORD SOLIDO" },
         { modelo: "G49412-2", color: "GRIS MEDIO" },
-        // --- PRIVILEGE COLLECTION (CUADROS) ---
         { modelo: "679683-2", color: "TAUPE ENTRE CRUZADO" }, { modelo: "679727-1", color: "OXFORD AZUL" },
         { modelo: "679728-1", color: "AZUL MALVA" }, { modelo: "679729-1", color: "AZUL NEGRO" },
         { modelo: "679730-1", color: "MARINO A CUADROS" }, { modelo: "679731-1", color: "AZUL A CUADROS" },
         { modelo: "679732-1", color: "GRIS CLARO AZUL" }, { modelo: "679733-1", color: "AZUL OXIDADO" },
         { modelo: "679733-2", color: "GRIS AZUL" }, { modelo: "679734-1", color: "CAMELLO AZUL" },
-        // --- SUPER 140'S ---
         { modelo: "M40901-1", color: "NEGRO" }, { modelo: "M40901-2A", color: "MARINO" },
         { modelo: "M40901-2B", color: "MARINO SOLIDO" }, { modelo: "M40901-6", color: "AZUL FRANCIA" },
         { modelo: "M40901-9", color: "AZUL CIELO" }, { modelo: "M46306-3", color: "CHARCOAL" },
@@ -176,10 +217,8 @@
         { modelo: "M87857-1", color: "MARINO" }, { modelo: "M87858-1", color: "OXFORD AZUL" },
         { modelo: "M87859-1", color: "AZUL A CUADROS" }, { modelo: "M87860-1", color: "AZUL TAUPE" },
         { modelo: "M87860-2", color: "CAFE CAMELLO" }, { modelo: "M87861-1", color: "MARINO A CUADROS" },
-        // --- LANA SEDA ---
         { modelo: "B66050-1", color: "NEGRO SOLIDO" }, { modelo: "B66050-2B", color: "MARINO" },
         { modelo: "B66051-1A", color: "GRIS SOLIDO" }, { modelo: "B66051-2", color: "GRIS CLARO" },
-        // --- SUPER 150'S CASHMERE ---
         { modelo: "E59663-1", color: "NEGRO SOLIDO" }, { modelo: "E59663-2", color: "MARINO SOLIDO" },
         { modelo: "E59663-6", color: "AZUL SOLIDO" }, { modelo: "E59663-3", color: "OXFORD SOLIDO" },
         { modelo: "E59663-5", color: "GRIS SOLIDO" }, { modelo: "E59663-4", color: "GRIS CLARO" },
@@ -192,25 +231,16 @@
         { modelo: "E84584-3", color: "BEIGE A CUADROS" }
     ];
 
-    // Lógica robusta para generar automáticamente los modelos especiales
     modelosEspeciales.forEach(m => {
         coloresEspeciales.forEach(c => {
             catalogoProductos.push({ modelo: m, color: c });
         });
     });
 
-    // Función segura para obtener nombre de foto
-    function obtenerNombreFoto(modelo, color) {
-        if (modelosEspeciales.includes(modelo)) {
-            // Reemplazamos espacios por guiones bajos para el nombre del archivo
-            return `${modelo}_${color.replace(/\s+/g, '_')}`;
-        }
-        return modelo;
-    }
-
+    // --- CARGA DE SELECTORES ---
     function cargarCatalogo() {
         const modSelect = document.getElementById('mod');
-        modSelect.innerHTML = '<option value="" disabled selected>Selecciona modelo...</option>';
+        modSelect.innerHTML = '<option value="" disabled selected>Seleccione el modelo...</option>';
         const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))];
         modelosUnicos.sort().forEach(m => { modSelect.innerHTML += `<option value="${m}">${m}</option>`; });
     }
@@ -218,173 +248,202 @@
     function actualizarColoresSegunModelo() {
         const modeloSelected = document.getElementById('mod').value;
         const colSelect = document.getElementById('col');
-        colSelect.innerHTML = '<option value="" disabled selected>Selecciona color...</option>';
+        colSelect.innerHTML = '<option value="" disabled selected>Seleccione el color...</option>';
         catalogoProductos.filter(p => p.modelo === modeloSelected).forEach(p => {
             colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`;
         });
     }
 
+    // --- RENDERIZADO DE TALLAS ---
     const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
             document.getElementById(`list-${cat}`).innerHTML = tallasBase.map(t => `
-                <label class="size-item"><input type="checkbox" class="check-${cat}" value="${t}${cat}"> <span>${t}</span></label>
+                <label class="size-item">
+                    <input type="checkbox" class="check-${cat}" value="${t}${cat}"> 
+                    <span>${t}${cat}</span>
+                </label>
             `).join('');
         });
     }
 
-    function toggleGroup(cat, isChecked) { document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked); }
+    function toggleGroup(cat, isChecked) {
+        document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked);
+    }
 
     // ==========================================
-    // LÓGICA DE TIEMPOS PARA CSV (NUEVA Y ROBUSTA)
+    // NORMALIZACIÓN DE FECHAS Y TIEMPOS (ROBUSTO)
     // ==========================================
+    
+    // Función para que la fecha siempre sea DD/MM/YYYY sin importar el navegador
+    function obtenerFechaHoyMonterrey() {
+        const d = new Date();
+        const dia = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', day: '2-digit'});
+        const mes = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', month: '2-digit'});
+        const anio = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', year: 'numeric'});
+        return `${dia}/${mes}/${anio}`;
+    }
+
     function calcularDiferenciaTiempo(inicio, fin) {
-        // Garantizamos que si falta un dato, el tiempo sea 0
         if (!inicio || !fin) return "00:00:00";
         try {
-            const parseHora = (timeStr) => {
-                const [time, modifier] = timeStr.split(' ');
-                let [hours, minutes, seconds] = time.split(':');
-                if (hours === '12') hours = '00';
-                if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
-                const dateObj = new Date();
-                dateObj.setHours(hours, minutes, seconds, 0);
-                return dateObj.getTime();
+            const parsear = (str) => {
+                const [time, mod] = str.split(' ');
+                let [h, m, s] = time.split(':');
+                if (h === '12') h = '00';
+                if (mod === 'PM') h = parseInt(h, 10) + 12;
+                const d = new Date();
+                d.setHours(h, m, s, 0);
+                return d.getTime();
             };
-            const startTimeMillis = parseHora(inicio);
-            const endTimeMillis = parseHora(fin);
-            
-            // Calculamos la diferencia
-            let diffMillis = endTimeMillis - startTimeMillis;
-            // Manejo por si cruza la medianoche
-            if (diffMillis < 0) diffMillis += 24 * 60 * 60 * 1000;
-            
-            const totalSeconds = Math.floor(diffMillis / 1000);
-            const formattedHrs = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-            const formattedMins = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-            const formattedSecs = (totalSeconds % 60).toString().padStart(2, '0');
-            
-            return `${formattedHrs}:${formattedMins}:${formattedSecs}`;
-        } catch (e) { 
-            console.error("Error al calcular tiempos:", e);
-            return "Error"; 
-        }
+            let diff = parsear(fin) - parsear(inicio);
+            if (diff < 0) diff += 86400000; // Caso cruce de medianoche
+            const segs = Math.floor(diff / 1000);
+            return new Date(segs * 1000).toISOString().substr(11, 8);
+        } catch (e) { return "---"; }
     }
+
+    // ==========================================
+    // GESTIÓN DE DATOS (CRUD Y FILTROS)
+    // ==========================================
 
     async function cargarDatos() {
-        const res = await fetch('/api/ciclicos');
-        const listado = await res.json();
-        const filtro = document.getElementById('filtroFecha').value;
-        // Obtenemos fecha de hoy formateada de la base de datos (Garantía Monterrey)
-        const hoyMexicoFormat = new Date().toLocaleDateString('es-MX');
+        try {
+            const res = await fetch('/api/ciclicos');
+            const listado = await res.json();
+            
+            const filtro = document.getElementById('filtroFecha').value;
+            const hoyRef = obtenerFechaHoyMonterrey();
 
-        const datosGlobales = listado.sort((a, b) => b.id - a.id);
-        const cuerpoActivos = document.querySelector("#tablaActivos tbody");
-        const cuerpoHistorial = document.querySelector("#tablaHistorial tbody");
-        cuerpoActivos.innerHTML = ""; cuerpoHistorial.innerHTML = "";
+            const activosBody = document.querySelector("#tablaActivos tbody");
+            const historialBody = document.querySelector("#tablaHistorial tbody");
+            activosBody.innerHTML = ""; historialBody.innerHTML = "";
 
-        datosGlobales.forEach(c => {
-            if (c.estatus !== 'Finalizado') {
-                let progresoHTML = '';
-                if(c.estatus === 'En Proceso') {
-                    progresoHTML = `
-                        <div class="progress-mini-bg">
-                            <div class="progress-mini-fill" style="width:${c.progreso}%"></div>
-                        </div>
-                        <span class="percent-text">Progreso ${c.progreso}%</span>
-                    `;
+            // Guardamos en global para descargar CSV
+            window.datosGlobales = listado;
+
+            listado.forEach(c => {
+                if (c.estatus !== 'Finalizado') {
+                    // Render Activos
+                    activosBody.innerHTML += `
+                        <tr>
+                            <td><b>${c.id}</b></td>
+                            <td>${c.modelo}<br><small>${c.color}</small></td>
+                            <td>
+                                <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
+                                ${c.estatus === 'En Proceso' ? `
+                                    <div class="prog-container">
+                                        <div class="prog-bg"><div class="prog-fill" style="width:${c.progreso}%"></div></div>
+                                        <span class="prog-text">${c.progreso}% completado</span>
+                                    </div>` : ''}
+                            </td>
+                            <td>${c.asignadoA || 'Sin asignar'}</td>
+                            <td><small>${c.horaInicio || '--:--'}</small></td>
+                            <td>
+                                ${c.estatus === 'En Proceso' ? `<button class="btn-danger" style="padding:5px;" onclick="liberarInventario('${c.id}')">🔓 Liberar</button>` : '---'}
+                            </td>
+                        </tr>`;
+                } else {
+                    // Filtro de Historial
+                    if (filtro === "HOY" && c.fecha !== hoyRef) return;
+
+                    const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
+
+                    historialBody.innerHTML += `
+                        <tr>
+                            <td><small>${c.id}</small></td>
+                            <td>${c.fecha}</td>
+                            <td>${c.modelo} - ${c.color}</td>
+                            <td>${c.asignadoA}</td>
+                            <td><b>${tTotal}</b></td>
+                            <td>
+                                <button class="btn btn-dl" style="padding:5px 10px;" onclick="descargarCSV('${c.id}')">📥 CSV</button>
+                                <button class="btn-delete-hist" onclick="eliminarFila('${c.id}')">🗑️</button>
+                            </td>
+                        </tr>`;
                 }
-
-                cuerpoActivos.innerHTML += `
-                    <tr>
-                        <td><b>#${c.id}</b></td>
-                        <td>${c.modelo}<br><small>${c.color}</small></td>
-                        <td>
-                            <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
-                            ${progresoHTML}
-                        </td>
-                        <td>${c.asignadoA || '---'} ${c.estatus === 'En Proceso' ? `<button class="btn-liberar" onclick="liberarInventario(${c.id})">🔓</button>` : ''}</td>
-                        <td><small>In: ${c.horaInicio || '--'}</small></td>
-                    </tr>`;
-            } else {
-                // Aplicar Filtro de Fecha: Solo HOY o TODOS
-                if (filtro === "HOY" && c.fecha !== hoyMexicoFormat) return;
-
-                // Calculamos tiempo total para el panel
-                const tiempoCalculado = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
-
-                cuerpoHistorial.innerHTML += `
-                    <tr>
-                        <td><small>#${c.id}</small></td>
-                        <td>${c.fecha || hoyMexicoFormat}</td>
-                        <td>${c.modelo} - ${c.color}</td>
-                        <td>${c.asignadoA}</td>
-                        <td><b>${tiempoCalculado}</b></td>
-                        <td>
-                            <button class="btn btn-dl" style="padding: 5px 10px;" onclick="descargarExcel(${c.id})">📥 CSV</button>
-                            <button class="btn-delete-row" onclick="eliminarRegistroIndividual('${c.id}')">🗑️</button>
-                        </td>
-                    </tr>`;
-            }
-        });
-        window.datosGlobales = datosGlobales;
-    }
-
-    async function eliminarRegistroIndividual(idInventario) {
-        if (!confirm(`⚠️ ¿Estás totalmente seguro de eliminar el inventario #${idInventario}? Esta acción no se puede deshacer.`)) return;
-        
-        try {
-            const res = await fetch(`/api/eliminar-ciclico/${idInventario}`, { method: 'DELETE' });
-            if (res.ok) {
-                alert("Registro eliminado exitosamente.");
-                cargarDatos();
-            } else {
-                alert("Hubo un error en el servidor al intentar eliminar.");
-            }
-        } catch (e) {
-            console.error("Error al eliminar:", e);
-        }
-    }
-
-    async function eliminarTodosFinalizados() {
-        if (!confirm("⚠️⚠️⚠️ ¿ESTÁS SEGURO DE ESTO? Se borrarán ABSOLUTAMENTE TODOS los registros finalizados de la base de datos de historial.")) return;
-        
-        try {
-            const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
-            if (res.ok) {
-                const responseData = await res.json();
-                alert(`Limpieza completada. Se eliminaron ${responseData.conteo} registros.`);
-                cargarDatos();
-            } else {
-                alert("Hubo un error al intentar realizar la limpieza masiva.");
-            }
-        } catch (e) {
-            console.error("Error en limpieza masiva:", e);
-        }
+            });
+        } catch (err) { console.error("Error cargando tabla:", err); }
     }
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
-        if(!modelo || !color || seleccionadas.length === 0) return alert("Faltan datos.");
+        
+        if(!modelo || !color || seleccionadas.length === 0) {
+            alert("⚠️ Por favor completa Modelo, Color y al menos una Talla.");
+            return;
+        }
         
         const res = await fetch('/api/crear-ciclico', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ modelo, color, foto: obtenerNombreFoto(modelo, color), tallasRaw: seleccionadas.join(', ') })
+            body: JSON.stringify({ modelo, color, tallasRaw: seleccionadas.join(', ') })
         });
+        
         if(res.ok) { 
+            // Limpiar checks
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            cargarDatos(); 
+            cargarDatos();
+            alert("✅ Inventario publicado correctamente.");
         }
     }
 
     async function liberarInventario(id) {
-        if(confirm("¿Liberar inventario ocupado?")) {
-            await fetch('/api/liberar-inventario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+        if(confirm("¿Deseas desbloquear este inventario para que otro operador pueda tomarlo?")) {
+            await fetch('/api/liberar-inventario', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ id }) 
+            });
             cargarDatos();
         }
+    }
+
+    async function eliminarFila(id) {
+        if(!confirm(`¿Eliminar definitivamente el registro ${id}?`)) return;
+        await fetch(`/api/eliminar-ciclico/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        cargarDatos();
+    }
+
+    async function eliminarTodoElHistorial() {
+        if(!confirm("⚠️ ATENCIÓN: Se borrarán TODOS los registros finalizados de la base de datos. ¿Continuar?")) return;
+        const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
+        const data = await res.json();
+        alert(`Limpieza exitosa. Se borraron ${data.conteo} registros.`);
+        cargarDatos();
+    }
+
+    // ==========================================
+    // DESCARGA DE REPORTE CSV (MEJORADA)
+    // ==========================================
+    function descargarCSV(folio) {
+        console.log("Intentando descargar folio:", folio);
+        const item = window.datosGlobales.find(i => i.id === folio);
+        
+        if(!item) {
+            alert("Error: No se encontró la información del inventario.");
+            return;
+        }
+
+        const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
+        
+        // Encabezados según requerimiento: ID, Fecha, Modelo, Color, Operador, Talla, Cantidad, Tiempo Total
+        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
+        
+        item.resultados.forEach(r => {
+            contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`;
+        });
+
+        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Reporte_Ciclico_${item.modelo}_${item.fecha.replace(/\//g, '-')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 
     function procesarExcel(input) {
@@ -401,36 +460,25 @@
             });
             for(let k in grupos) {
                 const g = grupos[k];
-                await fetch('/api/crear-ciclico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ modelo: g.m, color: g.c, foto: obtenerNombreFoto(g.m, g.c), tallasRaw: g.t.join(', ') }) });
+                await fetch('/api/crear-ciclico', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ modelo: g.m, color: g.c, tallasRaw: g.t.join(', ') }) 
+                });
             }
-            alert("Carga completada"); cargarDatos();
+            alert("Excel procesado con éxito."); 
+            cargarDatos();
         };
         reader.readAsArrayBuffer(input.files[0]);
     }
 
-    function descargarExcel(id) {
-        const c = window.datosGlobales.find(i => i.id === id);
-        if(!c) return;
-
-        // Calculamos tiempo total robústo
-        const tiempoReporte = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
-        
-        // ESTRUCTURA SOLICITADA ACTUALIZADA: Se quitaron columnas de Inicio/Fin y se puso Tiempo Total
-        // Agregamos columna Fecha
-        let csv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-        
-        c.resultados.forEach(r => { 
-            csv += `${c.id},${c.fecha},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${tiempoReporte}\n`; 
-        });
-
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-        link.download = `Reporte_${c.modelo}_${c.id}.csv`; link.click();
-    }
-
-    cargarCatalogo(); renderTallas(); cargarDatos();
-    // Actualización rápida cada 7 segundos para monitorear en tiempo real
-    setInterval(cargarDatos, 7000);
+    // Inicio de sistema
+    cargarCatalogo(); 
+    renderTallas(); 
+    cargarDatos();
+    
+    // Auto-actualización cada 8 segundos
+    setInterval(cargarDatos, 8000);
 </script>
 </body>
 </html>
