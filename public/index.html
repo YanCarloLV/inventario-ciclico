@@ -3,357 +3,327 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sistema de Inventarios - Operador</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Sistema de Gestión | Operador</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #F5F5F7;
-            --card-color: #FFFFFF;
-            --text-primary: #1D1D1F;
-            --text-secondary: #86868B;
-            --accent-color: #000000; /* Negro Minimalista */
-            --border-color: #D2D2D7;
+            --brand-navy: #001A33;
+            --brand-gold: #D4AF37;
+            --brand-orange: #FF8C00;
+            --bg-apple: #F2F2F7;
+            --glass: rgba(255, 255, 255, 0.95);
+            --text-main: #1C1C1E;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            letter-spacing: -0.01em;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-apple);
+            color: var(--text-main);
             overflow-x: hidden;
+            line-height: 1.5;
         }
 
         /* Animaciones */
-        @keyframes AppReveal {
-            from { opacity: 0; transform: scale(0.95) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .reveal { animation: AppReveal 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .animate-in { animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
 
-        /* Header estilo Apple */
+        /* Header Profesional */
         header {
-            position: sticky; top: 0;
-            background: rgba(245, 245, 247, 0.8);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 15px 20px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 0.5px solid rgba(0,0,0,0.05);
-            z-index: 100;
+            position: sticky; top: 0; z-index: 100;
+            background: var(--brand-navy);
+            padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        header img { height: 30px; width: auto; }
-        header h1 { font-size: 16px; font-weight: 600; text-align: center; flex: 1; }
+        .logo-container {
+            background: white;
+            padding: 10px 25px;
+            border-radius: 50px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        header img { height: 35px; object-fit: contain; }
 
         .container { padding: 20px; max-width: 500px; margin: auto; }
 
-        /* Pantalla de Identificación */
-        .login-box {
-            background: var(--card-color);
-            border-radius: 20px;
+        /* Tarjetas Estilizadas */
+        .card {
+            background: white;
+            border-radius: 24px;
             padding: 35px 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.03);
             text-align: center;
         }
 
-        .login-box h2 { font-size: 24px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px; }
+        h2 { font-weight: 800; font-size: 24px; color: var(--brand-navy); margin-bottom: 8px; }
+        p.subtitle { color: #8E8E93; font-size: 14px; margin-bottom: 25px; }
 
-        .apple-input {
-            width: 100%;
-            padding: 16px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            background: #FFF;
-            font-size: 17px;
-            margin: 25px 0;
-            outline: none;
-            transition: all 0.2s;
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; font-size: 12px; font-weight: 700; color: var(--brand-navy); margin-bottom: 8px; margin-left: 5px; }
+
+        .modern-input {
+            width: 100%; padding: 18px; border-radius: 16px;
+            border: 2px solid #E5E5EA; background: #F9F9FB;
+            font-size: 16px; outline: none; transition: 0.3s;
+            font-family: inherit;
         }
 
-        .apple-input:focus { border-color: var(--accent-color); border-width: 2px; }
+        .modern-input:focus { border-color: var(--brand-orange); background: white; box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.1); }
 
-        .btn-apple {
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 17px;
-            font-weight: 600;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.6, 1);
+        .btn-main {
+            background: var(--brand-navy); color: white;
+            border: none; padding: 20px; border-radius: 16px;
+            font-size: 16px; font-weight: 700; width: 100%;
+            cursor: pointer; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
         }
 
-        .btn-apple:active { transform: scale(0.97); opacity: 0.8; }
+        .btn-main:active { transform: scale(0.95); opacity: 0.9; }
 
         /* Lista de Tareas */
         .task-card {
-            background: var(--card-color);
-            border-radius: 18px;
-            padding: 20px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.01);
-            border: 1px solid rgba(0,0,0,0.02);
-            cursor: pointer;
-            transition: all 0.2s;
+            background: white; border-radius: 20px; padding: 20px;
+            margin-bottom: 15px; display: flex; align-items: center;
+            justify-content: space-between; border: 1px solid transparent;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            transition: 0.3s; cursor: pointer;
         }
 
-        .task-card:active { transform: scale(0.98); background: #F2F2F7; }
+        .task-card:hover { border-color: var(--brand-orange); transform: translateX(5px); }
 
-        .task-info h3 { font-size: 17px; font-weight: 600; margin-bottom: 2px; }
-        .task-info p { font-size: 14px; color: var(--text-secondary); }
+        .task-info h3 { font-size: 17px; font-weight: 700; color: var(--brand-navy); }
+        .task-info p { font-size: 13px; color: #636366; }
 
-        .task-meta { text-align: right; color: var(--text-secondary); font-size: 12px; }
-
-        /* Pantalla de Conteo */
-        .counting-view { display: none; }
-        .counting-header { text-align: center; margin-bottom: 30px; }
-        .counting-header h2 { font-size: 28px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.8px; }
-
-        .counting-row {
-            background: var(--card-color);
-            border-radius: 16px;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            border: 1px solid rgba(0,0,0,0.01);
+        .id-badge {
+            background: #F2F2F7; color: var(--brand-navy);
+            padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 800;
         }
 
-        .talla-label { font-size: 18px; font-weight: 500; color: var(--text-primary); }
+        /* Contador de Tallas */
+        .counter-item {
+            background: white; border-radius: 18px; padding: 15px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .talla-label { font-size: 18px; font-weight: 800; color: var(--brand-navy); }
 
         .stepper { display: flex; align-items: center; gap: 15px; }
+        
         .btn-step {
-            width: 44px; height: 44px;
-            border-radius: 50%;
-            border: 1px solid var(--border-color);
-            background: #FFF;
-            font-size: 22px;
-            color: var(--accent-color);
+            width: 45px; height: 45px; border-radius: 14px;
+            border: 2px solid #E5E5EA; background: white;
+            font-size: 20px; font-weight: 600; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            transition: 0.1s;
+            transition: 0.2s;
         }
-        .btn-step:active { background: #E5E5E7; transform: scale(0.92); }
 
-        .count-val { font-size: 22px; font-weight: 700; min-width: 30px; text-align: center; }
+        .btn-step.plus { background: var(--brand-navy); color: white; border: none; }
+        
+        .qty-display { font-size: 22px; font-weight: 800; min-width: 40px; text-align: center; }
 
-        .footer-bar {
+        .footer-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
-            padding: 20px 25px;
-            background: rgba(255, 255, 255, 0.8);
+            padding: 20px 25px 40px; background: var(--glass);
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-top: 0.5px solid rgba(0,0,0,0.1);
+            border-top: 1px solid rgba(0,0,0,0.05);
         }
 
-        /* Pantalla Éxito */
-        #view-success {
-            display: none;
-            text-align: center;
-            padding-top: 60px;
-        }
-        .success-icon {
-            width: 80px; height: 80px;
-            background: #34C759; /* Verde Apple */
-            color: white;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 40px; margin: 0 auto 25px;
+        /* Success screen */
+        .success-state { display: none; text-align: center; padding: 40px 0; }
+        .success-icon { 
+            width: 80px; height: 80px; background: #34C759; color: white;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 40px; margin: 0 auto 20px;
         }
     </style>
 </head>
 <body>
 
 <header>
-    <img src="/logo.png" alt="Empresa Logo">
-    <h1>Inventario Pro</h1>
-    <div style="width: 30px;"></div> </header>
+    <div class="logo-container">
+        <img src="https://mens-international.com/wp-content/uploads/2021/05/Logo-Victoria-Trajes-y-Uniformes.png" alt="Logo">
+    </div>
+</header>
 
 <div class="container">
-    <div id="view-login" class="reveal">
-        <div class="login-box">
-            <h2>Bienvenido</h2>
-            <p style="color: var(--text-secondary);">Identifíquese para ver sus tareas asignadas.</p>
-            <input type="text" id="operadorInput" class="apple-input" placeholder="Nombre completo">
-            <button class="btn-apple" onclick="ingresarApp()">Comenzar Jornada</button>
-        </div>
-    </div>
-
-    <div id="view-list" class="reveal" style="display: none;">
-        <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 700;">Tareas Disponibles</h2>
-        <div id="task-container">
+    <div id="view-login" class="animate-in">
+        <div class="card">
+            <h2>Panel Operativo</h2>
+            <p class="subtitle">Ingrese su nombre para comenzar el registro.</p>
+            <div class="input-group">
+                <label>NOMBRE DEL OPERADOR</label>
+                <input type="text" id="operadorNombre" class="modern-input" placeholder="Ej. Juan Pérez" autocomplete="off">
             </div>
-    </div>
-
-    <div id="view-counting" class="counting-view reveal">
-        <div class="counting-header">
-            <p id="txtFolio" style="color: var(--text-secondary); font-size: 12px; font-weight: 600;"></p>
-            <h2 id="txtModelo">---</h2>
-            <p id="txtColor" style="color: var(--text-secondary);"></p>
-        </div>
-
-        <div id="tallas-grid">
-            </div>
-
-        <div style="height: 120px;"></div> <div class="footer-bar">
-            <button class="btn-apple" onclick="confirmarFinalizacion()">Registrar y Finalizar</button>
+            <button class="btn-main" onclick="ingresar()">
+                Iniciar Jornada
+            </button>
         </div>
     </div>
 
-    <div id="view-success" class="reveal">
+    <div id="view-list" style="display: none;" class="animate-in">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Tareas Asignadas</h2>
+            <span id="op-name-badge" class="id-badge" style="background: var(--brand-orange); color: white;"></span>
+        </div>
+        <div id="task-list"></div>
+    </div>
+
+    <div id="view-counting" style="display: none;" class="animate-in">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <span id="folio-label" style="font-size: 12px; font-weight: 800; color: var(--brand-orange); text-transform: uppercase;"></span>
+            <h2 id="display-modelo" style="font-size: 32px; letter-spacing: -1px;"></h2>
+            <p id="display-color" style="color: #636366; font-weight: 500;"></p>
+        </div>
+
+        <div id="counting-grid"></div>
+        <div style="height: 160px;"></div>
+
+        <div class="footer-nav">
+            <button class="btn-main" onclick="finalizarInventario()" style="background: var(--brand-orange);">
+                ✓ Finalizar Registro
+            </button>
+        </div>
+    </div>
+
+    <div id="view-success" class="success-state animate-in">
         <div class="success-icon">✓</div>
-        <h2>¡Buen trabajo!</h2>
-        <p style="color: var(--text-secondary); margin-top: 10px;">El inventario se ha registrado correctamente.</p>
-        <button class="btn-apple" style="margin-top: 35px; background: #E5E5E7; color: #1D1D1F;" onclick="location.reload()">Nueva Tarea</button>
+        <h2>¡Buen Trabajo!</h2>
+        <p class="subtitle">El inventario se ha registrado correctamente en el sistema central.</p>
+        <button class="btn-main" onclick="location.reload()">Siguiente Tarea</button>
     </div>
 </div>
 
 <script>
     let operador = "";
-    let inventarioSeleccionado = null;
-    let conteoParcial = {}; // { "36C": 5, "38C": 0 }
+    let inventarioActivo = null;
+    let datosConteo = {};
 
-    // Función de Ingreso
-    async function ingresarApp() {
-        const nombre = document.getElementById('operadorInput').value.trim();
-        if(!nombre) return alert("Por favor escriba su nombre.");
+    function ingresar() {
+        const nombre = document.getElementById('operadorNombre').value.trim();
+        if(!nombre) return alert("Por favor, ingrese su nombre.");
         operador = nombre;
+        document.getElementById('op-name-badge').innerText = operador;
         document.getElementById('view-login').style.display = 'none';
         document.getElementById('view-list').style.display = 'block';
-        actualizarListadoTareas();
+        refrescarTareas();
     }
 
-    // Cargar tareas pendientes del servidor
-    async function actualizarListadoTareas() {
-        const res = await fetch('/api/ciclicos');
-        const data = await res.json();
-        const container = document.getElementById('task-container');
-        container.innerHTML = "";
+    async function refrescarTareas() {
+        try {
+            const res = await fetch('/api/ciclicos');
+            const data = await res.json();
+            const container = document.getElementById('task-list');
+            container.innerHTML = "";
 
-        // Filtrar tareas disponibles (libres o ya tomadas por este operador)
-        const disponibles = data.filter(i => i.estatus === 'Pendiente' || (i.estatus === 'En Proceso' && i.asignadoA === operador));
+            const filtro = data.filter(i => i.estatus === 'Pendiente' || (i.estatus === 'En Proceso' && i.asignadoA === operador));
 
-        if(disponibles.length === 0) {
-            container.innerHTML = "<p style='text-align:center; color:#AEAEB2; margin-top:50px;'>No hay tareas pendientes por el momento.</p>";
-            return;
-        }
+            if(filtro.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:60px; color:#8E8E93; font-weight:600;">No hay tareas pendientes por ahora.</div>`;
+                return;
+            }
 
-        disponibles.forEach(tarea => {
-            const card = document.createElement('div');
-            card.className = "task-card";
-            card.onclick = () => iniciarConteo(tarea);
-            card.innerHTML = `
-                <div class="task-info">
-                    <h3>${tarea.modelo}</h3>
-                    <p>${tarea.color}</p>
-                </div>
-                <div class="task-meta">
-                    <b>${tarea.tallas.length}</b><br>Tallas
-                </div>
-            `;
-            container.appendChild(card);
-        });
+            filtro.forEach(t => {
+                const div = document.createElement('div');
+                div.className = "task-card";
+                div.onclick = () => abrirInventario(t);
+                div.innerHTML = `
+                    <div class="task-info">
+                        <h3>${t.modelo}</h3>
+                        <p>${t.color}</p>
+                    </div>
+                    <div class="id-badge">ID: ${t.id}</div>
+                `;
+                container.appendChild(div);
+            });
+        } catch (e) { console.error("Error al cargar tareas:", e); }
     }
 
-    // Iniciar el proceso de conteo
-    async function iniciarConteo(tarea) {
-        inventarioSeleccionado = tarea;
-        const horaInicio = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-
-        // Avisar al servidor que tomamos la tarea
+    async function abrirInventario(t) {
+        inventarioActivo = t;
+        const hora = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        
         await fetch('/api/asignar-operador', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: tarea.id, operador: operador, horaInicio: horaInicio })
+            body: JSON.stringify({ id: t.id, operador: operador, horaInicio: hora })
         });
 
         document.getElementById('view-list').style.display = 'none';
         document.getElementById('view-counting').style.display = 'block';
-
-        // Setear cabecera
-        document.getElementById('txtFolio').innerText = `ID: ${tarea.id}`;
-        document.getElementById('txtModelo').innerText = tarea.modelo;
-        document.getElementById('txtColor').innerText = tarea.color;
-
-        const grid = document.getElementById('tallas-grid');
-        grid.innerHTML = "";
         
-        // Generar steppers
-        tarea.tallas.forEach(talla => {
-            conteoParcial[talla] = 0; // Inicializar en 0
+        document.getElementById('folio-label').innerText = `ORDEN #${t.id}`;
+        document.getElementById('display-modelo').innerText = t.modelo;
+        document.getElementById('display-color').innerText = t.color;
+
+        const grid = document.getElementById('counting-grid');
+        grid.innerHTML = "";
+        t.tallas.forEach(talla => {
+            datosConteo[talla] = 0;
             grid.innerHTML += `
-                <div class="counting-row reveal">
+                <div class="counter-item">
                     <span class="talla-label">${talla}</span>
                     <div class="stepper">
-                        <button class="btn-step" onclick="modificarCantidad('${talla}', -1)">−</button>
-                        <span class="count-val" id="qty-${talla}">0</span>
-                        <button class="btn-step" onclick="modificarCantidad('${talla}', 1)">+</button>
+                        <button class="btn-step" onclick="updateCount('${talla}', -1)">−</button>
+                        <span class="qty-display" id="qty-${talla}">0</span>
+                        <button class="btn-step plus" onclick="updateCount('${talla}', 1)">+</button>
                     </div>
                 </div>
             `;
         });
     }
 
-    // Manejar steppers
-    function modificarCantidad(talla, delta) {
-        const nuevoValor = Math.max(0, conteoParcial[talla] + delta);
-        conteoParcial[talla] = nuevoValor;
-        document.getElementById(`qty-${talla}`).innerText = nuevoValor;
-        
-        // Sincronizar automáticamente progreso al servidor para el supervisor
-        sincronizarAvanceAPI();
+    function updateCount(talla, val) {
+        datosConteo[talla] = Math.max(0, datosConteo[talla] + val);
+        document.getElementById(`qty-${talla}`).innerText = datosConteo[talla];
+        actualizarProgresoAPI();
     }
 
-    // Enviar avance parcial al servidor (Sin hora fin, estatus 'En Proceso')
-    async function sincronizarAvanceAPI() {
-        const totalTallas = inventarioSeleccionado.tallas.length;
-        // Contamos tallas que tienen cantidad > 0
-        const tallasRevisadas = Object.values(conteoParcial).filter(v => v > 0).length;
-        const progreso = Math.round((tallasRevisadas / totalTallas) * 100);
+    async function actualizarProgresoAPI() {
+        const total = inventarioActivo.tallas.length;
+        const realizados = Object.values(datosConteo).filter(v => v > 0).length;
+        const pct = Math.round((realizados / total) * 100);
 
         fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
-                id: inventarioSeleccionado.id, 
-                progreso: progreso,
-                conteoActual: tallasRevisadas,
-                resultados: Object.keys(conteoParcial).map(t => ({ talla: t, cantidad: conteoParcial[t] }))
+                id: inventarioActivo.id, 
+                progreso: pct,
+                conteoActual: realizados,
+                resultados: Object.keys(datosConteo).map(t => ({ talla: t, cantidad: datosConteo[t] }))
             })
         });
     }
 
-    // Finalizar Tarea
-    async function confirmarFinalizacion() {
-        if(!confirm("¿Está seguro de que desea finalizar y registrar este conteo?")) return;
-
-        const horaFin = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-
-        // Enviar reporte final (Estatus 'Finalizado')
+    async function finalizarInventario() {
+        if(!confirm("¿Está seguro de finalizar y enviar este conteo?")) return;
+        const hora = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        
         const res = await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
-                id: inventarioSeleccionado.id, 
+                id: inventarioActivo.id, 
                 progreso: 100,
                 estatus: "Finalizado",
-                horaFin: horaFin,
-                resultados: Object.keys(conteoParcial).map(t => ({ talla: t, cantidad: conteoParcial[t] }))
+                horaFin: hora,
+                resultados: Object.keys(datosConteo).map(t => ({ talla: t, cantidad: datosConteo[t] }))
             })
         });
 
         if(res.ok) {
             document.getElementById('view-counting').style.display = 'none';
             document.getElementById('view-success').style.display = 'block';
-        } else {
-            alert("Hubo un error al enviar el reporte. Por favor intente de nuevo.");
         }
     }
 </script>
