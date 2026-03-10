@@ -3,294 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Victoria | Operador Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <title>Inventario Pro - Operador</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --victoria-navy: #002147;
-            --victoria-gold: #C5A059;
-            --apple-bg: #FBFBFD;
-            --glass: rgba(255, 255, 255, 0.9);
-            --text-dark: #1D1D1F;
+            --apple-bg: #F5F5F7;
+            --apple-card: rgba(255, 255, 255, 0.8);
+            --apple-blue: #0071E3;
+            --apple-text: #1D1D1F;
+            --apple-gray: #86868B;
+            --glass-border: rgba(255, 255, 255, 0.3);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
             background-color: var(--apple-bg);
-            color: var(--text-dark);
+            color: var(--apple-text);
+            line-height: 1.5;
             overflow-x: hidden;
         }
 
-        /* Animación suave de entrada */
-        @keyframes appleReveal {
-            from { opacity: 0; transform: translateY(15px); }
+        /* Animaciones */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .reveal { animation: appleReveal 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .fade-in { animation: fadeInUp 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
 
+        /* Header Estilo Apple */
         header {
-            position: sticky; top: 0; z-index: 100;
-            background: var(--glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 18px 25px;
-            display: flex; align-items: center; justify-content: center;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+            z-index: 100;
         }
 
-        header img { height: 32px; filter: brightness(0.2); }
+        header img { height: 35px; }
+        header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.5px; }
 
-        .container { padding: 25px; max-width: 480px; margin: auto; }
+        .container { padding: 20px; max-width: 500px; margin: auto; }
 
-        /* Tarjeta de Login */
-        .card-login {
-            background: white;
-            border-radius: 28px;
-            padding: 40px 30px;
-            box-shadow: 0 20px 40px rgba(0,33,71,0.05);
+        /* Pantalla de Login / Selección Operador */
+        .login-card {
+            background: var(--apple-card);
+            border-radius: 22px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border: 1px solid var(--glass-border);
             text-align: center;
-            border: 1px solid rgba(0,0,0,0.03);
         }
-
-        .card-login h2 { font-weight: 800; font-size: 26px; margin-bottom: 10px; color: var(--victoria-navy); }
 
         .apple-input {
-            width: 100%; padding: 18px; border-radius: 15px;
-            border: 1.5px solid #E5E5E7; background: #F5F5F7;
-            font-size: 16px; margin: 25px 0; outline: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #D2D2D7;
+            background: #FFF;
+            font-size: 17px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .apple-input:focus { border-color: var(--apple-blue); border-width: 2px; }
+
+        .btn-primary {
+            background: var(--apple-blue);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
             transition: all 0.3s;
         }
 
-        .apple-input:focus { border-color: var(--victoria-gold); background: white; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.1); }
+        .btn-primary:active { transform: scale(0.97); opacity: 0.8; }
 
-        .btn-victoria {
-            background: var(--victoria-navy); color: white;
-            border: none; padding: 18px; border-radius: 15px;
-            font-size: 17px; font-weight: 600; width: 100%;
-            cursor: pointer; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Lista de Tareas */
+        .task-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.02);
+            cursor: pointer;
+            transition: transform 0.2s;
         }
 
-        .btn-victoria:active { transform: scale(0.96); opacity: 0.9; }
+        .task-card:active { transform: scale(0.98); background: #F5F5F7; }
 
-        /* Lista de Tareas Estilo "Collection" */
-        .task-item {
-            background: white; border-radius: 22px; padding: 22px;
-            margin-bottom: 15px; display: flex; align-items: center;
-            justify-content: space-between; border: 1px solid rgba(0,0,0,0.02);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-            transition: 0.3s;
+        .task-info h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .task-info p { font-size: 14px; color: var(--apple-gray); }
+
+        .badge-status {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #E8E8ED;
         }
 
-        .task-item:active { background: #F2F2F7; transform: scale(0.98); }
+        /* Pantalla de Conteo */
+        .counting-view { display: none; }
+        .product-hero {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+        .product-hero h2 { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
 
-        .task-info h3 { font-size: 18px; font-weight: 700; color: var(--victoria-navy); }
-        .task-info p { font-size: 14px; color: #86868B; margin-top: 2px; }
-
-        .folio-tag {
-            background: #F2F2F7; padding: 6px 12px; border-radius: 10px;
-            font-size: 11px; font-weight: 800; color: var(--victoria-navy);
+        .talla-entry {
+            background: white;
+            border-radius: 18px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
 
-        /* Área de Conteo */
-        .product-header { text-align: center; margin-bottom: 35px; }
-        .product-header h2 { font-size: 34px; font-weight: 800; color: var(--victoria-navy); letter-spacing: -1px; }
+        .talla-label { font-size: 18px; font-weight: 600; }
 
-        .counter-row {
-            background: white; border-radius: 20px; padding: 18px 25px;
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 12px; border: 1px solid #F2F2F7;
+        .stepper { display: flex; align-items: center; gap: 15px; }
+        .btn-step {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid #D2D2D7;
+            background: #FFF;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .count-val { font-size: 22px; font-weight: 700; min-width: 30px; text-align: center; }
+
+        .footer-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1);
         }
 
-        .talla-name { font-weight: 700; font-size: 19px; }
-
-        .stepper-control { display: flex; align-items: center; gap: 20px; }
-        .btn-circle {
-            width: 48px; height: 48px; border-radius: 50%;
-            border: 1.5px solid #E5E5E7; background: white;
-            font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        /* Pantalla Finalizado */
+        #success-view {
+            display: none;
+            text-align: center;
+            padding-top: 50px;
         }
-
-        .count-num { font-size: 24px; font-weight: 800; min-width: 35px; text-align: center; color: var(--victoria-navy); }
-
-        .footer-action {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            padding: 25px; background: rgba(255,255,255,0.8);
-            backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,0.05);
-        }
-
-        /* Success State */
-        .success-screen { text-align: center; padding-top: 60px; display: none; }
-        .success-screen .icon { 
-            width: 90px; height: 90px; background: var(--victoria-gold); 
-            color: white; border-radius: 50%; display: flex; 
-            align-items: center; justify-content: center; font-size: 45px; margin: 0 auto 30px;
+        .check-icon {
+            width: 80px;
+            height: 80px;
+            background: #34C759;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
         }
     </style>
 </head>
 <body>
 
 <header>
-    <img src="https://mens-international.com/wp-content/uploads/2021/05/Logo-Victoria-Trajes-y-Uniformes.png" alt="Victoria">
-</header>
+    <img src="/logo.png" alt="Victoria">
+    <h1 id="header-title">Inventario Cíclico</h1>
+    <div style="width: 35px;"></div> </header>
 
 <div class="container">
-    <div id="view-login" class="reveal">
-        <div class="card-login">
-            <h2>Gestión de Ciclos</h2>
-            <p style="color:#86868B">Inicie sesión para acceder a sus tareas asignadas.</p>
+    <div id="login-view" class="fade-in">
+        <div class="login-card">
+            <h2 style="margin-bottom: 20px;">Bienvenido</h2>
+            <p style="color: var(--apple-gray); margin-bottom: 30px;">Ingresa tu nombre para comenzar la jornada.</p>
             <input type="text" id="operadorNombre" class="apple-input" placeholder="Nombre del Operador">
-            <button class="btn-victoria" onclick="ingresar()">Comenzar Jornada</button>
+            <button class="btn-primary" onclick="ingresar()">Continuar</button>
         </div>
     </div>
 
-    <div id="view-list" class="reveal" style="display: none;">
-        <h2 style="margin-bottom: 25px; font-size: 22px; font-weight: 800;">Tareas del Día</h2>
-        <div id="task-list"></div>
+    <div id="list-view" class="fade-in" style="display: none;">
+        <h2 style="margin-bottom: 20px; font-size: 24px;">Tus Tareas</h2>
+        <div id="task-container">
+            </div>
     </div>
 
-    <div id="view-counting" class="reveal" style="display: none;">
-        <div class="product-header">
-            <span id="folio-label" style="font-weight: 800; color: var(--victoria-gold); font-size: 13px;"></span>
-            <h2 id="display-modelo">---</h2>
-            <p id="display-color" style="color: #86868B; font-weight: 500;"></p>
+    <div id="counting-view" class="counting-view fade-in">
+        <div class="product-hero">
+            <p id="txtFolio" style="color: var(--apple-blue); font-weight: 700; margin-bottom: 5px;"></p>
+            <h2 id="txtModelo">---</h2>
+            <p id="txtColor" style="color: var(--apple-gray);"></p>
         </div>
 
-        <div id="counting-grid"></div>
-        <div style="height: 140px;"></div>
+        <div id="tallas-list">
+            </div>
 
-        <div class="footer-action">
-            <button class="btn-victoria" onclick="finalizarInventario()">Finalizar y Registrar</button>
+        <div style="height: 120px;"></div> <div class="footer-actions">
+            <button class="btn-primary" onclick="finalizarInventario()">Finalizar y Guardar</button>
         </div>
     </div>
 
-    <div id="view-success" class="success-screen reveal">
-        <div class="icon">✓</div>
-        <h2 style="font-weight: 800;">Registro Exitoso</h2>
-        <p style="color:#86868B; margin: 15px 0 40px;">Los datos han sido enviados al panel de supervisor.</p>
-        <button class="btn-victoria" style="background: var(--victoria-gold);" onclick="location.reload()">Nueva Tarea</button>
+    <div id="success-view" class="fade-in">
+        <div class="check-icon">✓</div>
+        <h2>¡Buen trabajo!</h2>
+        <p style="color: var(--apple-gray); margin-top: 10px;">El inventario se ha guardado correctamente.</p>
+        <button class="btn-primary" style="margin-top: 30px; background: #1D1D1F;" onclick="location.reload()">Nueva Tarea</button>
     </div>
 </div>
 
 <script>
-    let operador = "";
-    let inventarioActivo = null;
-    let datosConteo = {};
+    let currentOperador = "";
+    let currentTask = null;
+    let counts = {}; // { "36C": 5, "38C": 2 }
 
     async function ingresar() {
-        const nombre = document.getElementById('operadorNombre').value.trim();
-        if(!nombre) return;
-        operador = nombre;
-        document.getElementById('view-login').style.display = 'none';
-        document.getElementById('view-list').style.display = 'block';
-        refrescarTareas();
+        const input = document.getElementById('operadorNombre').value.trim();
+        if(!input) return alert("Por favor escribe tu nombre");
+        currentOperador = input;
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('list-view').style.display = 'block';
+        cargarTareas();
     }
 
-    async function refrescarTareas() {
+    async function cargarTareas() {
         const res = await fetch('/api/ciclicos');
         const data = await res.json();
-        const container = document.getElementById('task-list');
+        const container = document.getElementById('task-container');
         container.innerHTML = "";
 
-        const filtro = data.filter(i => i.estatus === 'Pendiente' || (i.estatus === 'En Proceso' && i.asignadoA === operador));
+        // Filtrar solo los pendientes o los que ya tiene asignados este operador
+        const disponibles = data.filter(i => i.estatus === 'Pendiente' || (i.estatus === 'En Proceso' && i.asignadoA === currentOperador));
 
-        if(filtro.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:50px; color:#AEAEB2;">No hay tareas disponibles.</div>`;
+        if(disponibles.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:gray; margin-top:40px;'>No hay tareas pendientes por ahora.</p>";
             return;
         }
 
-        filtro.forEach(t => {
-            const div = document.createElement('div');
-            div.className = "task-item";
-            div.onclick = () => abrirInventario(t);
-            div.innerHTML = `
+        disponibles.forEach(t => {
+            const card = document.createElement('div');
+            card.className = "task-card";
+            card.onclick = () => iniciarTarea(t);
+            card.innerHTML = `
                 <div class="task-info">
                     <h3>${t.modelo}</h3>
                     <p>${t.color}</p>
+                    <small style="color:var(--apple-blue)">${t.tallas.length} Tallas a revisar</small>
                 </div>
-                <div class="folio-tag">${t.id}</div>
+                <div class="badge-status">${t.id}</div>
             `;
-            container.appendChild(div);
+            container.appendChild(card);
         });
     }
 
-    async function abrirInventario(t) {
-        inventarioActivo = t;
+    async function iniciarTarea(task) {
+        currentTask = task;
+        
+        // Registrar en servidor que el operador tomó la tarea
         const hora = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         
         await fetch('/api/asignar-operador', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: t.id, operador: operador, horaInicio: hora })
+            body: JSON.stringify({ id: task.id, operador: currentOperador, horaInicio: hora })
         });
 
-        document.getElementById('view-list').style.display = 'none';
-        document.getElementById('view-counting').style.display = 'block';
+        document.getElementById('list-view').style.display = 'none';
+        document.getElementById('counting-view').style.display = 'block';
         
-        document.getElementById('folio-label').innerText = `ORDEN ${t.id}`;
-        document.getElementById('display-modelo').innerText = t.modelo;
-        document.getElementById('display-color').innerText = t.color;
+        document.getElementById('txtFolio').innerText = `FOLIO ${task.id}`;
+        document.getElementById('txtModelo').innerText = task.modelo;
+        document.getElementById('txtColor').innerText = task.color;
 
-        const grid = document.getElementById('counting-grid');
-        grid.innerHTML = "";
-        t.tallas.forEach(talla => {
-            datosConteo[talla] = 0;
-            grid.innerHTML += `
-                <div class="counter-row">
-                    <span class="talla-name">${talla}</span>
-                    <div class="stepper-control">
-                        <button class="btn-circle" onclick="updateCount('${talla}', -1)">-</button>
-                        <span class="count-num" id="qty-${talla}">0</span>
-                        <button class="btn-circle" onclick="updateCount('${talla}', 1)" style="background:var(--victoria-navy); color:white; border:none;">+</button>
+        const listDiv = document.getElementById('tallas-list');
+        listDiv.innerHTML = "";
+        
+        task.tallas.forEach(talla => {
+            counts[talla] = 0;
+            listDiv.innerHTML += `
+                <div class="talla-entry">
+                    <span class="talla-label">${talla}</span>
+                    <div class="stepper">
+                        <button class="btn-step" onclick="changeCount('${talla}', -1)">-</button>
+                        <span class="count-val" id="val-${talla}">0</span>
+                        <button class="btn-step" onclick="changeCount('${talla}', 1)" style="background:var(--apple-blue); color:white; border:none;">+</button>
                     </div>
                 </div>
             `;
         });
     }
 
-    function updateCount(talla, val) {
-        datosConteo[talla] = Math.max(0, datosConteo[talla] + val);
-        document.getElementById(`qty-${talla}`).innerText = datosConteo[talla];
-        actualizarProgresoAPI();
+    function changeCount(talla, delta) {
+        counts[talla] = Math.max(0, counts[talla] + delta);
+        document.getElementById(`val-${talla}`).innerText = counts[talla];
+        sincronizarProgreso();
     }
 
-    async function actualizarProgresoAPI() {
-        const total = inventarioActivo.tallas.length;
-        const realizados = Object.values(datosConteo).filter(v => v > 0).length;
-        const pct = Math.round((realizados / total) * 100);
+    async function sincronizarProgreso() {
+        const tallasLlenas = Object.values(counts).filter(v => v > 0).length;
+        const total = currentTask.tallas.length;
+        const progreso = Math.round((tallasLlenas / total) * 100);
 
-        fetch('/api/actualizar-progreso', {
+        await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
-                id: inventarioActivo.id, 
-                progreso: pct,
-                conteoActual: realizados,
-                resultados: Object.keys(datosConteo).map(t => ({ talla: t, cantidad: datosConteo[t] }))
+                id: currentTask.id, 
+                progreso: progreso,
+                conteoActual: tallasLlenas,
+                resultados: Object.keys(counts).map(t => ({ talla: t, cantidad: counts[t] }))
             })
         });
     }
 
     async function finalizarInventario() {
-        if(!confirm("¿Confirmar envío de conteo?")) return;
+        if(!confirm("¿Estás seguro de que terminaste de contar todas las tallas?")) return;
+
         const hora = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        
+
         const res = await fetch('/api/actualizar-progreso', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
-                id: inventarioActivo.id, 
+                id: currentTask.id, 
                 progreso: 100,
                 estatus: "Finalizado",
                 horaFin: hora,
-                resultados: Object.keys(datosConteo).map(t => ({ talla: t, cantidad: datosConteo[t] }))
+                resultados: Object.keys(counts).map(t => ({ talla: t, cantidad: counts[t] }))
             })
         });
 
         if(res.ok) {
-            document.getElementById('view-counting').style.display = 'none';
-            document.getElementById('view-success').style.display = 'block';
+            document.getElementById('counting-view').style.display = 'none';
+            document.getElementById('success-view').style.display = 'block';
         }
     }
 </script>
