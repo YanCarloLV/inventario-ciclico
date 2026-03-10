@@ -42,7 +42,6 @@
             border-radius: 40px;
             box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3);
         }
-        /* Logo agrandado */
         .logo-wrap img { max-height: 70px; vertical-align: middle; }
 
         .container { max-width: 1200px; margin: auto; padding: 0 20px; }
@@ -73,20 +72,28 @@
         /* Tallas Grid */
         .tallas-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-top: 10px; }
         .talla-col { background: #F9F9FB; border: 1px solid #E5E5EA; border-radius: 16px; overflow: hidden; }
-        /* .col-header { padding: 18px; border-bottom: 1px solid #E5E5EA; text-align: center; } */ /* Comentado por ajuste de diseño */
-        .col-header { padding: 18px; border-bottom: 1px solid #E5E5EA; } /* Ajustado */
+        .col-header { padding: 18px; border-bottom: 1px solid #E5E5EA; }
         .col-circle { 
             width: 40px; height: 40px; background: var(--brand-navy); color: white; 
             border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-            /* margin: 0 auto 10px; */ /* Comentado por ajuste de diseño */
-            margin: 0; /* Asegurar que no tenga márgenes */
-            font-weight: 800; font-size: 16px; box-shadow: 0 4px 10px rgba(0,26,51,0.2);
+            margin: 0; font-weight: 800; font-size: 16px; box-shadow: 0 4px 10px rgba(0,26,51,0.2);
         }
         
         .sizes-list { max-height: 300px; overflow-y: auto; padding: 10px 15px; }
         .size-item { display: flex; align-items: center; gap: 15px; padding: 12px 10px; border-bottom: 1px solid #EDEDF2; font-size: 15px; cursor: pointer; transition: 0.2s; font-weight: 600; }
         .size-item:hover { background: white; border-radius: 10px; }
-        .size-item input { transform: scale(1.4); cursor: pointer; }
+        
+        /* Checkboxes iOS Style */
+        .toggle-ios {
+            appearance: none; width: 42px; height: 24px; background: #D2D2D7; border-radius: 20px;
+            position: relative; cursor: pointer; outline: none; transition: 0.3s; margin: 0; display: inline-block; vertical-align: middle;
+        }
+        .toggle-ios::after {
+            content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+            background: white; border-radius: 50%; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .toggle-ios:checked { background: #34C759; }
+        .toggle-ios:checked::after { transform: translateX(18px); }
 
         /* Botones Pro */
         .btn { 
@@ -102,15 +109,27 @@
         .btn-delete-hist { background: #FF3B30; color: white; border-radius: 8px; padding: 8px 14px; font-size: 12px; }
 
         /* Tablas Premium */
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 15px; background: white; }
         th { background: white; color: var(--text-muted); text-align: left; padding: 20px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #E5E5EA; }
-        td { padding: 18px 15px; border-bottom: 1px solid #F2F2F7; font-size: 15px; font-weight: 500; }
-        tr:last-child td { border-bottom: none; }
+        td { padding: 18px 15px; border-bottom: 1px solid #F2F2F7; font-size: 15px; font-weight: 500; transition: background 0.2s; }
         
-        .status { padding: 6px 14px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* Hover 3D en Filas */
+        tbody tr { transition: all 0.2s ease; border-radius: 12px; }
+        tbody tr:hover td { background: #F9F9FB; cursor: default; }
+        tbody tr:hover td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+        tbody tr:hover td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+        
+        .status { padding: 6px 14px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; }
         .proc { background: #E8F2FF; color: #007AFF; }
         .pen { background: #F2F2F7; color: var(--text-muted); }
         
+        /* Indicador Live Pulsante */
+        .pulse-dot {
+            display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #007AFF;
+            margin-right: 8px; box-shadow: 0 0 0 0 rgba(0,122,255,0.7); animation: pulseDot 1.5s infinite;
+        }
+        @keyframes pulseDot { 70% { box-shadow: 0 0 0 8px rgba(0,122,255,0); } 100% { box-shadow: 0 0 0 0 rgba(0,122,255,0); } }
+
         /* Barra de Progreso */
         .prog-container { width: 130px; margin-top: 8px; }
         .prog-bg { background: #E5E5EA; height: 8px; border-radius: 10px; overflow: hidden; }
@@ -121,6 +140,20 @@
         .filter-section { background: #F9F9FB; padding: 18px; border-radius: 16px; margin-bottom: 25px; display: flex; align-items: center; gap: 15px; border: 1px solid #E5E5EA; }
         .filter-section select { width: auto; min-width: 250px; border: 1px solid #D2D2D7; }
         
+        /* Contenedor de Toasts */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast {
+            background: white; border-left: 5px solid var(--brand-navy); padding: 18px 25px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); font-weight: 700; font-size: 14px; color: var(--brand-navy);
+            animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto;
+        }
+        .toast.success { border-color: #34C759; }
+        .toast.warning { border-color: var(--brand-orange); }
+        .toast.fade-out { animation: fadeOutRight 0.4s ease forwards; }
+        
+        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+
         /* Scrollbar Apple */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -128,6 +161,8 @@
     </style>
 </head>
 <body>
+
+<div id="toast-container"></div>
 
 <div class="top-header">
     <div class="logo-wrap">
@@ -167,9 +202,11 @@
                     <div class="col-header">
                         <div style="display: flex; align-items: center; gap: 10px; justify-content: center;">
                             <div class="col-circle">C</div>
-                            <span style="font-weight: 600; font-size: 16px; color: var(--brand-navy);">Corto</span>
+                            <span style="font-weight: 600; font-size: 16px; color: var(--brand-navy);">corto</span>
                         </div>
-                        <label style="font-size:12px; color: var(--brand-navy); margin: 10px 0 0 0; display: block; text-align: center;"><input type="checkbox" onchange="toggleGroup('C', this.checked)"> Seleccionar Todos</label>
+                        <label style="font-size:12px; color: var(--brand-navy); margin: 10px 0 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="toggle-ios" onchange="toggleGroup('C', this.checked)"> Seleccionar Todos
+                        </label>
                     </div>
                     <div id="list-C" class="sizes-list"></div>
                 </div>
@@ -177,9 +214,11 @@
                     <div class="col-header">
                         <div style="display: flex; align-items: center; gap: 10px; justify-content: center;">
                             <div class="col-circle" style="background:var(--text-muted)">R</div>
-                            <span style="font-weight: 600; font-size: 16px; color: var(--brand-navy);">Regular</span>
+                            <span style="font-weight: 600; font-size: 16px; color: var(--brand-navy);">regular</span>
                         </div>
-                        <label style="font-size:12px; color: var(--brand-navy); margin: 10px 0 0 0; display: block; text-align: center;"><input type="checkbox" onchange="toggleGroup('R', this.checked)"> Seleccionar Todos</label>
+                        <label style="font-size:12px; color: var(--brand-navy); margin: 10px 0 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="toggle-ios" onchange="toggleGroup('R', this.checked)"> Seleccionar Todos
+                        </label>
                     </div>
                     <div id="list-R" class="sizes-list"></div>
                 </div>
@@ -189,7 +228,9 @@
                             <div class="col-circle" style="background:var(--brand-orange)">L</div>
                             <span style="font-weight: 600; font-size: 16px; color: var(--brand-navy);">Largo</span>
                         </div>
-                        <label style="font-size:12px; color: var(--brand-navy); margin: 10px 0 0 0; display: block; text-align: center;"><input type="checkbox" onchange="toggleGroup('L', this.checked)"> Seleccionar Todos</label>
+                        <label style="font-size:12px; color: var(--brand-navy); margin: 10px 0 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="toggle-ios" onchange="toggleGroup('L', this.checked)"> Seleccionar Todos
+                        </label>
                     </div>
                     <div id="list-L" class="sizes-list"></div>
                 </div>
@@ -250,6 +291,21 @@
 </div>
 
 <script>
+    // Sistema de Notificaciones Toast
+    function showToast(mensaje, tipo = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        let icono = tipo === 'success' ? '✅' : '⚠️';
+        toast.innerHTML = `${icono} ${mensaje}`;
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => toast.remove(), 400);
+        }, 3500);
+    }
+
     // SE MANTIENE EL 100% DE LA LÓGICA Y CATÁLOGO ORIGINAL
     const modelosEspeciales = ["4040", "4030", "33739", "TR-1", "TR-2"];
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO"];
@@ -338,7 +394,7 @@
         ['C', 'R', 'L'].forEach(cat => {
             document.getElementById(`list-${cat}`).innerHTML = tallasBase.map(t => `
                 <label class="size-item">
-                    <input type="checkbox" class="check-${cat}" value="${t}${cat}"> 
+                    <input type="checkbox" class="toggle-ios check-${cat}" value="${t}${cat}"> 
                     <span>${t}${cat}</span>
                 </label>
             `).join('');
@@ -392,12 +448,15 @@
 
             listado.forEach(c => {
                 if (c.estatus !== 'Finalizado') {
+                    // Magia del punto Live pulsante
+                    const indicadorLive = c.estatus === 'En Proceso' ? `<span class="pulse-dot"></span>` : '';
+                    
                     activosBody.innerHTML += `
                         <tr class="reveal">
                             <td><b style="color:var(--brand-navy);">#${c.id}</b></td>
                             <td><b style="color:var(--brand-navy);">${c.modelo}</b><br><small style="color:var(--text-muted);">${c.color}</small></td>
                             <td>
-                                <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${c.estatus}</span>
+                                <span class="status ${c.estatus === 'En Proceso' ? 'proc' : 'pen'}">${indicadorLive}${c.estatus}</span>
                                 ${c.estatus === 'En Proceso' ? `
                                     <div class="prog-container">
                                         <div class="prog-bg"><div class="prog-fill" style="width:${c.progreso}%"></div></div>
@@ -437,7 +496,7 @@
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
         
         if(!modelo || !color || seleccionadas.length === 0) {
-            alert("⚠️ Por favor completa Modelo, Color y al menos una Talla.");
+            showToast("Por favor completa Modelo, Color y Tallas.", "warning");
             return;
         }
         
@@ -450,7 +509,7 @@
         if(res.ok) { 
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
             cargarDatos();
-            alert("✅ Inventario publicado correctamente.");
+            showToast("Inventario publicado correctamente en la App.");
         }
     }
 
@@ -462,6 +521,7 @@
                 body: JSON.stringify({ id }) 
             });
             cargarDatos();
+            showToast("Inventario liberado exitosamente.");
         }
     }
 
@@ -469,20 +529,21 @@
         if(!confirm(`¿Eliminar definitivamente el registro ${id}?`)) return;
         await fetch(`/api/eliminar-ciclico/${encodeURIComponent(id)}`, { method: 'DELETE' });
         cargarDatos();
+        showToast("Registro eliminado del historial.");
     }
 
     async function eliminarTodoElHistorial() {
         if(!confirm("⚠️ ATENCIÓN: Se borrarán TODOS los registros finalizados de la base de datos. ¿Continuar?")) return;
         const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
         const data = await res.json();
-        alert(`Limpieza exitosa. Se borraron ${data.conteo} registros.`);
+        showToast(`Limpieza exitosa. Se borraron ${data.conteo} registros.`);
         cargarDatos();
     }
 
     function descargarCSV(folio) {
         const item = window.datosGlobales.find(i => i.id === folio);
         if(!item) {
-            alert("Error: No se encontró la información del inventario.");
+            showToast("Error: No se encontró la información del inventario.", "warning");
             return;
         }
         const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
@@ -498,6 +559,7 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        showToast("Descarga iniciada.");
     }
 
     function procesarExcel(input) {
@@ -520,7 +582,7 @@
                     body: JSON.stringify({ modelo: g.m, color: g.c, tallasRaw: g.t.join(', ') }) 
                 });
             }
-            alert("Excel procesado con éxito."); 
+            showToast("Excel procesado y publicado con éxito."); 
             cargarDatos();
         };
         reader.readAsArrayBuffer(input.files[0]);

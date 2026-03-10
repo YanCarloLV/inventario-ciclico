@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sistema de Inventarios - Operador Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
             --brand-navy: #001A33;
@@ -23,12 +24,19 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Animación suave de entrada */
-        @keyframes reveal {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* Animaciones */
+        @keyframes reveal { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .reveal { animation: reveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+        .pop-in { display: inline-block; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+        .shimmer { position: relative; overflow: hidden; }
+        .shimmer::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite ease-in-out; }
+
+        @keyframes pulseSkeleton { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .skeleton { background: #E5E5EA; border-radius: 20px; animation: pulseSkeleton 1.5s infinite; border: none; box-shadow: none; pointer-events: none; }
 
         /* Header Institucional Centrado */
         header {
@@ -113,12 +121,14 @@
         #modal-cantidad {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s;
         }
+        #modal-cantidad.visible { opacity: 1; }
         .modal-caja {
             background: white; padding: 30px; border-radius: 28px; width: 85%; max-width: 320px;
-            text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3); animation: reveal 0.3s ease-out;
+            text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3); transform: translateY(100px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
+        #modal-cantidad.visible .modal-caja { transform: translateY(0); }
         .input-num {
             width: 100%; padding: 15px; font-size: 32px; text-align: center; border: 2px solid var(--brand-navy);
             border-radius: 16px; margin: 20px 0; box-sizing: border-box; outline: none; color: var(--brand-navy);
@@ -126,10 +136,10 @@
         }
         .input-num:focus { border-color: var(--brand-orange); box-shadow: 0 0 0 4px rgba(255,140,0,0.1); }
 
-        /* Barra de Progreso CORREGIDA: top: 128px compensa el header grande */
+        /* Barra de Progreso */
         .progress-wrapper { position: sticky; top: 128px; background-color: var(--card-bg); padding: 15px 0; margin-bottom: 15px; z-index: 90; border-bottom: 1px solid #F2F2F7; }
         .progress-bg { background: #E5E5EA; height: 12px; border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; background: var(--brand-orange); width: 0%; transition: 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .progress-fill { height: 100%; background: var(--brand-orange); width: 0%; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
         
         /* Tallas Listado */
         .talla-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #F2F2F7; transition: 0.3s; }
@@ -147,11 +157,15 @@
             background: var(--brand-orange); color: white; width: 100%; padding: 20px; 
             border: none; border-radius: 18px; font-size: 18px; font-weight: 800; 
             margin-top: 25px; cursor: pointer; transition: 0.3s; font-family: inherit;
-            box-shadow: 0 10px 20px rgba(255,140,0,0.2);
+            box-shadow: 0 10px 20px rgba(255,140,0,0.2); position: relative; overflow: hidden;
         }
         .btn-finish:active { transform: scale(0.96); }
         
         .btn-back { background: transparent; color: #8E8E93; border: none; margin-top: 20px; width: 100%; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+        /* Notificaciones Toast Operador */
+        #toast-op { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #34C759; color: white; padding: 15px 25px; border-radius: 20px; font-weight: 700; box-shadow: 0 10px 25px rgba(52, 199, 89, 0.4); z-index: 4000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0; }
+        #toast-op.show { transform: translateX(-50%) translateY(0); opacity: 1; }
     </style>
 </head>
 <body>
@@ -161,6 +175,8 @@
             <img src="/logo.png" alt="Logo">
         </div>
     </header>
+    
+    <div id="toast-op">Reporte enviado con éxito ✅</div>
 
     <div id="modal-zoom" onclick="cerrarZoom()">
         <img id="img-ampliada" src="">
@@ -191,7 +207,10 @@
             <h2 id="saludo-user" style="margin:0; font-size: 20px;">Cargando...</h2>
             <button onclick="localStorage.clear(); location.reload();" style="font-size:12px; font-weight:700; border:none; background:#F2F2F7; padding:8px 12px; border-radius:10px; color:#FF3B30; cursor:pointer;">Cerrar Sesión</button>
         </div>
-        <div id="lista-pendientes"></div>
+        <div id="lista-pendientes">
+            <div class="item-pend skeleton" style="height: 60px;"></div>
+            <div class="item-pend skeleton" style="height: 60px;"></div>
+        </div>
     </div>
 
     <div id="conteo-screen" class="reveal">
@@ -202,7 +221,7 @@
                     <b id="texto-progreso">Progreso: 0%</b>
                     <span id="contador-tallas">0/0 Tallas</span>
                 </div>
-                <div class="progress-bg"><div id="bar-progreso" class="progress-fill"></div></div>
+                <div class="progress-bg"><div id="bar-progreso" class="progress-fill shimmer"></div></div>
             </div>
             <div id="lista-tallas-conteo"></div>
             <button class="btn-finish" id="btn-final" onclick="finalizarInventario()">✅ Enviar Reporte Final</button>
@@ -334,7 +353,7 @@
                 <div class="talla-item" id="fila-talla-${talla.replace(/\s+/g, '')}" style="${yaContada ? 'background:#F9F9FB; padding: 18px 15px; border-radius: 16px;' : ''}">
                     <div class="talla-info"><b>${talla}</b></div>
                     ${yaContada 
-                        ? `<div><span style="color:#34C759; font-weight:800; font-size:22px; margin-right:15px;">✔ ${yaContada.cantidad}</span> <button onclick="borrarTalla('${talla}')" style="border:none; background:#FFEBEB; padding:6px 12px; border-radius:8px; color:#FF3B30; cursor:pointer; font-size:12px; font-weight:800;">Rehacer</button></div>`
+                        ? `<div><span style="color:#34C759; font-weight:800; font-size:22px; margin-right:15px;">✔ <span class="pop-in">${yaContada.cantidad}</span></span> <button onclick="borrarTalla('${talla}')" style="border:none; background:#FFEBEB; padding:6px 12px; border-radius:8px; color:#FF3B30; cursor:pointer; font-size:12px; font-weight:800;">Rehacer</button></div>`
                         : `<button class="btn-action" onclick="abrirModalCantidad('${talla}')">CONTAR</button>`
                     }
                 </div>
@@ -348,13 +367,18 @@
         document.getElementById('modal-talla-label').innerText = talla;
         const inputNum = document.getElementById('input-cantidad');
         inputNum.value = "";
-        document.getElementById('modal-cantidad').style.display = 'flex';
-        setTimeout(() => inputNum.focus(), 100);
+        
+        const modal = document.getElementById('modal-cantidad');
+        modal.style.display = 'flex';
+        // Delay ligero para permitir la animación CSS
+        setTimeout(() => modal.classList.add('visible'), 10);
+        setTimeout(() => inputNum.focus(), 300);
     }
 
     function cerrarModalCantidad() {
-        document.getElementById('modal-cantidad').style.display = 'none';
-        tallaActivaModal = null;
+        const modal = document.getElementById('modal-cantidad');
+        modal.classList.remove('visible');
+        setTimeout(() => { modal.style.display = 'none'; tallaActivaModal = null; }, 300);
     }
 
     function guardarCantidadModal() {
@@ -408,10 +432,20 @@
         document.getElementById('contador-tallas').innerText = `${resultados.length}/${inventarioActivo.totalTallas}`;
     }
 
+    function mostrarToastExito() {
+        const toast = document.getElementById('toast-op');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
     async function finalizarInventario() {
         if (resultados.length < inventarioActivo.totalTallas) {
             if (!confirm("Aún faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
         }
+        
+        // ¡Efecto Confetti!
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
+        
         const ahora = new Date();
         const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const res = await fetch('/api/actualizar-progreso', {
@@ -419,9 +453,10 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" })
         });
+        
         if (res.ok) { 
-            alert("¡Reporte enviado exitosamente!"); 
-            location.reload(); 
+            mostrarToastExito();
+            setTimeout(() => { location.reload(); }, 2000); // Recarga después del confeti y toast
         }
     }
 </script>
