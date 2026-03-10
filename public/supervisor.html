@@ -1,9 +1,8 @@
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Supervisor Pro v2</title>
+    <title>Panel de Control - Supervisor Pro v2 (Historial y IDs Consecutivos)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
@@ -26,6 +25,8 @@
         .btn-refresh { background: #95a5a6; color: white; }
         .btn-dl { background: #27ae60; color: white; font-size: 12px; text-decoration: none; display: inline-block; padding: 8px 15px; }
         .btn-liberar { background: #e74c3c; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; }
+        
+        /* Estilos para eliminación */
         .btn-delete-row { background: #ff7675; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 10px; }
         .btn-danger { background: #d63031; color: white; font-size: 12px; }
         
@@ -39,7 +40,7 @@
         .pen { background: #fff3cd; color: #856404; }
         .percent-text { font-size: 10px; font-weight: bold; color: #3498db; display: block; margin-top: 2px; }
 
-        /* Filtro de Fecha */
+        /* Estilo Filtro Fecha */
         .filter-box { display: flex; gap: 10px; align-items: center; background: #edf2f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
     </style>
 </head>
@@ -99,7 +100,7 @@
         </table>
     </div>
 
-    <div class="card">
+    <div class="card" style="opacity: 0.9;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
             <h2 style="color: #7f8c8d;">📚 Historial (Finalizados)</h2>
             <div style="display:flex; gap:10px;">
@@ -110,7 +111,7 @@
         <div class="filter-box">
             <span>📅 Filtrar Fecha:</span>
             <select id="filtroFecha" onchange="cargarDatos()">
-                <option value="HOY">Solo Hoy</option>
+                <option value="HOY">Solo Hoy (Hoy en Monterrey)</option>
                 <option value="TODOS">Ver Todo el Historial</option>
             </select>
         </div>
@@ -123,15 +124,19 @@
 </div>
 
 <script>
+    // Modelos especiales definidos por el usuario
     const modelosEspeciales = ["4040", "4030", "33739", "TR-1", "TR-2"];
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO"];
 
+    // Catálogo Maestro Integra Restaurado COMPLETAMENTE
     let catalogoProductos = [
+        // --- SUPER 120'S CLÁSICO ---
         { modelo: "C67901-1", color: "NEGRO SOLIDO" }, { modelo: "C67901-2B", color: "NUEVO AZUL" },
         { modelo: "C67901-3", color: "GRIS OXFORD" }, { modelo: "C67901-4", color: "GRIS LIGERO" },
         { modelo: "C67901-5A", color: "BLANCO" }, { modelo: "C67901-11", color: "BEIGE SOLIDO" },
         { modelo: "C67901-16", color: "CAMEL" }, { modelo: "C67901-17", color: "AZUL FRANCIA" },
         { modelo: "C67901-19", color: "AZUL CIELO" }, { modelo: "C67901-24", color: "GRIS INGLES" },
+        // --- SUPER 120'S PRIVILEGE ---
         { modelo: "G45001-1", color: "GRIS SOLIDO" }, { modelo: "G45001-2", color: "GRIS INGLES" },
         { modelo: "G45001-3", color: "TAUPE GRANOLA" }, { modelo: "G47815-1", color: "NEGRO SOLIDO" },
         { modelo: "G47815-2B", color: "MARINO NUEVO" }, { modelo: "G47815-3", color: "GRIS CLARO" },
@@ -144,11 +149,13 @@
         { modelo: "G47815-20", color: "VERDE HUNTER" }, { modelo: "G47815-30", color: "ROSA" },
         { modelo: "G47815-50", color: "VERDE AZULADO" }, { modelo: "G49412-1", color: "OXFORD SOLIDO" },
         { modelo: "G49412-2", color: "GRIS MEDIO" },
+        // --- PRIVILEGE COLLECTION (CUADROS) ---
         { modelo: "679683-2", color: "TAUPE ENTRE CRUZADO" }, { modelo: "679727-1", color: "OXFORD AZUL" },
         { modelo: "679728-1", color: "AZUL MALVA" }, { modelo: "679729-1", color: "AZUL NEGRO" },
         { modelo: "679730-1", color: "MARINO A CUADROS" }, { modelo: "679731-1", color: "AZUL A CUADROS" },
         { modelo: "679732-1", color: "GRIS CLARO AZUL" }, { modelo: "679733-1", color: "AZUL OXIDADO" },
         { modelo: "679733-2", color: "GRIS AZUL" }, { modelo: "679734-1", color: "CAMELLO AZUL" },
+        // --- SUPER 140'S ---
         { modelo: "M40901-1", color: "NEGRO" }, { modelo: "M40901-2A", color: "MARINO" },
         { modelo: "M40901-2B", color: "MARINO SOLIDO" }, { modelo: "M40901-6", color: "AZUL FRANCIA" },
         { modelo: "M40901-9", color: "AZUL CIELO" }, { modelo: "M46306-3", color: "CHARCOAL" },
@@ -169,8 +176,10 @@
         { modelo: "M87857-1", color: "MARINO" }, { modelo: "M87858-1", color: "OXFORD AZUL" },
         { modelo: "M87859-1", color: "AZUL A CUADROS" }, { modelo: "M87860-1", color: "AZUL TAUPE" },
         { modelo: "M87860-2", color: "CAFE CAMELLO" }, { modelo: "M87861-1", color: "MARINO A CUADROS" },
+        // --- LANA SEDA ---
         { modelo: "B66050-1", color: "NEGRO SOLIDO" }, { modelo: "B66050-2B", color: "MARINO" },
         { modelo: "B66051-1A", color: "GRIS SOLIDO" }, { modelo: "B66051-2", color: "GRIS CLARO" },
+        // --- SUPER 150'S CASHMERE ---
         { modelo: "E59663-1", color: "NEGRO SOLIDO" }, { modelo: "E59663-2", color: "MARINO SOLIDO" },
         { modelo: "E59663-6", color: "AZUL SOLIDO" }, { modelo: "E59663-3", color: "OXFORD SOLIDO" },
         { modelo: "E59663-5", color: "GRIS SOLIDO" }, { modelo: "E59663-4", color: "GRIS CLARO" },
@@ -183,14 +192,17 @@
         { modelo: "E84584-3", color: "BEIGE A CUADROS" }
     ];
 
+    // Lógica robusta para generar automáticamente los modelos especiales
     modelosEspeciales.forEach(m => {
         coloresEspeciales.forEach(c => {
             catalogoProductos.push({ modelo: m, color: c });
         });
     });
 
+    // Función segura para obtener nombre de foto
     function obtenerNombreFoto(modelo, color) {
         if (modelosEspeciales.includes(modelo)) {
+            // Reemplazamos espacios por guiones bajos para el nombre del archivo
             return `${modelo}_${color.replace(/\s+/g, '_')}`;
         }
         return modelo;
@@ -223,33 +235,48 @@
 
     function toggleGroup(cat, isChecked) { document.querySelectorAll(`.check-${cat}`).forEach(cb => cb.checked = isChecked); }
 
-    // --- LOGICA DE TIEMPOS PARA CSV ---
+    // ==========================================
+    // LÓGICA DE TIEMPOS PARA CSV (NUEVA Y ROBUSTA)
+    // ==========================================
     function calcularDiferenciaTiempo(inicio, fin) {
+        // Garantizamos que si falta un dato, el tiempo sea 0
         if (!inicio || !fin) return "00:00:00";
         try {
-            const parseHora = (h) => {
-                const [time, modifier] = h.split(' ');
+            const parseHora = (timeStr) => {
+                const [time, modifier] = timeStr.split(' ');
                 let [hours, minutes, seconds] = time.split(':');
                 if (hours === '12') hours = '00';
                 if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
-                const d = new Date();
-                d.setHours(hours, minutes, seconds, 0);
-                return d.getTime();
+                const dateObj = new Date();
+                dateObj.setHours(hours, minutes, seconds, 0);
+                return dateObj.getTime();
             };
-            const diff = parseHora(fin) - parseHora(inicio);
-            const totalSeconds = Math.floor(diff / 1000);
-            const hrs = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-            const mins = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-            const secs = (totalSeconds % 60).toString().padStart(2, '0');
-            return `${hrs}:${mins}:${secs}`;
-        } catch (e) { return "Error"; }
+            const startTimeMillis = parseHora(inicio);
+            const endTimeMillis = parseHora(fin);
+            
+            // Calculamos la diferencia
+            let diffMillis = endTimeMillis - startTimeMillis;
+            // Manejo por si cruza la medianoche
+            if (diffMillis < 0) diffMillis += 24 * 60 * 60 * 1000;
+            
+            const totalSeconds = Math.floor(diffMillis / 1000);
+            const formattedHrs = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+            const formattedMins = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+            const formattedSecs = (totalSeconds % 60).toString().padStart(2, '0');
+            
+            return `${formattedHrs}:${formattedMins}:${formattedSecs}`;
+        } catch (e) { 
+            console.error("Error al calcular tiempos:", e);
+            return "Error"; 
+        }
     }
 
     async function cargarDatos() {
         const res = await fetch('/api/ciclicos');
         const listado = await res.json();
         const filtro = document.getElementById('filtroFecha').value;
-        const hoy = new Date().toLocaleDateString('es-MX');
+        // Obtenemos fecha de hoy formateada de la base de datos (Garantía Monterrey)
+        const hoyMexicoFormat = new Date().toLocaleDateString('es-MX');
 
         const datosGlobales = listado.sort((a, b) => b.id - a.id);
         const cuerpoActivos = document.querySelector("#tablaActivos tbody");
@@ -280,21 +307,22 @@
                         <td><small>In: ${c.horaInicio || '--'}</small></td>
                     </tr>`;
             } else {
-                // Aplicar Filtro
-                if (filtro === "HOY" && c.fecha !== hoy) return;
+                // Aplicar Filtro de Fecha: Solo HOY o TODOS
+                if (filtro === "HOY" && c.fecha !== hoyMexicoFormat) return;
 
-                const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
+                // Calculamos tiempo total para el panel
+                const tiempoCalculado = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
 
                 cuerpoHistorial.innerHTML += `
                     <tr>
                         <td><small>#${c.id}</small></td>
-                        <td>${c.fecha || hoy}</td>
+                        <td>${c.fecha || hoyMexicoFormat}</td>
                         <td>${c.modelo} - ${c.color}</td>
                         <td>${c.asignadoA}</td>
-                        <td><b>${tTotal}</b></td>
+                        <td><b>${tiempoCalculado}</b></td>
                         <td>
                             <button class="btn btn-dl" style="padding: 5px 10px;" onclick="descargarExcel(${c.id})">📥 CSV</button>
-                            <button class="btn-delete-row" onclick="eliminarFila(${c.id})">🗑️</button>
+                            <button class="btn-delete-row" onclick="eliminarRegistroIndividual('${c.id}')">🗑️</button>
                         </td>
                     </tr>`;
             }
@@ -302,16 +330,37 @@
         window.datosGlobales = datosGlobales;
     }
 
-    async function eliminarFila(id) {
-        if (!confirm("¿Eliminar este registro permanentemente?")) return;
-        const res = await fetch(`/api/eliminar-ciclico/${id}`, { method: 'DELETE' });
-        if (res.ok) cargarDatos();
+    async function eliminarRegistroIndividual(idInventario) {
+        if (!confirm(`⚠️ ¿Estás totalmente seguro de eliminar el inventario #${idInventario}? Esta acción no se puede deshacer.`)) return;
+        
+        try {
+            const res = await fetch(`/api/eliminar-ciclico/${idInventario}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert("Registro eliminado exitosamente.");
+                cargarDatos();
+            } else {
+                alert("Hubo un error en el servidor al intentar eliminar.");
+            }
+        } catch (e) {
+            console.error("Error al eliminar:", e);
+        }
     }
 
     async function eliminarTodosFinalizados() {
-        if (!confirm("⚠️ ¿ESTÁS SEGURO? Se borrarán todos los registros finalizados de la base de datos.")) return;
-        const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
-        if (res.ok) cargarDatos();
+        if (!confirm("⚠️⚠️⚠️ ¿ESTÁS SEGURO DE ESTO? Se borrarán ABSOLUTAMENTE TODOS los registros finalizados de la base de datos de historial.")) return;
+        
+        try {
+            const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
+            if (res.ok) {
+                const responseData = await res.json();
+                alert(`Limpieza completada. Se eliminaron ${responseData.conteo} registros.`);
+                cargarDatos();
+            } else {
+                alert("Hubo un error al intentar realizar la limpieza masiva.");
+            }
+        } catch (e) {
+            console.error("Error en limpieza masiva:", e);
+        }
     }
 
     async function crearCiclico() {
@@ -332,7 +381,7 @@
     }
 
     async function liberarInventario(id) {
-        if(confirm("¿Liberar inventario?")) {
+        if(confirm("¿Liberar inventario ocupado?")) {
             await fetch('/api/liberar-inventario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
             cargarDatos();
         }
@@ -361,13 +410,17 @@
 
     function descargarExcel(id) {
         const c = window.datosGlobales.find(i => i.id === id);
-        const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
+        if(!c) return;
+
+        // Calculamos tiempo total robústo
+        const tiempoReporte = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
         
-        // Estructura solicitada: Ya no Inicio/Fin, sino Tiempo Total
+        // ESTRUCTURA SOLICITADA ACTUALIZADA: Se quitaron columnas de Inicio/Fin y se puso Tiempo Total
+        // Agregamos columna Fecha
         let csv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
         
         c.resultados.forEach(r => { 
-            csv += `${c.id},${c.fecha},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${tTotal}\n`; 
+            csv += `${c.id},${c.fecha},${c.modelo},${c.color},${c.asignadoA},${r.talla},${r.cantidad},${tiempoReporte}\n`; 
         });
 
         const link = document.createElement("a");
@@ -376,7 +429,8 @@
     }
 
     cargarCatalogo(); renderTallas(); cargarDatos();
-    setInterval(cargarDatos, 10000);
+    // Actualización rápida cada 7 segundos para monitorear en tiempo real
+    setInterval(cargarDatos, 7000);
 </script>
 </body>
 </html>
