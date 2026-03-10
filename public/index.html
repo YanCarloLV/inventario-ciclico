@@ -266,7 +266,7 @@
                     <small style="color:#8E8E93">${inv.color} • ${inv.totalTallas} tallas</small>
                 </div>
                 <div>
-                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado</span>` : ''}
+                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Ocupado por ${inv.asignadoA}</span>` : ''}
                     ${isMine ? `<span class="tag-status tag-mine">En Proceso</span>` : ''}
                     ${!inv.asignadoA ? `<span class="tag-status tag-free">Libre</span>` : ''}
                 </div>
