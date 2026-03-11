@@ -442,7 +442,7 @@
         } catch (e) { return "---"; }
     }
 
-    async function cargarDatos() {
+async function cargarDatos() {
         try {
             const res = await fetch('/api/ciclicos');
             const listado = await res.json();
@@ -450,11 +450,20 @@
             const filtro = document.getElementById('filtroFecha').value;
             const hoyRef = obtenerFechaHoyMonterrey();
 
+            // 1. GUARDAR LA MEMORIA DE TUS SELECCIONES ANTES DE ACTUALIZAR
+            const checkboxesSeleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
+            const maestroSeleccionado = document.getElementById('chkAllHist') ? document.getElementById('chkAllHist').checked : false;
+
             const activosBody = document.querySelector("#tablaActivos tbody");
             const historialBody = document.querySelector("#tablaHistorial tbody");
+            
             activosBody.innerHTML = ""; 
             historialBody.innerHTML = "";
-            document.getElementById('chkAllHist').checked = false; // Resetear checkbox maestro
+            
+            // 2. RESTAURAR EL CHECKBOX MAESTRO
+            if(document.getElementById('chkAllHist')) {
+                document.getElementById('chkAllHist').checked = maestroSeleccionado;
+            }
 
             window.datosGlobales = listado;
 
@@ -463,8 +472,9 @@
                     // Magia del punto Live pulsante
                     const indicadorLive = c.estatus === 'En Proceso' ? `<span class="pulse-dot"></span>` : '';
                     
+                    // Nota: Le quitamos la clase "reveal" al <tr> para matar el loop visual molesto
                     activosBody.innerHTML += `
-                        <tr class="reveal">
+                        <tr>
                             <td><b style="color:var(--brand-navy);">#${c.id}</b></td>
                             <td><b style="color:var(--brand-navy);">${c.modelo}</b><br><small style="color:var(--text-muted);">${c.color}</small></td>
                             <td>
@@ -485,10 +495,14 @@
                     if (filtro === "HOY" && c.fecha !== hoyRef) return;
                     const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
 
+                    // 3. RESTAURAR LA PALOMITA SI ESTABA SELECCIONADO
+                    const checkedAtributo = checkboxesSeleccionados.includes(c.id) ? 'checked' : '';
+
+                    // Nota: Le quitamos la clase "reveal" al <tr> para matar el loop visual molesto
                     historialBody.innerHTML += `
-                        <tr class="reveal">
+                        <tr>
                             <td style="text-align: center;">
-                                <input type="checkbox" class="chk-tabla chk-historial-row" value="${c.id}">
+                                <input type="checkbox" class="chk-tabla chk-historial-row" value="${c.id}" ${checkedAtributo}>
                             </td>
                             <td><small><b>#${c.id}</b></small></td>
                             <td>${c.fecha}</td>
