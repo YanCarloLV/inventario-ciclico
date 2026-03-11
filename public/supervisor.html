@@ -105,6 +105,7 @@
         .btn-add:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,26,51,0.2); }
         .btn-refresh { background: #E8F2FF; color: #007AFF; }
         .btn-dl { background: var(--brand-gold); color: white; text-decoration: none; }
+        .btn-dl-consol { background: var(--brand-navy); color: white; text-decoration: none; }
         .btn-danger { background: #FFEBEB; color: #FF3B30; }
         .btn-delete-hist { background: #FF3B30; color: white; border-radius: 8px; padding: 8px 14px; font-size: 12px; }
 
@@ -119,6 +120,9 @@
         tbody tr:hover td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
         tbody tr:hover td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
         
+        /* Casillas de selección en tabla */
+        .chk-tabla { transform: scale(1.4); cursor: pointer; accent-color: var(--brand-orange); }
+
         .status { padding: 6px 14px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; }
         .proc { background: #E8F2FF; color: #007AFF; }
         .pen { background: #F2F2F7; color: var(--text-muted); }
@@ -261,9 +265,12 @@
     </div>
 
     <div class="card card-historial reveal" style="animation-delay: 0.2s;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
-            <h2 style="color: var(--text-muted);">Historial de Inventarios Finalizados</h2>
-            <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Todo el Historial</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="color: var(--text-muted); margin: 0;">Historial de Inventarios Finalizados</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-dl-consol" onclick="descargarConsolidado()">📦 Descargar Seleccionados</button>
+                <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Todo el Historial</button>
+            </div>
         </div>
 
         <div class="filter-section">
@@ -277,6 +284,9 @@
         <table id="tablaHistorial">
             <thead>
                 <tr>
+                    <th style="width: 40px; text-align: center;">
+                        <input type="checkbox" id="chkAllHist" class="chk-tabla" onchange="toggleAllHistorial(this.checked)" title="Seleccionar todos">
+                    </th>
                     <th>ID</th>
                     <th>Fecha</th>
                     <th>Modelo/Color</th>
@@ -442,7 +452,9 @@
 
             const activosBody = document.querySelector("#tablaActivos tbody");
             const historialBody = document.querySelector("#tablaHistorial tbody");
-            activosBody.innerHTML = ""; historialBody.innerHTML = "";
+            activosBody.innerHTML = ""; 
+            historialBody.innerHTML = "";
+            document.getElementById('chkAllHist').checked = false; // Resetear checkbox maestro
 
             window.datosGlobales = listado;
 
@@ -475,20 +487,67 @@
 
                     historialBody.innerHTML += `
                         <tr class="reveal">
+                            <td style="text-align: center;">
+                                <input type="checkbox" class="chk-tabla chk-historial-row" value="${c.id}">
+                            </td>
                             <td><small><b>#${c.id}</b></small></td>
                             <td>${c.fecha}</td>
                             <td><b style="color:var(--brand-navy);">${c.modelo}</b> - <small>${c.color}</small></td>
                             <td><b>${c.asignadoA}</b></td>
                             <td><b style="color:var(--brand-orange);">${tTotal}</b></td>
                             <td>
-                                <button class="btn btn-dl" style="padding:8px 14px; font-size:12px;" onclick="descargarCSV('${c.id}')">📥 Descargar CSV</button>
-                                <button class="btn btn-delete-hist" onclick="eliminarFila('${c.id}')">🗑️ Eliminar</button>
+                                <button class="btn btn-dl" style="padding:8px 14px; font-size:12px;" onclick="descargarCSV('${c.id}')">📥 Indiv.</button>
+                                <button class="btn btn-delete-hist" onclick="eliminarFila('${c.id}')">🗑️</button>
                             </td>
                         </tr>`;
                 }
             });
         } catch (err) { console.error("Error cargando tabla:", err); }
     }
+
+    // --- NUEVA LÓGICA DE SELECCIÓN MÚLTIPLE ---
+    function toggleAllHistorial(isChecked) {
+        document.querySelectorAll('.chk-historial-row').forEach(cb => cb.checked = isChecked);
+    }
+
+    function descargarConsolidado() {
+        const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
+        
+        if (seleccionados.length === 0) {
+            showToast("Por favor selecciona al menos un registro para descargar.", "warning");
+            return;
+        }
+
+        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
+
+        seleccionados.forEach(folio => {
+            const item = window.datosGlobales.find(i => i.id === folio);
+            if (item) {
+                const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
+                item.resultados.forEach(r => {
+                    contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`;
+                });
+            }
+        });
+
+        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const fechaArchivo = obtenerFechaHoyMonterrey().replace(/\//g, '-');
+        a.download = `Consolidado_Inventarios_${fechaArchivo}.csv`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        showToast(`Se han consolidado ${seleccionados.length} registros exitosamente.`);
+        
+        // Limpiar selecciones después de descargar
+        document.getElementById('chkAllHist').checked = false;
+        toggleAllHistorial(false);
+    }
+    // -----------------------------------------
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
