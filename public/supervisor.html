@@ -145,67 +145,55 @@
         ::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 10px; }
 
         /* ========================================================== */
-        /* CSS DEL FAKE LOADER PREMIUM Y ESTÉTICO */
+        /* CSS DEL FAKE LOADER PREMIUM Y ESTÉTICO (EFECTO REVEAL REAL)*/
         /* ========================================================== */
         #fake-loader-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 26, 51, 0.95); z-index: 99999; justify-content: center; align-items: center;
+            background: rgba(0, 26, 51, 0.96); z-index: 99999; justify-content: center; align-items: center;
             flex-direction: column; color: white; opacity: 0; transition: opacity 0.5s ease;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
         }
         #fake-loader-overlay.show { display: flex; opacity: 1; }
 
         .loader-content { text-align: center; max-width: 400px; padding: 40px; }
 
-        /* Contenedor del Icono con Máscara */
         .icon-container {
-            width: 150px; height: 150px; margin: 0 auto 30px auto;
-            position: relative; overflow: hidden;
+            width: 160px; height: 160px; margin: 0 auto 30px auto;
+            position: relative; display: flex; justify-content: center; align-items: center;
             border-radius: 50%;
-            background: rgba(255,255,255,0.05);
-            border: 2px solid rgba(197, 160, 89, 0.2);
-            box-shadow: 0 0 30px rgba(197, 160, 89, 0.1);
+            background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0) 70%);
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
         }
 
-        /* La imagen base (contorno) */
-        .icon-outline {
-            width: 100%; height: 100%; object-fit: contain;
-            opacity: 0.1; /* El contorno original casi invisible */
+        /* El traje base apagado en blanco y negro */
+        .icon-base {
+            width: 65%; height: 65%; object-fit: contain;
+            filter: grayscale(100%) opacity(0.15);
+            position: absolute;
         }
 
-        /* La imagen base que se llena (máscara CSS) */
-        .icon-fill-effect {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            -webkit-mask-image: url('7443348.png'); mask-image: url('7443348.png');
-            -webkit-mask-size: contain; mask-size: contain;
-            -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-            -webkit-mask-position: center; mask-position: center;
-            background: var(--brand-orange);
-            transform: translateY(100%); /* Comienza vacía */
-            transition: transform 6.5s cubic-bezier(0.2, 0.8, 0.2, 1); /* Se llena en el tiempo exacto */
-            box-shadow: 0 0 20px rgba(255, 140, 0, 0.7);
+        /* El traje a color que se revela de abajo hacia arriba */
+        .icon-color {
+            width: 65%; height: 65%; object-fit: contain;
+            position: absolute;
+            clip-path: inset(100% 0 0 0); /* Oculto completamente al inicio */
+            transition: clip-path 6.5s cubic-bezier(0.25, 1, 0.5, 1);
+            /* Brillo verde claro y elegante */
+            filter: drop-shadow(0 0 12px rgba(52, 199, 89, 0.6)) drop-shadow(0 0 4px rgba(52, 199, 89, 0.9));
         }
 
-        /* Efecto de traje (suit) que aparece al final */
-        .icon-suit-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            -webkit-mask-image: url('7443348.png'); mask-image: url('7443348.png');
-            -webkit-mask-size: contain; mask-size: contain;
-            background: var(--brand-navy);
-            opacity: 0; transform: scale(1.1);
-            transition: opacity 1s ease 5.5s, transform 1s ease 5.5s; /* Aparece al final del llenado */
+        /* Cuando arranca la animación, el corte baja revelando el traje */
+        #fake-loader-overlay.animating .icon-color { 
+            clip-path: inset(0% 0 0 0); 
         }
-
-        /* Cuando se activa la animación */
-        #fake-loader-overlay.animating .icon-fill-effect { transform: translateY(0%); }
-        #fake-loader-overlay.animating .icon-suit-overlay { opacity: 0.9; transform: scale(1); }
 
         #fake-loader-msg { font-weight: 800; font-size: 24px; margin: 0; letter-spacing: -0.5px; }
         #fake-loader-status { color: var(--brand-gold); font-size: 14px; text-transform: uppercase; font-weight: 700; margin-top: 10px; letter-spacing: 1px; }
         #fake-loader-perc { font-weight: 800; font-size: 60px; color: var(--brand-orange); margin: 10px 0; font-feature-settings: "tnum"; }
         
         .prog-fake-bg { background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; width: 100%; margin-top: 20px; overflow: hidden; }
-        .prog-fake-fill { background: var(--brand-orange); height: 100%; width: 0%; transition: width 6.5s linear; box-shadow: 0 0 10px var(--brand-orange); }
+        .prog-fake-fill { background: var(--brand-orange); height: 100%; width: 0%; transition: width 6.5s linear; box-shadow: 0 0 10px rgba(255, 140, 0, 0.5); }
         #fake-loader-overlay.animating .prog-fake-fill { width: 100%; }
 
     </style>
@@ -213,11 +201,10 @@
 <body>
 
 <div id="fake-loader-overlay">
-    <div class="loader-contentreveal">
+    <div class="loader-content reveal">
         <div class="icon-container">
-            <img src="7443348.png" class="icon-outline" alt="Icono Traje">
-            <div class="icon-fill-effect"></div>
-            <div class="icon-suit-overlay"></div>
+            <img src="/7443348.png" class="icon-base" alt="Traje Base">
+            <img src="/7443348.png" class="icon-color" alt="Traje Llenando">
         </div>
         <p id="fake-loader-msg">Generando Reporte Ciclico...</p>
         <div id="fake-loader-perc">0%</div>
@@ -568,10 +555,8 @@
             this.status.innerText = "Preparando matemáticas y diseño";
             this.overlay.classList.add('show');
             
-            // Del ligero para que empiece la animación CSS después de que se muestre el overlay
             setTimeout(() => this.overlay.classList.add('animating'), 50);
 
-            // Iniciar contador del 1 al 100%
             let p = 0;
             this.interval = setInterval(() => {
                 p++;
@@ -579,7 +564,7 @@
                 if (p === 80) this.status.innerText = "Dibujando cuadrículas premium";
                 if (p === 95) this.status.innerText = "Consolidando modelos y colores";
                 if (p >= 100) clearInterval(this.interval);
-            }, 60); // 60ms * 100 = 6 segundos aprox
+            }, 60); 
         },
 
         hide: function() {
@@ -597,10 +582,8 @@
 
         fakeLoader.show(title);
 
-        // Duración total de 7 segundos (6s de carga + 1s de éxito/limpieza)
         await new Promise(resolve => setTimeout(resolve, 6500));
         
-        // ¡Efecto Éxito! Confeti y cambio de estado
         confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
         fakeLoader.msg.innerText = "¡Reporte Listo! ✅";
         fakeLoader.perc.innerText = "100%";
@@ -608,10 +591,8 @@
 
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Ahora sí, ejecutar la descarga real
         await functionToCallAfter();
         
-        // Ocultar loader
         fakeLoader.hide();
     }
 
@@ -624,13 +605,12 @@
     }
 
     async function interceptIndividual(folioId) {
-        // Necesitamos crear una función de cierre para pasar el folioId correcto después de la carga
         const finalDownloadFunction = () => { descargarCSV(folioId); };
         await showFakeLoader("individual", finalDownloadFunction);
     }
 
     // ==============================================================
-    // FUNCIONES ORIGINALES DE DESCARGA (SIN TOCAR LÓGICA)
+    // FUNCIONES ORIGINALES DE DESCARGA
     // ==============================================================
     function descargarConsolidado() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
@@ -750,7 +730,7 @@
     }
 
     // ==============================================================
-    // OTRAS FUNCIONES (IMPORTAR, LIBERAR, ELIMINAR)
+    // OTRAS FUNCIONES
     // ==============================================================
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
