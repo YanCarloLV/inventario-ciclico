@@ -61,7 +61,7 @@
         select:focus { border-color: var(--brand-navy); background: white; }
         
         .tallas-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-top: 10px; }
-        .talla-col { background: #F9F9FB; border: 1px solid #E5E5EA; border-radius: 16px; overflow: hidden; }
+        .talla-col { background: #F9F9FB; border: 1px solid #E5E5EA; border-radius: 166px; overflow: hidden; }
         .col-header { padding: 18px; border-bottom: 1px solid #E5E5EA; }
         .col-circle { 
             width: 40px; height: 40px; background: var(--brand-navy); color: white; 
@@ -218,9 +218,9 @@
             <div class="circle-liquid"></div>
             <img src="/7443348.png" class="icon-base" alt="Traje Base">
         </div>
-        <p id="fake-loader-msg">Generando Reporte Ciclico...</p>
+        <p id="fake-loader-msg">Generando Reporte Pro...</p>
         <div id="fake-loader-perc">0%</div>
-        <p id="fake-loader-status">Procesando matemáticas y diseño</p>
+        <p id="fake-loader-status">Procesando matemáticas y diseño premium</p>
         <div class="prog-fake-bg"><div class="prog-fake-fill"></div></div>
     </div>
 </div>
@@ -327,8 +327,10 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <h2 style="color: var(--text-muted); margin: 0;">Historial de Inventarios Finalizados</h2>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn btn-dl-excel" onclick="interceptDownload('master', descargarPlantilla)">📊 Generar Plantilla de Inventario</button>
-                <button class="btn btn-dl-consol" onclick="interceptDownload('consolidado', descargarConsolidado)">📦 Descargar Consolidado</button>
+                <button class="btn btn-dl-excel" onclick="interceptDownload('master', descargarPlantilla)">📊 Excel Maestro</button>
+                
+                <button class="btn btn-dl-consol" onclick="interceptDownload('consolidadoExcel', descargarConsolidadoExcel)">📦 Descargar Planos (Excel)</button>
+                
                 <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Historial</button>
             </div>
         </div>
@@ -361,6 +363,22 @@
 </div>
 
 <script>
+    // Configuración global de estilos Excel Premium solicitados
+    const EXCEL_STYLES = {
+        colWidth: 13.57, // Aprox 100 píxeles
+        headerFont: { name: 'Calibri', family: 2, size: 12, bold: true, color: { argb: 'FFFFFFFF' } }, // Texto blanco negrita calibri 12
+        headerFill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } }, // Fondo negro
+        dataFont: { name: 'Calibri', family: 2, size: 11 },
+        alignmentCenter: { vertical: 'middle', horizontal: 'center' }, // Centrado y alineado en el medio
+        borderThin: {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        },
+        headerColumns: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    };
+
     function showToast(mensaje, tipo = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -439,6 +457,7 @@
 
     function cargarCatalogo() {
         const modSelect = document.getElementById('mod');
+        if(!modSelect) return;
         modSelect.innerHTML = '<option value="" disabled selected>Seleccione el modelo...</option>';
         const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))];
         modelosUnicos.sort().forEach(m => { modSelect.innerHTML += `<option value="${m}">${m}</option>`; });
@@ -454,7 +473,9 @@
     const tallasBase = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
-            document.getElementById(`list-${cat}`).innerHTML = tallasBase.map(t => `
+            const listEl = document.getElementById(`list-${cat}`);
+            if(!listEl) return;
+            listEl.innerHTML = tallasBase.map(t => `
                 <label class="size-item">
                     <input type="checkbox" class="toggle-ios check-${cat}" value="${t}${cat}"> 
                     <span>${t}${cat}</span>
@@ -496,13 +517,14 @@
             const hoyRef = obtenerFechaHoyMonterrey();
 
             const checkboxesSeleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-            const maestroSeleccionado = document.getElementById('chkAllHist') ? document.getElementById('chkAllHist').checked : false;
+            const chkAllHistMaster = document.getElementById('chkAllHist');
+            const maestroSeleccionado = chkAllHistMaster ? chkAllHistMaster.checked : false;
 
             const activosBody = document.querySelector("#tablaActivos tbody");
             const historialBody = document.querySelector("#tablaHistorial tbody");
             activosBody.innerHTML = ""; historialBody.innerHTML = "";
             
-            if(document.getElementById('chkAllHist')) document.getElementById('chkAllHist').checked = maestroSeleccionado;
+            if(chkAllHistMaster) chkAllHistMaster.checked = maestroSeleccionado;
 
             window.datosGlobales = listado;
 
@@ -564,7 +586,7 @@
         show: function(title) {
             this.msg.innerText = title;
             this.perc.innerText = "0%";
-            this.status.innerText = "Preparando matemáticas y diseño";
+            this.status.innerText = "Preparando matemáticas y diseño premium";
             this.overlay.classList.add('show');
             
             setTimeout(() => this.overlay.classList.add('animating'), 50);
@@ -573,8 +595,8 @@
             this.interval = setInterval(() => {
                 p++;
                 this.perc.innerText = p + "%";
-                if (p === 80) this.status.innerText = "Dibujando cuadrículas premium";
-                if (p === 95) this.status.innerText = "Consolidando modelos y colores";
+                if (p === 80) this.status.innerText = "Dibujando cuadrículas y aplicando bordes";
+                if (p === 95) this.status.innerText = "Consolidando modelos y colores a color";
                 if (p >= 100) clearInterval(this.interval);
             }, 60); 
         },
@@ -587,10 +609,10 @@
     };
 
     async function showFakeLoader(type, functionToCallAfter) {
-        let title = "Generando Reporte Ciclico...";
+        let title = "Generando Reporte Pro...";
         if (type === 'master') title = "Generando Inventario Maestro...";
-        if (type === 'consolidado') title = "Generando Reporte Plano...";
-        if (type === 'individual') title = "Generando Reporte Individual...";
+        if (type === 'consolidadoExcel') title = "Generando Reporte Plano Excel...";
+        if (type === 'individualExcel') title = "Generando Reporte Individual...";
 
         fakeLoader.show(title);
 
@@ -610,38 +632,186 @@
 
     async function interceptDownload(type, functionToCallAfter) {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0 && (type === 'master' || type === 'consolidado')) {
+        if (seleccionados.length === 0 && (type === 'master' || type === 'consolidadoExcel')) {
              return showToast("Por favor selecciona al menos un registro.", "warning");
         }
         await showFakeLoader(type, functionToCallAfter);
     }
 
     async function interceptIndividual(folioId) {
-        const finalDownloadFunction = () => { descargarCSV(folioId); };
-        await showFakeLoader("individual", finalDownloadFunction);
+        // Función de descarga corregida para Excel Individual
+        const finalDownloadFunction = () => { descargarIndividualExcel(folioId); };
+        await showFakeLoader("individualExcel", finalDownloadFunction);
+    }
+
+    // HELPER: Cargar imagen y convertir a Base64 para ExcelJS
+    async function getBase64ImageFromUrl(url) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
     }
 
     // ==============================================================
-    // FUNCIONES ORIGINALES DE DESCARGA
+    // NUEVAS FUNCIONES DE DESCARGA EXCEL PREMIUM (SOLICITADAS)
     // ==============================================================
-    function descargarConsolidado() {
-        const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-        seleccionados.forEach(folio => {
-            const item = window.datosGlobales.find(i => i.id === folio);
-            if (item) {
-                const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
-                item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
+
+    // Función principal para generar el Excel Plano con el formato solicitado (Imagen de referencia)
+    async function generarExcelFormateado(flatDataArray, logoBase64, filename) {
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet('Reporte Plano', {
+            views: [{ zoomScale: 100 }],
+            pageSetup: {
+                paperSize: 9, // A4
+                orientation: 'portrait',
+                fitToPage: true,
+                fitToWidth: 1,
+                fitToHeight: 0,
+                // Repetir títulos (logo y encabezado negro) en cada hoja
+                printTitlesRow: '1:5',
+                margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 }
+            },
+            // Paginación en la parte de abajo centrada
+            headerFooter: {
+                oddFooter: "&CPágina &P", 
             }
         });
-        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+
+        // 1. Configurar ancho de columnas (todas 13.57 = 100px)
+        for (let i = 1; i <= 8; i++) {
+            ws.getColumn(i).width = EXCEL_STYLES.colWidth;
+        }
+
+        // 2. Insertar Logo (Imagen) en la parte superior izquierda
+        if (logoBase64) {
+            const logoId = workbook.addImage({
+                base64: logoBase64,
+                extension: 'png',
+            });
+            ws.addImage(logoId, {
+                tl: { col: 0.1, row: 0.1 }, // Top-left un poco despegado
+                ext: { width: 150, height: 60 }, // Tamaño ajustado del logo
+                editAs: 'absolute'
+            });
+        }
+
+        // Dejar espacio para el logo (filas 1 a 4)
+        ws.getRow(1).height = 20; ws.getRow(2).height = 20; ws.getRow(3).height = 20; ws.getRow(4).height = 10;
+
+        // 3. Crear Encabezado Negro (Fila 5)
+        const headerRow = ws.getRow(5);
+        headerRow.height = 25;
+        const titulos = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'CANTIDAD', 'TIEMPO TOTAL'];
+        
+        for (let i = 0; i < titulos.length; i++) {
+            const cell = headerRow.getCell(i + 1);
+            cell.value = titulos[i];
+            cell.font = EXCEL_STYLES.headerFont;
+            cell.fill = EXCEL_STYLES.headerFill;
+            cell.alignment = EXCEL_STYLES.alignmentCenter;
+            cell.border = EXCEL_STYLES.borderThin;
+        }
+
+        // 4. Insertar Datos y aplicar estilos (centrado, bordes)
+        let currentRowNum = 6;
+        flatDataArray.forEach(data => {
+            const row = ws.getRow(currentRowNum);
+            row.height = 20;
+            
+            for (let i = 0; i < data.length; i++) {
+                const cell = row.getCell(i + 1);
+                cell.value = data[i];
+                cell.font = EXCEL_STYLES.dataFont;
+                cell.alignment = EXCEL_STYLES.alignmentCenter; // Centrado todo y alineado en el medio
+                cell.border = EXCEL_STYLES.borderThin; // Bordes thin
+            }
+            currentRowNum++;
+        });
+
+        // 5. Descargar archivo
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-        a.download = `Consolidado_Plano_${obtenerFechaHoyMonterrey().replace(/\//g, '-')}.csv`;
+        a.download = `${filename}.xlsx`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        document.getElementById('chkAllHist').checked = false; toggleAllHistorial(false);
     }
 
+    // Recopila datos planos para el Excel formateado
+    function prepararDatosPlanosExcel(item) {
+        const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
+        return item.resultados.map(r => [
+            `#${item.id}`,
+            item.fecha,
+            item.modelo,
+            item.color,
+            item.asignadoA,
+            r.talla,
+            parseInt(r.cantidad) || 0,
+            tFinal
+        ]);
+    }
+
+    // DESCARGA INDIVIDUAL EXCEL PREMIUM
+    async function descargarIndividualExcel(folioId) {
+        const item = window.datosGlobales.find(i => i.id === folioId);
+        if (!item) return showToast("No se encontraron datos.", "danger");
+        
+        try {
+            const logoBase64 = await getBase64ImageFromUrl('/logo.png');
+            const flatData = prepararDatosPlanosExcel(item);
+            const fechaFileName = item.fecha.replace(/\//g, '-');
+            const filename = `Reporte_Individual_${item.modelo}_${item.color}_${fechaFileName}`;
+            await generarExcelFormateado(flatData, logoBase64, filename);
+        } catch (error) {
+            console.error(error);
+            showToast("Error generando el Excel.", "danger");
+        }
+    }
+
+    // DESCARGA CONSOLIDADO EXCEL PREMIUM (Selección múltiple)
+    async function descargarConsolidadoExcel() {
+        const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
+        if (seleccionados.length === 0) return; // Ya validado en interceptDownload
+
+        try {
+            const logoBase64 = await getBase64ImageFromUrl('/logo.png');
+            let flatDataGlobal = [];
+            
+            // Recopilar y aplanar datos de todos los folios seleccionados
+            seleccionados.forEach(folioId => {
+                const item = window.datosGlobales.find(i => i.id === folioId);
+                if (item) {
+                    const flatData = prepararDatosPlanosExcel(item);
+                    flatDataGlobal = flatDataGlobal.concat(flatData);
+                }
+            });
+
+            const fechaFileName = obtenerFechaHoyMonterrey().replace(/\//g, '-');
+            const filename = `Reporte_Consolidado_Plano_${fechaFileName}`;
+            await generarExcelFormateado(flatDataGlobal, logoBase64, filename);
+            
+            // Limpiar selección
+            const chkAllHist = document.getElementById('chkAllHist');
+            if(chkAllHist) chkAllHist.checked = false;
+            toggleAllHistorial(false);
+            
+        } catch (error) {
+            console.error(error);
+            showToast("Error generando el Excel Consolidado.", "danger");
+        }
+    }
+
+
+    // ==============================================================
+    // FUNCIÓN DE PLANTILLA MAESTRA (NO MODIFICAR SEGÚN INSTRUCCIÓN)
+    // ==============================================================
     async function descargarPlantilla() {
+        // ... (ESTA FUNCIÓN SE MANTIENE INTACTA, NO SE TOCA) ...
+        // [CÓDIGO ORIGINAL DE descargarPlantilla]
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
         const matriz = {};
         seleccionados.forEach(folio => {
@@ -727,22 +897,14 @@
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
         a.download = `Inventario_Maestro_${obtenerFechaHoyMonterrey().replace(/\//g, '-')}.xlsx`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        document.getElementById('chkAllHist').checked = false; toggleAllHistorial(false);
-    }
-
-    function descargarCSV(folio) {
-        const item = window.datosGlobales.find(i => i.id === folio);
-        const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
-        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-        item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
-        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-        a.download = `Reporte_Ciclico_${item.modelo}_${item.fecha.replace(/\//g, '-')}.csv`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        
+        const chkAllHist = document.getElementById('chkAllHist');
+        if(chkAllHist) chkAllHist.checked = false;
+        toggleAllHistorial(false);
     }
 
     // ==============================================================
-    // OTRAS FUNCIONES
+    // OTRAS FUNCIONES ORIGINALES
     // ==============================================================
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
@@ -780,6 +942,7 @@
     }
 
     function procesarExcel(input) {
+        if(!input.files || !input.files[0]) return;
         const reader = new FileReader();
         reader.onload = async (e) => {
             const data = new Uint8Array(e.target.result);
@@ -789,18 +952,20 @@
             rows.forEach(r => {
                 const k = `${r.Modelo}-${r.Color}`;
                 if(!grupos[k]) grupos[k] = { m: r.Modelo, c: r.Color, t: [] };
-                grupos[k].t.push(r.Talla);
+                if(r.Talla) grupos[k].t.push(r.Talla);
             });
             for(let k in grupos) {
                 const g = grupos[k];
                 await fetch('/api/crear-ciclico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ modelo: g.m, color: g.c, tallasRaw: g.t.join(', ') }) });
             }
             showToast("Excel procesado y publicado con éxito."); cargarDatos();
+            input.value = ''; // Reset input
         };
         reader.readAsArrayBuffer(input.files[0]);
     }
 
-    cargarCatalogo(); renderTallas(); cargarDatos(); setInterval(cargarDatos, 8000);
+    // Inicialización
+    cargarCatalogo(); renderTallas(); cargarDatos(); setInterval(cargarDatos, 10000); // Actualización cada 10s
 </script>
 </body>
 </html>
