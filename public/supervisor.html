@@ -61,7 +61,10 @@
         select:focus { border-color: var(--brand-navy); background: white; }
         
         .tallas-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-top: 10px; }
-        .talla-col { background: #F9F9FB; border: 1px solid #E5E5EA; border-radius: 166px; overflow: hidden; }
+        
+        /* CORRECCIÓN DE CÍRCULOS UI: Regresado a 16px de border-radius */
+        .talla-col { background: #F9F9FB; border: 1px solid #E5E5EA; border-radius: 16px; overflow: hidden; }
+        
         .col-header { padding: 18px; border-bottom: 1px solid #E5E5EA; }
         .col-circle { 
             width: 40px; height: 40px; background: var(--brand-navy); color: white; 
@@ -327,9 +330,9 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <h2 style="color: var(--text-muted); margin: 0;">Historial de Inventarios Finalizados</h2>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn btn-dl-excel" onclick="interceptDownload('master', descargarPlantilla)">📊 Excel Maestro</button>
+                <button class="btn btn-dl-excel" onclick="interceptDownload('master', descargarPlantilla)">📊 Generar Plantilla de Inventario</button>
                 
-                <button class="btn btn-dl-consol" onclick="interceptDownload('consolidadoExcel', descargarConsolidadoExcel)">📦 Descargar Planos (Excel)</button>
+                <button class="btn btn-dl-consol" onclick="interceptDownload('consolidadoExcel', descargarConsolidadoExcel)">📦 Descargar Inventario Consolidado</button>
                 
                 <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Historial</button>
             </div>
@@ -667,12 +670,13 @@
             views: [{ zoomScale: 100 }],
             pageSetup: {
                 paperSize: 9, // A4
-                orientation: 'portrait',
+                // CORRECCIÓN: Orientación siempre Horizontal (Landscape)
+                orientation: 'landscape', 
                 fitToPage: true,
                 fitToWidth: 1,
                 fitToHeight: 0,
                 // Repetir títulos (logo y encabezado negro) en cada hoja
-                printTitlesRow: '1:5',
+                printTitlesRow: '1:6', // Ajustado a 6 filas por el nuevo tamaño del logo
                 margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 }
             },
             // Paginación en la parte de abajo centrada
@@ -694,16 +698,22 @@
             });
             ws.addImage(logoId, {
                 tl: { col: 0.1, row: 0.1 }, // Top-left un poco despegado
-                ext: { width: 150, height: 60 }, // Tamaño ajustado del logo
+                // CORRECCIÓN: Logo más grande para evitar efecto "aplastado"
+                ext: { width: 220, height: 90 }, 
                 editAs: 'absolute'
             });
         }
 
-        // Dejar espacio para el logo (filas 1 a 4)
-        ws.getRow(1).height = 20; ws.getRow(2).height = 20; ws.getRow(3).height = 20; ws.getRow(4).height = 10;
+        // Dejar espacio para el logo (filas 1 a 5)
+        // CORRECCIÓN: Filas más altas para acomodar el logo grande
+        ws.getRow(1).height = 30; 
+        ws.getRow(2).height = 30; 
+        ws.getRow(3).height = 30; 
+        ws.getRow(4).height = 10;
+        ws.getRow(5).height = 10; // Fila extra de respiro
 
-        // 3. Crear Encabezado Negro (Fila 5)
-        const headerRow = ws.getRow(5);
+        // 3. Crear Encabezado Negro (Fila 6)
+        const headerRow = ws.getRow(6);
         headerRow.height = 25;
         const titulos = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'CANTIDAD', 'TIEMPO TOTAL'];
         
@@ -717,7 +727,7 @@
         }
 
         // 4. Insertar Datos y aplicar estilos (centrado, bordes)
-        let currentRowNum = 6;
+        let currentRowNum = 7; // Empieza en fila 7
         flatDataArray.forEach(data => {
             const row = ws.getRow(currentRowNum);
             row.height = 20;
@@ -791,7 +801,7 @@
             });
 
             const fechaFileName = obtenerFechaHoyMonterrey().replace(/\//g, '-');
-            const filename = `Reporte_Consolidado_Plano_${fechaFileName}`;
+            const filename = `Reporte_Inventario_Consolidado_${fechaFileName}`;
             await generarExcelFormateado(flatDataGlobal, logoBase64, filename);
             
             // Limpiar selección
@@ -811,7 +821,6 @@
     // ==============================================================
     async function descargarPlantilla() {
         // ... (ESTA FUNCIÓN SE MANTIENE INTACTA, NO SE TOCA) ...
-        // [CÓDIGO ORIGINAL DE descargarPlantilla]
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
         const matriz = {};
         seleccionados.forEach(folio => {
