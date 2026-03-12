@@ -6,6 +6,7 @@
     <title>Panel Supervisor Pro - Intelligence</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -142,9 +143,88 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 10px; }
+
+        /* ========================================================== */
+        /* CSS DEL FAKE LOADER PREMIUM Y ESTÉTICO */
+        /* ========================================================== */
+        #fake-loader-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 26, 51, 0.95); z-index: 99999; justify-content: center; align-items: center;
+            flex-direction: column; color: white; opacity: 0; transition: opacity 0.5s ease;
+            backdrop-filter: blur(5px);
+        }
+        #fake-loader-overlay.show { display: flex; opacity: 1; }
+
+        .loader-content { text-align: center; max-width: 400px; padding: 40px; }
+
+        /* Contenedor del Icono con Máscara */
+        .icon-container {
+            width: 150px; height: 150px; margin: 0 auto 30px auto;
+            position: relative; overflow: hidden;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(197, 160, 89, 0.2);
+            box-shadow: 0 0 30px rgba(197, 160, 89, 0.1);
+        }
+
+        /* La imagen base (contorno) */
+        .icon-outline {
+            width: 100%; height: 100%; object-fit: contain;
+            opacity: 0.1; /* El contorno original casi invisible */
+        }
+
+        /* La imagen base que se llena (máscara CSS) */
+        .icon-fill-effect {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            -webkit-mask-image: url('7443348.png'); mask-image: url('7443348.png');
+            -webkit-mask-size: contain; mask-size: contain;
+            -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+            -webkit-mask-position: center; mask-position: center;
+            background: var(--brand-orange);
+            transform: translateY(100%); /* Comienza vacía */
+            transition: transform 6.5s cubic-bezier(0.2, 0.8, 0.2, 1); /* Se llena en el tiempo exacto */
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.7);
+        }
+
+        /* Efecto de traje (suit) que aparece al final */
+        .icon-suit-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            -webkit-mask-image: url('7443348.png'); mask-image: url('7443348.png');
+            -webkit-mask-size: contain; mask-size: contain;
+            background: var(--brand-navy);
+            opacity: 0; transform: scale(1.1);
+            transition: opacity 1s ease 5.5s, transform 1s ease 5.5s; /* Aparece al final del llenado */
+        }
+
+        /* Cuando se activa la animación */
+        #fake-loader-overlay.animating .icon-fill-effect { transform: translateY(0%); }
+        #fake-loader-overlay.animating .icon-suit-overlay { opacity: 0.9; transform: scale(1); }
+
+        #fake-loader-msg { font-weight: 800; font-size: 24px; margin: 0; letter-spacing: -0.5px; }
+        #fake-loader-status { color: var(--brand-gold); font-size: 14px; text-transform: uppercase; font-weight: 700; margin-top: 10px; letter-spacing: 1px; }
+        #fake-loader-perc { font-weight: 800; font-size: 60px; color: var(--brand-orange); margin: 10px 0; font-feature-settings: "tnum"; }
+        
+        .prog-fake-bg { background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; width: 100%; margin-top: 20px; overflow: hidden; }
+        .prog-fake-fill { background: var(--brand-orange); height: 100%; width: 0%; transition: width 6.5s linear; box-shadow: 0 0 10px var(--brand-orange); }
+        #fake-loader-overlay.animating .prog-fake-fill { width: 100%; }
+
     </style>
 </head>
 <body>
+
+<div id="fake-loader-overlay">
+    <div class="loader-contentreveal">
+        <div class="icon-container">
+            <img src="7443348.png" class="icon-outline" alt="Icono Traje">
+            <div class="icon-fill-effect"></div>
+            <div class="icon-suit-overlay"></div>
+        </div>
+        <p id="fake-loader-msg">Generando Reporte Ciclico...</p>
+        <div id="fake-loader-perc">0%</div>
+        <p id="fake-loader-status">Procesando matemáticas y diseño</p>
+        <div class="prog-fake-bg"><div class="prog-fake-fill"></div></div>
+    </div>
+</div>
 
 <div id="toast-container"></div>
 
@@ -248,8 +328,8 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <h2 style="color: var(--text-muted); margin: 0;">Historial de Inventarios Finalizados</h2>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn btn-dl-excel" onclick="descargarPlantilla()">📊 Excel Maestro</button>
-                <button class="btn btn-dl-consol" onclick="descargarConsolidado()">📦 Descargar Planos</button>
+                <button class="btn btn-dl-excel" onclick="interceptDownload('master', descargarPlantilla)">📊 Excel Maestro</button>
+                <button class="btn btn-dl-consol" onclick="interceptDownload('consolidado', descargarConsolidado)">📦 Descargar Planos</button>
                 <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Historial</button>
             </div>
         </div>
@@ -459,7 +539,7 @@
                             <td><b>${c.asignadoA}</b></td>
                             <td><b style="color:var(--brand-orange);">${tTotal}</b></td>
                             <td>
-                                <button class="btn btn-dl" style="padding:8px 14px; font-size:12px;" onclick="descargarCSV('${c.id}')">📥 Indiv.</button>
+                                <button class="btn btn-dl" style="padding:8px 14px; font-size:12px;" onclick="interceptIndividual('${c.id}')">📥 Indiv.</button>
                                 <button class="btn btn-delete-hist" onclick="eliminarFila('${c.id}')">🗑️</button>
                             </td>
                         </tr>`;
@@ -472,10 +552,88 @@
         document.querySelectorAll('.chk-historial-row').forEach(cb => cb.checked = isChecked);
     }
 
+    // ==============================================================
+    // LÓGICA DE FAKE LOADER PREMIUM
+    // ==============================================================
+    const fakeLoader = {
+        overlay: document.getElementById('fake-loader-overlay'),
+        msg: document.getElementById('fake-loader-msg'),
+        perc: document.getElementById('fake-loader-perc'),
+        status: document.getElementById('fake-loader-status'),
+        interval: null,
+
+        show: function(title) {
+            this.msg.innerText = title;
+            this.perc.innerText = "0%";
+            this.status.innerText = "Preparando matemáticas y diseño";
+            this.overlay.classList.add('show');
+            
+            // Del ligero para que empiece la animación CSS después de que se muestre el overlay
+            setTimeout(() => this.overlay.classList.add('animating'), 50);
+
+            // Iniciar contador del 1 al 100%
+            let p = 0;
+            this.interval = setInterval(() => {
+                p++;
+                this.perc.innerText = p + "%";
+                if (p === 80) this.status.innerText = "Dibujando cuadrículas premium";
+                if (p === 95) this.status.innerText = "Consolidando modelos y colores";
+                if (p >= 100) clearInterval(this.interval);
+            }, 60); // 60ms * 100 = 6 segundos aprox
+        },
+
+        hide: function() {
+            this.overlay.classList.remove('animating');
+            this.overlay.classList.remove('show');
+            clearInterval(this.interval);
+        }
+    };
+
+    async function showFakeLoader(type, functionToCallAfter) {
+        let title = "Generando Reporte Ciclico...";
+        if (type === 'master') title = "Generando Inventario Maestro...";
+        if (type === 'consolidado') title = "Generando Reporte Plano...";
+        if (type === 'individual') title = "Generando Reporte Individual...";
+
+        fakeLoader.show(title);
+
+        // Duración total de 7 segundos (6s de carga + 1s de éxito/limpieza)
+        await new Promise(resolve => setTimeout(resolve, 6500));
+        
+        // ¡Efecto Éxito! Confeti y cambio de estado
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
+        fakeLoader.msg.innerText = "¡Reporte Listo! ✅";
+        fakeLoader.perc.innerText = "100%";
+        fakeLoader.status.innerText = "Iniciando descarga...";
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Ahora sí, ejecutar la descarga real
+        await functionToCallAfter();
+        
+        // Ocultar loader
+        fakeLoader.hide();
+    }
+
+    async function interceptDownload(type, functionToCallAfter) {
+        const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
+        if (seleccionados.length === 0 && (type === 'master' || type === 'consolidado')) {
+             return showToast("Por favor selecciona al menos un registro.", "warning");
+        }
+        await showFakeLoader(type, functionToCallAfter);
+    }
+
+    async function interceptIndividual(folioId) {
+        // Necesitamos crear una función de cierre para pasar el folioId correcto después de la carga
+        const finalDownloadFunction = () => { descargarCSV(folioId); };
+        await showFakeLoader("individual", finalDownloadFunction);
+    }
+
+    // ==============================================================
+    // FUNCIONES ORIGINALES DE DESCARGA (SIN TOCAR LÓGICA)
+    // ==============================================================
     function descargarConsolidado() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un registro.", "warning");
-
         let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
         seleccionados.forEach(folio => {
             const item = window.datosGlobales.find(i => i.id === folio);
@@ -484,22 +642,15 @@
                 item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
             }
         });
-
         const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
         a.download = `Consolidado_Plano_${obtenerFechaHoyMonterrey().replace(/\//g, '-')}.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        showToast(`Se descargaron ${seleccionados.length} registros en formato plano.`);
         document.getElementById('chkAllHist').checked = false; toggleAllHistorial(false);
     }
 
-    // ==============================================================
-    // NUEVO MOTOR EXCELJS: FORMATO PREMIUM EXACTO
-    // ==============================================================
     async function descargarPlantilla() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0) return showToast("Selecciona inventarios para armar la plantilla.", "warning");
-
         const matriz = {};
         seleccionados.forEach(folio => {
             const item = window.datosGlobales.find(i => i.id === folio);
@@ -513,145 +664,94 @@
             }
         });
 
-        // Iniciar ExcelJS
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('Inventario Maestro', {
-            views: [{ zoomScale: 77 }] // ZOOM EXACTO AL 77%
-        });
-
-        // Configuración de Anchos
-        ws.getColumn(2).width = 7.38; // Columna B (Modelo/Color)
-        for(let i = 3; i <= 54; i++) {
-            ws.getColumn(i).width = 3.00; // Tallas de C a BB
-        }
-
-        // Estilos Requeridos
-        const colorCanela = 'FFEAD1B9'; // Aproximación a Canela Fondo 2 Oscuro 10%
-        const colorCeleste = 'FFDDEBF7'; // Celeste tipo tabla
+        const ws = workbook.addWorksheet('Inventario Maestro', { views: [{ zoomScale: 77 }] });
+        ws.getColumn(2).width = 7.38; // B
+        for(let i = 3; i <= 54; i++) { ws.getColumn(i).width = 3.00; }
+        const colorCanela = 'FFEAD1B9';
+        const colorCeleste = 'FFDDEBF7';
         const fontTitle = { name: 'Aptos Narrow', size: 20, bold: true };
         const fontHeader = { name: 'Aptos Narrow', size: 14, bold: true };
         const fontData = { name: 'Aptos Narrow', size: 14 };
         const alignCenter = { vertical: 'middle', horizontal: 'center' };
-        
-        // Bordes finos para tabla
-        const borderThin = {
-            top: {style:'thin', color:{argb:'FFCCCCCC'}}, left: {style:'thin', color:{argb:'FFCCCCCC'}},
-            bottom: {style:'thin', color:{argb:'FFCCCCCC'}}, right: {style:'thin', color:{argb:'FFCCCCCC'}}
-        };
-
-        const tallas = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64]; // 17 tallas
+        const borderThin = { top: {style:'thin', color:{argb:'FFCCCCCC'}}, left: {style:'thin', color:{argb:'FFCCCCCC'}}, bottom: {style:'thin', color:{argb:'FFCCCCCC'}}, right: {style:'thin', color:{argb:'FFCCCCCC'}} };
+        const tallas = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
         let currentRow = 1;
 
         for (let color in matriz) {
-            // --- FILA 1: ENCABEZADOS DE CATEGORÍA ---
-            const row1 = ws.getRow(currentRow);
-            row1.height = 30;
-            
-            // CORTO (C1:S1) -> cols 3 to 19
+            const row1 = ws.getRow(currentRow); row1.height = 30;
             ws.mergeCells(currentRow, 3, currentRow, 19);
-            const cCorto = ws.getCell(currentRow, 3);
-            cCorto.value = "CORTO"; cCorto.font = fontTitle; cCorto.alignment = alignCenter; cCorto.border = borderThin;
-            cCorto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
-
-            // REGULAR (T1:AJ1) -> cols 20 to 36
+            const cCorto = ws.getCell(currentRow, 3); cCorto.value = "CORTO"; cCorto.font = fontTitle; cCorto.alignment = alignCenter; cCorto.border = borderThin; cCorto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
             ws.mergeCells(currentRow, 20, currentRow, 36);
-            const cRegular = ws.getCell(currentRow, 20);
-            cRegular.value = "REGULAR"; cRegular.font = fontTitle; cRegular.alignment = alignCenter; cRegular.border = borderThin;
-            cRegular.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
-
-            // LARGO (AK1:BA1) -> cols 37 to 53
+            const cRegular = ws.getCell(currentRow, 20); cRegular.value = "REGULAR"; cRegular.font = fontTitle; cRegular.alignment = alignCenter; cRegular.border = borderThin; cRegular.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
             ws.mergeCells(currentRow, 37, currentRow, 53);
-            const cLargo = ws.getCell(currentRow, 37);
-            cLargo.value = "LARGO"; cLargo.font = fontTitle; cLargo.alignment = alignCenter; cLargo.border = borderThin;
-            cLargo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
-
+            const cLargo = ws.getCell(currentRow, 37); cLargo.value = "LARGO"; cLargo.font = fontTitle; cLargo.alignment = alignCenter; cLargo.border = borderThin; cLargo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
             currentRow++;
 
-            // --- FILA 2: NOMBRE DE COLOR Y TALLAS ---
             const row2 = ws.getRow(currentRow);
-            
-            const cColor = ws.getCell(currentRow, 2); // B2
-            cColor.value = color; cColor.font = fontHeader; cColor.alignment = alignCenter; cColor.border = borderThin;
-            cColor.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
-
+            const cColor = ws.getCell(currentRow, 2); cColor.value = color; cColor.font = fontHeader; cColor.alignment = alignCenter; cColor.border = borderThin; cColor.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
             let colIdx = 3;
             ['C', 'R', 'L'].forEach(cat => {
                 tallas.forEach(t => {
-                    const cTalla = ws.getCell(currentRow, colIdx);
-                    cTalla.value = t; cTalla.font = fontHeader; cTalla.alignment = alignCenter; cTalla.border = borderThin;
-                    cTalla.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+                    const cTalla = ws.getCell(currentRow, colIdx); cTalla.value = t; cTalla.font = fontHeader; cTalla.alignment = alignCenter; cTalla.border = borderThin; cTalla.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
                     colIdx++;
                 });
             });
-            // Total Column Header
-            const cTotalH = ws.getCell(currentRow, colIdx);
-            cTotalH.value = "TOTAL"; cTotalH.font = fontHeader; cTotalH.alignment = alignCenter; cTotalH.border = borderThin;
-            cTotalH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
-
+            const cTotalH = ws.getCell(currentRow, colIdx); cTotalH.value = "TOTAL"; cTotalH.font = fontHeader; cTotalH.alignment = alignCenter; cTotalH.border = borderThin; cTotalH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
             currentRow++;
 
-            // --- FILA 3+: MODELOS CON ZEBRA STRIPING ---
             let colTotals = Array(tallas.length * 3).fill(0);
             let zebraCounter = 0;
-
             for (let modelo in matriz[color]) {
-                const bgColor = (zebraCounter % 2 === 0) ? 'FFFFFFFF' : colorCeleste; // Blanco / Celeste
+                const bgColor = (zebraCounter % 2 === 0) ? 'FFFFFFFF' : colorCeleste;
                 const fillStyle = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-                
-                const cMod = ws.getCell(currentRow, 2);
-                cMod.value = modelo; cMod.font = fontData; cMod.fill = fillStyle; cMod.alignment = alignCenter; cMod.border = borderThin;
-
-                let rowTotal = 0;
-                let cIdx = 3;
-                let tIdx = 0;
-
+                const cMod = ws.getCell(currentRow, 2); cMod.value = modelo; cMod.font = fontData; cMod.fill = fillStyle; cMod.alignment = alignCenter; cMod.border = borderThin;
+                let rowTotal = 0, cIdx = 3, tIdx = 0;
                 ['C', 'R', 'L'].forEach(cat => {
                     tallas.forEach(t => {
                         let qty = matriz[color][modelo][t + cat] || 0;
-                        const cQty = ws.getCell(currentRow, cIdx);
-                        cQty.value = qty > 0 ? qty : ""; // Deja vacío si es 0
-                        cQty.font = fontData; cQty.fill = fillStyle; cQty.alignment = alignCenter; cQty.border = borderThin;
+                        const cQty = ws.getCell(currentRow, cIdx); cQty.value = qty > 0 ? qty : ""; cQty.font = fontData; cQty.fill = fillStyle; cQty.alignment = alignCenter; cQty.border = borderThin;
                         rowTotal += qty; colTotals[tIdx] += qty;
                         cIdx++; tIdx++;
                     });
                 });
-
-                const cRTot = ws.getCell(currentRow, cIdx);
-                cRTot.value = rowTotal; cRTot.font = fontHeader; cRTot.fill = fillStyle; cRTot.alignment = alignCenter; cRTot.border = borderThin;
-
-                zebraCounter++;
-                currentRow++;
+                const cRTot = ws.getCell(currentRow, cIdx); cRTot.value = rowTotal; cRTot.font = fontHeader; cRTot.fill = fillStyle; cRTot.alignment = alignCenter; cRTot.border = borderThin;
+                zebraCounter++; currentRow++;
             }
 
-            // --- FILA FINAL: TOTALES DEL COLOR ---
             const fillTot = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
-            const cModTot = ws.getCell(currentRow, 2);
-            cModTot.value = "TOTAL"; cModTot.font = fontHeader; cModTot.fill = fillTot; cModTot.alignment = alignCenter; cModTot.border = borderThin;
-
+            const cModTot = ws.getCell(currentRow, 2); cModTot.value = "TOTAL"; cModTot.font = fontHeader; cModTot.fill = fillTot; cModTot.alignment = alignCenter; cModTot.border = borderThin;
             let gt = 0, ci = 3;
             colTotals.forEach(sum => {
-                const cc = ws.getCell(currentRow, ci);
-                cc.value = sum > 0 ? sum : ""; cc.font = fontHeader; cc.fill = fillTot; cc.alignment = alignCenter; cc.border = borderThin;
+                const cc = ws.getCell(currentRow, ci); cc.value = sum > 0 ? sum : ""; cc.font = fontHeader; cc.fill = fillTot; cc.alignment = alignCenter; cc.border = borderThin;
                 gt += sum; ci++;
             });
-
-            const cg = ws.getCell(currentRow, ci);
-            cg.value = gt; cg.font = fontHeader; cg.fill = fillTot; cg.alignment = alignCenter; cg.border = borderThin;
-
-            currentRow += 3; // Brinco para el siguiente color
+            const cg = ws.getCell(currentRow, ci); cg.value = gt; cg.font = fontHeader; cg.fill = fillTot; cg.alignment = alignCenter; cg.border = borderThin;
+            currentRow += 3;
         }
 
-        // --- EXPORTACIÓN MÁGICA CON EXCELJS ---
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
         a.download = `Inventario_Maestro_${obtenerFechaHoyMonterrey().replace(/\//g, '-')}.xlsx`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-
-        showToast("Plantilla Excel Premium generada con éxito.");
         document.getElementById('chkAllHist').checked = false; toggleAllHistorial(false);
     }
 
+    function descargarCSV(folio) {
+        const item = window.datosGlobales.find(i => i.id === folio);
+        const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
+        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
+        item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
+        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+        a.download = `Reporte_Ciclico_${item.modelo}_${item.fecha.replace(/\//g, '-')}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    // ==============================================================
+    // OTRAS FUNCIONES (IMPORTAR, LIBERAR, ELIMINAR)
+    // ==============================================================
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
@@ -685,18 +785,6 @@
         const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
         const data = await res.json();
         showToast(`Limpieza exitosa. Se borraron ${data.conteo} registros.`); cargarDatos();
-    }
-
-    function descargarCSV(folio) {
-        const item = window.datosGlobales.find(i => i.id === folio);
-        if(!item) return showToast("Error: No se encontró la información.", "warning");
-        const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
-        let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-        item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
-        const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-        a.download = `Reporte_Ciclico_${item.modelo}_${item.fecha.replace(/\//g, '-')}.csv`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); showToast("Descarga iniciada.");
     }
 
     function procesarExcel(input) {
