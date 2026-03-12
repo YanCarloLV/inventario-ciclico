@@ -145,7 +145,7 @@
         ::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 10px; }
 
         /* ========================================================== */
-        /* CSS DEL FAKE LOADER PREMIUM Y ESTÉTICO (EFECTO REVEAL REAL)*/
+        /* CSS FAKE LOADER PREMIUM (EFECTO CÍRCULO TIPO MERCADO LIBRE)*/
         /* ========================================================== */
         #fake-loader-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -161,31 +161,40 @@
             width: 160px; height: 160px; margin: 0 auto 30px auto;
             position: relative; display: flex; justify-content: center; align-items: center;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0) 70%);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.02);
+            border: 2px solid rgba(255,255,255,0.05);
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            overflow: hidden; /* CRUCIAL: Esto mantiene el líquido verde confinado al círculo */
         }
 
-        /* El traje base apagado en blanco y negro */
+        /* El líquido verde transparente difuminado que llena el círculo */
+        .circle-liquid {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(52, 199, 89, 0.25); /* Verde clarito transparentoso */
+            border-top: 2px solid rgba(52, 199, 89, 0.8); /* Línea brillante simulando el borde del llenado */
+            box-shadow: 0 -15px 30px rgba(52, 199, 89, 0.4) inset, 0 -10px 20px rgba(52, 199, 89, 0.6); /* Efecto difuminado */
+            transform: translateY(100%);
+            transition: transform 6.5s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 1;
+        }
+
+        #fake-loader-overlay.animating .circle-liquid {
+            transform: translateY(0%);
+        }
+
+        /* El traje central en blanco puro */
         .icon-base {
-            width: 65%; height: 65%; object-fit: contain;
-            filter: grayscale(100%) opacity(0.15);
-            position: absolute;
+            width: 60%; height: 60%; object-fit: contain;
+            position: relative; z-index: 2;
+            filter: brightness(0) invert(1) opacity(0.3); /* Apagado al principio */
+            transition: filter 6.5s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* El traje a color que se revela de abajo hacia arriba */
-        .icon-color {
-            width: 65%; height: 65%; object-fit: contain;
-            position: absolute;
-            clip-path: inset(100% 0 0 0); /* Oculto completamente al inicio */
-            transition: clip-path 6.5s cubic-bezier(0.25, 1, 0.5, 1);
-            /* Brillo verde claro y elegante */
-            filter: drop-shadow(0 0 12px rgba(52, 199, 89, 0.6)) drop-shadow(0 0 4px rgba(52, 199, 89, 0.9));
-        }
-
-        /* Cuando arranca la animación, el corte baja revelando el traje */
-        #fake-loader-overlay.animating .icon-color { 
-            clip-path: inset(0% 0 0 0); 
+        /* El traje brilla conforme se llena el círculo */
+        #fake-loader-overlay.animating .icon-base {
+            filter: brightness(0) invert(1) opacity(1) drop-shadow(0 0 12px rgba(52, 199, 89, 0.8));
         }
 
         #fake-loader-msg { font-weight: 800; font-size: 24px; margin: 0; letter-spacing: -0.5px; }
@@ -203,8 +212,8 @@
 <div id="fake-loader-overlay">
     <div class="loader-content reveal">
         <div class="icon-container">
+            <div class="circle-liquid"></div>
             <img src="/7443348.png" class="icon-base" alt="Traje Base">
-            <img src="/7443348.png" class="icon-color" alt="Traje Llenando">
         </div>
         <p id="fake-loader-msg">Generando Reporte Ciclico...</p>
         <div id="fake-loader-perc">0%</div>
