@@ -494,39 +494,58 @@
         const n = parseInt(valStr);
         if (isNaN(n) || n < 0) return;
 
+        // Guardamos en una variable la talla que se acaba de afectar para pasarsela a la función de scroll
+        const tallaGuardada = tallaActivaModal;
+
         resultados.push({ talla: tallaActivaModal, cantidad: n });
         cerrarModalCantidad();
         enviarAvance();
         
         renderTallas();
-        enfocarSiguienteTalla();
+        enfocarSiguienteTalla(tallaGuardada); // Mandamos decirle al sistema DÓNDE estábamos
     }
 
     // =========================================================
-    // NUEVA FUNCIÓN DE SCROLL MÁS INTELIGENTE Y SUAVE
+    // SCROLL CONTEXTUAL INTELIGENTE (Respeta tu progreso hacia abajo)
     // =========================================================
-    function enfocarSiguienteTalla() {
-        // Le damos 50 milisegundos al navegador para que termine de dibujar los botones nuevos (la palomita verde)
+    function enfocarSiguienteTalla(tallaRecienContada) {
         setTimeout(() => {
-            const primerBotonPendiente = document.querySelector('.btn-action');
-            if (primerBotonPendiente) {
-                const item = primerBotonPendiente.closest('.talla-item');
-                const stickyPanel = document.querySelector('.sticky-conteo-panel');
+            if (!tallaRecienContada) return; // Si por alguna razón no hay talla, no hacemos nada
+
+            // 1. Encontramos la fila exacta de la talla que acabamos de capturar
+            const idFila = 'fila-talla-' + tallaRecienContada.replace(/\s+/g, '');
+            const filaActual = document.getElementById(idFila);
+
+            if (filaActual) {
+                // 2. Buscamos la siguiente fila HACIA ABAJO que tenga un botón "CONTAR"
+                let filaObjetivo = null;
+                let iterador = filaActual.nextElementSibling;
                 
-                // Calculamos dónde termina exactamente nuestro panel fijo
-                const limiteSuperior = stickyPanel ? stickyPanel.getBoundingClientRect().bottom : 280;
-                const itemPos = item.getBoundingClientRect();
-                
-                // UX MÁGICO: Solo scrollea si la talla quedó tapada por el panel arriba, o si está muy escondida abajo
-                if (itemPos.top < limiteSuperior || itemPos.bottom > window.innerHeight) {
-                    const scrollDestino = window.scrollY + itemPos.top - limiteSuperior - 15;
-                    window.scrollTo({
-                        top: scrollDestino,
-                        behavior: 'smooth'
-                    });
+                while (iterador) {
+                    if (iterador.querySelector('.btn-action')) { // Encontramos la siguiente vacía
+                        filaObjetivo = iterador;
+                        break;
+                    }
+                    iterador = iterador.nextElementSibling;
+                }
+
+                // 3. Si encontramos la siguiente hacia abajo, calculamos si está tapada y scrolleamos
+                if (filaObjetivo) {
+                    const stickyPanel = document.querySelector('.sticky-conteo-panel');
+                    const limiteSuperior = stickyPanel ? stickyPanel.getBoundingClientRect().bottom : 280;
+                    const itemPos = filaObjetivo.getBoundingClientRect();
+                    
+                    // Solo scrollea si el item quedó tapado por el panel de arriba o fuera de la pantalla
+                    if (itemPos.top < limiteSuperior || itemPos.bottom > window.innerHeight) {
+                        const scrollDestino = window.scrollY + itemPos.top - limiteSuperior - 15;
+                        window.scrollTo({
+                            top: scrollDestino,
+                            behavior: 'smooth'
+                        });
+                    }
                 }
             }
-        }, 50);
+        }, 50); // Pequeña pausa para asegurar que el DOM ya pintó la palomita verde
     }
 
     document.getElementById('input-cantidad').addEventListener('keypress', function (e) {
