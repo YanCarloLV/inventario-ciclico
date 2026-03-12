@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Supervisor Pro - Intelligence</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -22,42 +24,30 @@
             background: var(--bg-body); margin: 0; padding: 0 0 40px 0; color: var(--text-main); 
         }
 
-        /* Animación Suave */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .reveal { animation: fadeIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 
-        /* Header Centralizado */
         .top-header {
-            background: var(--brand-navy);
-            text-align: center;
-            padding: 25px 20px;
-            margin-bottom: 40px;
-            border-bottom: 4px solid var(--brand-orange);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            background: var(--brand-navy); text-align: center; padding: 25px 20px;
+            margin-bottom: 40px; border-bottom: 4px solid var(--brand-orange); box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
         .logo-wrap {
-            background: white;
-            display: inline-block;
-            padding: 12px 35px;
-            border-radius: 40px;
-            box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3);
+            background: white; display: inline-block; padding: 12px 35px;
+            border-radius: 40px; box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3);
         }
         .logo-wrap img { max-height: 70px; vertical-align: middle; }
 
         .container { max-width: 1200px; margin: auto; padding: 0 20px; }
 
-        /* Tarjetas Premium */
         .card { 
             background: white; padding: 35px; border-radius: 24px; 
-            box-shadow: var(--card-shadow); margin-bottom: 30px; 
-            border: 1px solid rgba(0,0,0,0.03);
+            box-shadow: var(--card-shadow); margin-bottom: 30px; border: 1px solid rgba(0,0,0,0.03);
         }
         .card-historial { border-top: 5px solid #8E8E93; }
 
         h2 { font-size: 22px; color: var(--brand-navy); margin-top: 0; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
         h2::before { content: ""; width: 5px; height: 22px; background: var(--brand-gold); border-radius: 5px; }
         
-        /* Formulario Layout */
         .form-main { display: flex; flex-direction: column; gap: 20px; }
         .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
         label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -69,7 +59,6 @@
         }
         select:focus { border-color: var(--brand-navy); background: white; }
         
-        /* Tallas Grid */
         .tallas-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-top: 10px; }
         .talla-col { background: #F9F9FB; border: 1px solid #E5E5EA; border-radius: 16px; overflow: hidden; }
         .col-header { padding: 18px; border-bottom: 1px solid #E5E5EA; }
@@ -83,7 +72,6 @@
         .size-item { display: flex; align-items: center; gap: 15px; padding: 12px 10px; border-bottom: 1px solid #EDEDF2; font-size: 15px; cursor: pointer; transition: 0.2s; font-weight: 600; }
         .size-item:hover { background: white; border-radius: 10px; }
         
-        /* Checkboxes iOS Style */
         .toggle-ios {
             appearance: none; width: 42px; height: 24px; background: #D2D2D7; border-radius: 20px;
             position: relative; cursor: pointer; outline: none; transition: 0.3s; margin: 0; display: inline-block; vertical-align: middle;
@@ -95,7 +83,6 @@
         .toggle-ios:checked { background: #34C759; }
         .toggle-ios:checked::after { transform: translateX(18px); }
 
-        /* Botones Pro */
         .btn { 
             padding: 14px 28px; border: none; border-radius: 14px; cursor: pointer; 
             font-weight: 800; font-size: 14px; transition: 0.3s; display: inline-flex; 
@@ -110,42 +97,35 @@
         .btn-danger { background: #FFEBEB; color: #FF3B30; }
         .btn-delete-hist { background: #FF3B30; color: white; border-radius: 8px; padding: 8px 14px; font-size: 12px; }
 
-        /* Tablas Premium */
         table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 15px; background: white; }
         th { background: white; color: var(--text-muted); text-align: left; padding: 20px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #E5E5EA; }
         td { padding: 18px 15px; border-bottom: 1px solid #F2F2F7; font-size: 15px; font-weight: 500; transition: background 0.2s; }
         
-        /* Hover 3D en Filas */
         tbody tr { transition: all 0.2s ease; border-radius: 12px; }
         tbody tr:hover td { background: #F9F9FB; cursor: default; }
         tbody tr:hover td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
         tbody tr:hover td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
         
-        /* Casillas de selección en tabla */
         .chk-tabla { transform: scale(1.4); cursor: pointer; accent-color: var(--brand-orange); }
 
         .status { padding: 6px 14px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; }
         .proc { background: #E8F2FF; color: #007AFF; }
         .pen { background: #F2F2F7; color: var(--text-muted); }
         
-        /* Indicador Live Pulsante */
         .pulse-dot {
             display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #007AFF;
             margin-right: 8px; box-shadow: 0 0 0 0 rgba(0,122,255,0.7); animation: pulseDot 1.5s infinite;
         }
         @keyframes pulseDot { 70% { box-shadow: 0 0 0 8px rgba(0,122,255,0); } 100% { box-shadow: 0 0 0 0 rgba(0,122,255,0); } }
 
-        /* Barra de Progreso */
         .prog-container { width: 130px; margin-top: 8px; }
         .prog-bg { background: #E5E5EA; height: 8px; border-radius: 10px; overflow: hidden; }
         .prog-fill { background: var(--brand-orange); height: 100%; transition: 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .prog-text { font-size: 11px; font-weight: 800; color: var(--brand-navy); margin-top: 5px; display: block; }
 
-        /* Filtro */
         .filter-section { background: #F9F9FB; padding: 18px; border-radius: 16px; margin-bottom: 25px; display: flex; align-items: center; gap: 15px; border: 1px solid #E5E5EA; }
         .filter-section select { width: auto; min-width: 250px; border: 1px solid #D2D2D7; }
         
-        /* Contenedor de Toasts */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast {
             background: white; border-left: 5px solid var(--brand-navy); padding: 18px 25px; border-radius: 12px;
@@ -159,7 +139,6 @@
         @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
 
-        /* Scrollbar Apple */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 10px; }
@@ -303,7 +282,6 @@
 </div>
 
 <script>
-    // Sistema de Notificaciones Toast
     function showToast(mensaje, tipo = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -311,14 +289,9 @@
         let icono = tipo === 'success' ? '✅' : '⚠️';
         toast.innerHTML = `${icono} ${mensaje}`;
         container.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.classList.add('fade-out');
-            setTimeout(() => toast.remove(), 400);
-        }, 3500);
+        setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 400); }, 3500);
     }
 
-    // CATÁLOGO ORIGINAL INTACTO
     const modelosEspeciales = ["4040", "4030", "33739", "TR-1", "TR-2"];
     const coloresEspeciales = ["NEGRO", "OXFORD", "MARINO", "AZUL REY", "BEIGE", "VINO", "VERDE HUNTER", "GRIS CLARO", "R-BLUE"];
 
@@ -382,9 +355,7 @@
     ];
 
     modelosEspeciales.forEach(m => {
-        coloresEspeciales.forEach(c => {
-            catalogoProductos.push({ modelo: m, color: c });
-        });
+        coloresEspeciales.forEach(c => { catalogoProductos.push({ modelo: m, color: c }); });
     });
 
     function cargarCatalogo() {
@@ -398,12 +369,10 @@
         const modeloSelected = document.getElementById('mod').value;
         const colSelect = document.getElementById('col');
         colSelect.innerHTML = '<option value="" disabled selected>Seleccione el color...</option>';
-        catalogoProductos.filter(p => p.modelo === modeloSelected).forEach(p => {
-            colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`;
-        });
+        catalogoProductos.filter(p => p.modelo === modeloSelected).forEach(p => { colSelect.innerHTML += `<option value="${p.color}">${p.color}</option>`; });
     }
 
-    const tallasBase = [36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
+    const tallasBase = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
     function renderTallas() {
         ['C', 'R', 'L'].forEach(cat => {
             document.getElementById(`list-${cat}`).innerHTML = tallasBase.map(t => `
@@ -421,10 +390,7 @@
 
     function obtenerFechaHoyMonterrey() {
         const d = new Date();
-        const dia = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', day: '2-digit'});
-        const mes = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', month: '2-digit'});
-        const anio = d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', year: 'numeric'});
-        return `${dia}/${mes}/${anio}`;
+        return `${d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', day: '2-digit'})}/${d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', month: '2-digit'})}/${d.toLocaleDateString('es-MX', {timeZone: 'America/Monterrey', year: 'numeric'})}`;
     }
 
     function calcularDiferenciaTiempo(inicio, fin) {
@@ -435,14 +401,11 @@
                 let [h, m, s] = time.split(':');
                 if (h === '12') h = '00';
                 if (mod === 'PM') h = parseInt(h, 10) + 12;
-                const d = new Date();
-                d.setHours(h, m, s, 0);
-                return d.getTime();
+                const d = new Date(); d.setHours(h, m, s, 0); return d.getTime();
             };
             let diff = parsear(fin) - parsear(inicio);
             if (diff < 0) diff += 86400000;
-            const segs = Math.floor(diff / 1000);
-            return new Date(segs * 1000).toISOString().substr(11, 8);
+            return new Date(Math.floor(diff / 1000) * 1000).toISOString().substr(11, 8);
         } catch (e) { return "---"; }
     }
 
@@ -450,23 +413,17 @@
         try {
             const res = await fetch('/api/ciclicos');
             const listado = await res.json();
-            
             const filtro = document.getElementById('filtroFecha').value;
             const hoyRef = obtenerFechaHoyMonterrey();
 
-            // GUARDAR LA MEMORIA
             const checkboxesSeleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
             const maestroSeleccionado = document.getElementById('chkAllHist') ? document.getElementById('chkAllHist').checked : false;
 
             const activosBody = document.querySelector("#tablaActivos tbody");
             const historialBody = document.querySelector("#tablaHistorial tbody");
+            activosBody.innerHTML = ""; historialBody.innerHTML = "";
             
-            activosBody.innerHTML = ""; 
-            historialBody.innerHTML = "";
-            
-            if(document.getElementById('chkAllHist')) {
-                document.getElementById('chkAllHist').checked = maestroSeleccionado;
-            }
+            if(document.getElementById('chkAllHist')) document.getElementById('chkAllHist').checked = maestroSeleccionado;
 
             window.datosGlobales = listado;
 
@@ -487,20 +444,15 @@
                             </td>
                             <td><b>${c.asignadoA || 'Sin asignar'}</b></td>
                             <td><small>${c.horaInicio || '--:--'}</small></td>
-                            <td>
-                                ${c.estatus === 'En Proceso' ? `<button class="btn btn-danger" style="padding:8px 12px; font-size:11px;" onclick="liberarInventario('${c.id}')">🔓 Liberar</button>` : '---'}
-                            </td>
+                            <td>${c.estatus === 'En Proceso' ? `<button class="btn btn-danger" style="padding:8px 12px; font-size:11px;" onclick="liberarInventario('${c.id}')">🔓 Liberar</button>` : '---'}</td>
                         </tr>`;
                 } else {
                     if (filtro === "HOY" && c.fecha !== hoyRef) return;
                     const tTotal = calcularDiferenciaTiempo(c.horaInicio, c.horaFin);
                     const checkedAtributo = checkboxesSeleccionados.includes(c.id) ? 'checked' : '';
-
                     historialBody.innerHTML += `
                         <tr>
-                            <td style="text-align: center;">
-                                <input type="checkbox" class="chk-tabla chk-historial-row" value="${c.id}" ${checkedAtributo}>
-                            </td>
+                            <td style="text-align: center;"><input type="checkbox" class="chk-tabla chk-historial-row" value="${c.id}" ${checkedAtributo}></td>
                             <td><small><b>#${c.id}</b></small></td>
                             <td>${c.fecha}</td>
                             <td><b style="color:var(--brand-navy);">${c.modelo}</b> - <small>${c.color}</small></td>
@@ -520,9 +472,6 @@
         document.querySelectorAll('.chk-historial-row').forEach(cb => cb.checked = isChecked);
     }
 
-    // -------------------------------------------------------------
-    // LÓGICA MANTENIDA: Descarga Consolidada Plana Original
-    // -------------------------------------------------------------
     function descargarConsolidado() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
         if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un registro.", "warning");
@@ -532,183 +481,222 @@
             const item = window.datosGlobales.find(i => i.id === folio);
             if (item) {
                 const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
-                item.resultados.forEach(r => {
-                    contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`;
-                });
+                item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
             }
         });
 
         const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
         a.download = `Consolidado_Plano_${obtenerFechaHoyMonterrey().replace(/\//g, '-')}.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        
         showToast(`Se descargaron ${seleccionados.length} registros en formato plano.`);
         document.getElementById('chkAllHist').checked = false; toggleAllHistorial(false);
     }
 
-    // -------------------------------------------------------------
-    // NUEVA SUPERPOTENCIA: Exportar Excel Formato Plantilla
-    // -------------------------------------------------------------
-    function descargarPlantilla() {
+    // ==============================================================
+    // NUEVO MOTOR EXCELJS: FORMATO PREMIUM EXACTO
+    // ==============================================================
+    async function descargarPlantilla() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0) {
-            return showToast("Selecciona inventarios para armar la plantilla.", "warning");
-        }
+        if (seleccionados.length === 0) return showToast("Selecciona inventarios para armar la plantilla.", "warning");
 
-        // 1. Agrupar la información por Color -> Modelo -> Talla
         const matriz = {};
         seleccionados.forEach(folio => {
             const item = window.datosGlobales.find(i => i.id === folio);
             if (item) {
                 if (!matriz[item.color]) matriz[item.color] = {};
                 if (!matriz[item.color][item.modelo]) matriz[item.color][item.modelo] = {};
-                
                 item.resultados.forEach(r => {
-                    if (!matriz[item.color][item.modelo][r.talla]) {
-                        matriz[item.color][item.modelo][r.talla] = 0;
-                    }
+                    if (!matriz[item.color][item.modelo][r.talla]) matriz[item.color][item.modelo][r.talla] = 0;
                     matriz[item.color][item.modelo][r.talla] += parseInt(r.cantidad) || 0;
                 });
             }
         });
 
-        // 2. Construir la hoja de Excel (Array de Arrays)
-        const ws_data = [];
-        const tallas_template = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64];
-        const categorias = ['C', 'R', 'L'];
-        
-        for (let color in matriz) {
-            // Fila 1: Títulos de Categoría (CORTO, REGULAR, LARGO)
-            let row1 = ["", "", "CORTO"];
-            for(let i=0; i<16; i++) row1.push("");
-            row1.push("REGULAR");
-            for(let i=0; i<16; i++) row1.push("");
-            row1.push("LARGO");
-            for(let i=0; i<16; i++) row1.push("");
-            ws_data.push(row1);
+        // Iniciar ExcelJS
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet('Inventario Maestro', {
+            views: [{ zoomScale: 77 }] // ZOOM EXACTO AL 77%
+        });
 
-            // Fila 2: Etiquetas de Tallas y Nombre del Color
-            let row2 = ["", color];
-            categorias.forEach(cat => tallas_template.forEach(t => row2.push(t)));
-            row2.push("TOTAL");
-            ws_data.push(row2);
-
-            let colTotals = Array(tallas_template.length * 3).fill(0);
-
-            // Filas de Modelos
-            for (let modelo in matriz[color]) {
-                let rowData = ["", modelo];
-                let rowTotal = 0;
-                let colIdx = 0;
-
-                categorias.forEach(cat => {
-                    tallas_template.forEach(t => {
-                        let tallaKey = t + cat;
-                        let qty = matriz[color][modelo][tallaKey] || 0;
-                        rowData.push(qty > 0 ? qty : ""); // Deja la celda vacía si es 0 (como en tu plantilla)
-                        rowTotal += qty;
-                        colTotals[colIdx] += qty;
-                        colIdx++;
-                    });
-                });
-                rowData.push(rowTotal);
-                ws_data.push(rowData);
-            }
-
-            // Fila de TOTAL del bloque de color
-            let totalRow = ["", "TOTAL"];
-            let grandTotal = 0;
-            colTotals.forEach(sum => {
-                totalRow.push(sum > 0 ? sum : 0);
-                grandTotal += sum;
-            });
-            totalRow.push(grandTotal);
-            ws_data.push(totalRow);
-            
-            // Espaciado entre colores
-            ws_data.push([]); ws_data.push([]);
+        // Configuración de Anchos
+        ws.getColumn(2).width = 7.38; // Columna B (Modelo/Color)
+        for(let i = 3; i <= 54; i++) {
+            ws.getColumn(i).width = 3.00; // Tallas de C a BB
         }
 
-        // 3. Crear el Archivo Excel
-        const ws = XLSX.utils.aoa_to_sheet(ws_data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Inventario Maestro");
+        // Estilos Requeridos
+        const colorCanela = 'FFEAD1B9'; // Aproximación a Canela Fondo 2 Oscuro 10%
+        const colorCeleste = 'FFDDEBF7'; // Celeste tipo tabla
+        const fontTitle = { name: 'Aptos Narrow', size: 20, bold: true };
+        const fontHeader = { name: 'Aptos Narrow', size: 14, bold: true };
+        const fontData = { name: 'Aptos Narrow', size: 14 };
+        const alignCenter = { vertical: 'middle', horizontal: 'center' };
         
-        const fechaArchivo = obtenerFechaHoyMonterrey().replace(/\//g, '-');
-        XLSX.writeFile(wb, `Inventario_Actual_Trajes_${fechaArchivo}.xlsx`);
-        
-        showToast("Plantilla Excel Maestra generada exitosamente.");
-        document.getElementById('chkAllHist').checked = false;
-        toggleAllHistorial(false);
+        // Bordes finos para tabla
+        const borderThin = {
+            top: {style:'thin', color:{argb:'FFCCCCCC'}}, left: {style:'thin', color:{argb:'FFCCCCCC'}},
+            bottom: {style:'thin', color:{argb:'FFCCCCCC'}}, right: {style:'thin', color:{argb:'FFCCCCCC'}}
+        };
+
+        const tallas = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64]; // 17 tallas
+        let currentRow = 1;
+
+        for (let color in matriz) {
+            // --- FILA 1: ENCABEZADOS DE CATEGORÍA ---
+            const row1 = ws.getRow(currentRow);
+            row1.height = 30;
+            
+            // CORTO (C1:S1) -> cols 3 to 19
+            ws.mergeCells(currentRow, 3, currentRow, 19);
+            const cCorto = ws.getCell(currentRow, 3);
+            cCorto.value = "CORTO"; cCorto.font = fontTitle; cCorto.alignment = alignCenter; cCorto.border = borderThin;
+            cCorto.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+
+            // REGULAR (T1:AJ1) -> cols 20 to 36
+            ws.mergeCells(currentRow, 20, currentRow, 36);
+            const cRegular = ws.getCell(currentRow, 20);
+            cRegular.value = "REGULAR"; cRegular.font = fontTitle; cRegular.alignment = alignCenter; cRegular.border = borderThin;
+            cRegular.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+
+            // LARGO (AK1:BA1) -> cols 37 to 53
+            ws.mergeCells(currentRow, 37, currentRow, 53);
+            const cLargo = ws.getCell(currentRow, 37);
+            cLargo.value = "LARGO"; cLargo.font = fontTitle; cLargo.alignment = alignCenter; cLargo.border = borderThin;
+            cLargo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+
+            currentRow++;
+
+            // --- FILA 2: NOMBRE DE COLOR Y TALLAS ---
+            const row2 = ws.getRow(currentRow);
+            
+            const cColor = ws.getCell(currentRow, 2); // B2
+            cColor.value = color; cColor.font = fontHeader; cColor.alignment = alignCenter; cColor.border = borderThin;
+            cColor.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+
+            let colIdx = 3;
+            ['C', 'R', 'L'].forEach(cat => {
+                tallas.forEach(t => {
+                    const cTalla = ws.getCell(currentRow, colIdx);
+                    cTalla.value = t; cTalla.font = fontHeader; cTalla.alignment = alignCenter; cTalla.border = borderThin;
+                    cTalla.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+                    colIdx++;
+                });
+            });
+            // Total Column Header
+            const cTotalH = ws.getCell(currentRow, colIdx);
+            cTotalH.value = "TOTAL"; cTotalH.font = fontHeader; cTotalH.alignment = alignCenter; cTotalH.border = borderThin;
+            cTotalH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+
+            currentRow++;
+
+            // --- FILA 3+: MODELOS CON ZEBRA STRIPING ---
+            let colTotals = Array(tallas.length * 3).fill(0);
+            let zebraCounter = 0;
+
+            for (let modelo in matriz[color]) {
+                const bgColor = (zebraCounter % 2 === 0) ? 'FFFFFFFF' : colorCeleste; // Blanco / Celeste
+                const fillStyle = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                
+                const cMod = ws.getCell(currentRow, 2);
+                cMod.value = modelo; cMod.font = fontData; cMod.fill = fillStyle; cMod.alignment = alignCenter; cMod.border = borderThin;
+
+                let rowTotal = 0;
+                let cIdx = 3;
+                let tIdx = 0;
+
+                ['C', 'R', 'L'].forEach(cat => {
+                    tallas.forEach(t => {
+                        let qty = matriz[color][modelo][t + cat] || 0;
+                        const cQty = ws.getCell(currentRow, cIdx);
+                        cQty.value = qty > 0 ? qty : ""; // Deja vacío si es 0
+                        cQty.font = fontData; cQty.fill = fillStyle; cQty.alignment = alignCenter; cQty.border = borderThin;
+                        rowTotal += qty; colTotals[tIdx] += qty;
+                        cIdx++; tIdx++;
+                    });
+                });
+
+                const cRTot = ws.getCell(currentRow, cIdx);
+                cRTot.value = rowTotal; cRTot.font = fontHeader; cRTot.fill = fillStyle; cRTot.alignment = alignCenter; cRTot.border = borderThin;
+
+                zebraCounter++;
+                currentRow++;
+            }
+
+            // --- FILA FINAL: TOTALES DEL COLOR ---
+            const fillTot = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorCanela } };
+            const cModTot = ws.getCell(currentRow, 2);
+            cModTot.value = "TOTAL"; cModTot.font = fontHeader; cModTot.fill = fillTot; cModTot.alignment = alignCenter; cModTot.border = borderThin;
+
+            let gt = 0, ci = 3;
+            colTotals.forEach(sum => {
+                const cc = ws.getCell(currentRow, ci);
+                cc.value = sum > 0 ? sum : ""; cc.font = fontHeader; cc.fill = fillTot; cc.alignment = alignCenter; cc.border = borderThin;
+                gt += sum; ci++;
+            });
+
+            const cg = ws.getCell(currentRow, ci);
+            cg.value = gt; cg.font = fontHeader; cg.fill = fillTot; cg.alignment = alignCenter; cg.border = borderThin;
+
+            currentRow += 3; // Brinco para el siguiente color
+        }
+
+        // --- EXPORTACIÓN MÁGICA CON EXCELJS ---
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+        a.download = `Inventario_Maestro_${obtenerFechaHoyMonterrey().replace(/\//g, '-')}.xlsx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+        showToast("Plantilla Excel Premium generada con éxito.");
+        document.getElementById('chkAllHist').checked = false; toggleAllHistorial(false);
     }
-    // -------------------------------------------------------------
 
     async function crearCiclico() {
         const modelo = document.getElementById('mod').value;
         const color = document.getElementById('col').value;
         const seleccionadas = Array.from(document.querySelectorAll('.sizes-list input[type="checkbox"]:checked')).map(cb => cb.value);
-        
-        if(!modelo || !color || seleccionadas.length === 0) {
-            return showToast("Por favor completa Modelo, Color y Tallas.", "warning");
-        }
-        
+        if(!modelo || !color || seleccionadas.length === 0) return showToast("Por favor completa Modelo, Color y Tallas.", "warning");
         const res = await fetch('/api/crear-ciclico', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ modelo, color, tallasRaw: seleccionadas.join(', ') })
         });
-        
         if(res.ok) { 
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            cargarDatos();
-            showToast("Inventario publicado correctamente en la App.");
+            cargarDatos(); showToast("Inventario publicado correctamente en la App.");
         }
     }
 
     async function liberarInventario(id) {
         if(confirm("¿Deseas desbloquear este inventario para que otro operador pueda tomarlo?")) {
-            await fetch('/api/liberar-inventario', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ id }) 
-            });
-            cargarDatos();
-            showToast("Inventario liberado exitosamente.");
+            await fetch('/api/liberar-inventario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+            cargarDatos(); showToast("Inventario liberado exitosamente.");
         }
     }
 
     async function eliminarFila(id) {
         if(!confirm(`¿Eliminar definitivamente el registro ${id}?`)) return;
         await fetch(`/api/eliminar-ciclico/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        cargarDatos();
-        showToast("Registro eliminado del historial.");
+        cargarDatos(); showToast("Registro eliminado del historial.");
     }
 
     async function eliminarTodoElHistorial() {
         if(!confirm("⚠️ ATENCIÓN: Se borrarán TODOS los registros finalizados de la base de datos. ¿Continuar?")) return;
         const res = await fetch('/api/eliminar-todos-finalizados', { method: 'DELETE' });
         const data = await res.json();
-        showToast(`Limpieza exitosa. Se borraron ${data.conteo} registros.`);
-        cargarDatos();
+        showToast(`Limpieza exitosa. Se borraron ${data.conteo} registros.`); cargarDatos();
     }
 
     function descargarCSV(folio) {
         const item = window.datosGlobales.find(i => i.id === folio);
         if(!item) return showToast("Error: No se encontró la información.", "warning");
-        
         const tFinal = calcularDiferenciaTiempo(item.horaInicio, item.horaFin);
         let contenidoCsv = "\uFEFFID,Fecha,Modelo,Color,Operador,Talla,Cantidad,Tiempo Total\n";
-        item.resultados.forEach(r => {
-            contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`;
-        });
+        item.resultados.forEach(r => { contenidoCsv += `"${item.id}","${item.fecha}","${item.modelo}","${item.color}","${item.asignadoA}","${r.talla}","${r.cantidad}","${tFinal}"\n`; });
         const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
         a.download = `Reporte_Ciclico_${item.modelo}_${item.fecha.replace(/\//g, '-')}.csv`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        showToast("Descarga iniciada.");
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); showToast("Descarga iniciada.");
     }
 
     function procesarExcel(input) {
@@ -725,22 +713,14 @@
             });
             for(let k in grupos) {
                 const g = grupos[k];
-                await fetch('/api/crear-ciclico', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ modelo: g.m, color: g.c, tallasRaw: g.t.join(', ') }) 
-                });
+                await fetch('/api/crear-ciclico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ modelo: g.m, color: g.c, tallasRaw: g.t.join(', ') }) });
             }
-            showToast("Excel procesado y publicado con éxito."); 
-            cargarDatos();
+            showToast("Excel procesado y publicado con éxito."); cargarDatos();
         };
         reader.readAsArrayBuffer(input.files[0]);
     }
 
-    cargarCatalogo(); 
-    renderTallas(); 
-    cargarDatos();
-    setInterval(cargarDatos, 8000);
+    cargarCatalogo(); renderTallas(); cargarDatos(); setInterval(cargarDatos, 8000);
 </script>
 </body>
 </html>
