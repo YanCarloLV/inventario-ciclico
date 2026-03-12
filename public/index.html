@@ -150,7 +150,7 @@
         }
         .input-num:focus { border-color: var(--brand-orange); box-shadow: 0 0 0 4px rgba(255,140,0,0.1); }
 
-        /* Barra de Progreso (Integrada al panel flotante) */
+        /* Barra de Progreso */
         .progress-wrapper { position: relative; background-color: transparent; padding: 0; margin-bottom: 0; z-index: 90; border-bottom: none; }
         .progress-bg { background: #E5E5EA; height: 12px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--brand-orange); width: 0%; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -503,30 +503,30 @@
     }
 
     // =========================================================
-    // NUEVA FUNCIÓN DE SCROLL INTELIGENTE
+    // NUEVA FUNCIÓN DE SCROLL MÁS INTELIGENTE Y SUAVE
     // =========================================================
     function enfocarSiguienteTalla() {
-        const primerBotonPendiente = document.querySelector('.btn-action');
-        if (primerBotonPendiente) {
-            const item = primerBotonPendiente.closest('.talla-item');
-            const stickyPanel = document.querySelector('.sticky-conteo-panel');
-            
-            // Calculamos exactamente dónde termina la parte pegajosa (header + panel)
-            let offsetSeguro = 280; // Valor seguro base
-            if (stickyPanel) {
-                // Obtenemos la distancia desde arriba de la pantalla hasta donde termina el panel flotante
-                offsetSeguro = stickyPanel.getBoundingClientRect().bottom;
+        // Le damos 50 milisegundos al navegador para que termine de dibujar los botones nuevos (la palomita verde)
+        setTimeout(() => {
+            const primerBotonPendiente = document.querySelector('.btn-action');
+            if (primerBotonPendiente) {
+                const item = primerBotonPendiente.closest('.talla-item');
+                const stickyPanel = document.querySelector('.sticky-conteo-panel');
+                
+                // Calculamos dónde termina exactamente nuestro panel fijo
+                const limiteSuperior = stickyPanel ? stickyPanel.getBoundingClientRect().bottom : 280;
+                const itemPos = item.getBoundingClientRect();
+                
+                // UX MÁGICO: Solo scrollea si la talla quedó tapada por el panel arriba, o si está muy escondida abajo
+                if (itemPos.top < limiteSuperior || itemPos.bottom > window.innerHeight) {
+                    const scrollDestino = window.scrollY + itemPos.top - limiteSuperior - 15;
+                    window.scrollTo({
+                        top: scrollDestino,
+                        behavior: 'smooth'
+                    });
+                }
             }
-            
-            // Calculamos la posición real de la talla en todo el documento
-            const posicionY = window.scrollY + item.getBoundingClientRect().top;
-            
-            // Hacemos el scroll restando el espacio que ocupa el panel + 15px extra para que no quede pegado
-            window.scrollTo({
-                top: posicionY - offsetSeguro - 15,
-                behavior: 'smooth'
-            });
-        }
+        }, 50);
     }
 
     document.getElementById('input-cantidad').addEventListener('keypress', function (e) {
