@@ -502,10 +502,30 @@
         enfocarSiguienteTalla();
     }
 
+    // =========================================================
+    // NUEVA FUNCIÓN DE SCROLL INTELIGENTE
+    // =========================================================
     function enfocarSiguienteTalla() {
         const primerBotonPendiente = document.querySelector('.btn-action');
         if (primerBotonPendiente) {
-            primerBotonPendiente.closest('.talla-item').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const item = primerBotonPendiente.closest('.talla-item');
+            const stickyPanel = document.querySelector('.sticky-conteo-panel');
+            
+            // Calculamos exactamente dónde termina la parte pegajosa (header + panel)
+            let offsetSeguro = 280; // Valor seguro base
+            if (stickyPanel) {
+                // Obtenemos la distancia desde arriba de la pantalla hasta donde termina el panel flotante
+                offsetSeguro = stickyPanel.getBoundingClientRect().bottom;
+            }
+            
+            // Calculamos la posición real de la talla en todo el documento
+            const posicionY = window.scrollY + item.getBoundingClientRect().top;
+            
+            // Hacemos el scroll restando el espacio que ocupa el panel + 15px extra para que no quede pegado
+            window.scrollTo({
+                top: posicionY - offsetSeguro - 15,
+                behavior: 'smooth'
+            });
         }
     }
 
