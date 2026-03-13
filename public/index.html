@@ -448,17 +448,37 @@
     }
     function cerrarZoom() { document.getElementById('modal-zoom').style.display = 'none'; }
 
+    // ==============================================================
+    // NUEVA FUNCIÓN RENDER TALLAS (INTEGRACIÓN INVENTARIO TEÓRICO)
+    // ==============================================================
     function renderTallas() {
         const lista = document.getElementById('lista-tallas-conteo');
         lista.innerHTML = "";
-        inventarioActivo.tallas.forEach(talla => {
-            const yaContada = resultados.find(r => r.talla === talla);
+        inventarioActivo.tallas.forEach(objTalla => {
+            // Compatibilidad por si hay inventarios viejos guardados como string
+            const nombreTalla = typeof objTalla === 'string' ? objTalla : objTalla.talla;
+            const cantTeorica = typeof objTalla === 'string' ? 0 : (objTalla.teorico || 0);
+            
+            const yaContada = resultados.find(r => r.talla === nombreTalla);
+            
+            let advertenciaClase = '';
+            if(yaContada && yaContada.cantidad !== cantTeorica) {
+                advertenciaClase = 'color: #FF3B30; font-weight: 800;'; // Rojo si hay diferencia
+            } else if(yaContada && yaContada.cantidad === cantTeorica) {
+                advertenciaClase = 'color: #34C759; font-weight: 800;'; // Verde si cuadra exacto
+            }
+
             lista.innerHTML += `
-                <div class="talla-item ${yaContada ? 'counted' : ''}" id="fila-talla-${talla.replace(/\s+/g, '')}">
-                    <div class="talla-info"><b>${talla}</b></div>
+                <div class="talla-item ${yaContada ? 'counted' : ''}" id="fila-talla-${nombreTalla.replace(/\s+/g, '')}">
+                    <div class="talla-info">
+                        <b>${nombreTalla}</b>
+                        <div style="font-size: 12px; margin-top: 4px; color: #8E8E93;">
+                            Teórico: <span style="${advertenciaClase}">${cantTeorica} pz</span>
+                        </div>
+                    </div>
                     ${yaContada 
-                        ? `<div><span style="color:#34C759; font-weight:800; font-size:22px; margin-right:15px;">✔ <span class="pop-in">${yaContada.cantidad}</span></span> <button onclick="borrarTalla('${talla}')" style="border:none; background:#FFEBEB; padding:8px 14px; border-radius:10px; color:#FF3B30; cursor:pointer; font-size:12px; font-weight:800;">Rehacer</button></div>`
-                        : `<button class="btn-action" onclick="abrirModalCantidad('${talla}')">CONTAR</button>`
+                        ? `<div><span style="color:#34C759; font-weight:800; font-size:22px; margin-right:15px;">✔ <span class="pop-in">${yaContada.cantidad}</span></span> <button onclick="borrarTalla('${nombreTalla}')" style="border:none; background:#FFEBEB; padding:8px 14px; border-radius:10px; color:#FF3B30; cursor:pointer; font-size:12px; font-weight:800;">Rehacer</button></div>`
+                        : `<button class="btn-action" onclick="abrirModalCantidad('${nombreTalla}', ${cantTeorica})">CONTAR</button>`
                     }
                 </div>
             `;
@@ -466,9 +486,18 @@
         actualizarProgresoVisual();
     }
 
-    function abrirModalCantidad(talla) {
+    function abrirModalCantidad(talla, teorico) {
         tallaActivaModal = talla;
         document.getElementById('modal-talla-label').innerText = talla;
+        
+        // Mostrar el teórico en el modal para ayudar al operador
+        const subTituloModal = document.querySelector('#modal-cantidad h3');
+        if (teorico !== undefined) {
+            subTituloModal.innerHTML = `Teórico del sistema: <b style="color:var(--brand-orange); font-size:16px;">${teorico} piezas</b>`;
+        } else {
+            subTituloModal.innerHTML = `Cantidad para la talla`;
+        }
+
         const inputNum = document.getElementById('input-cantidad');
         inputNum.value = "";
         

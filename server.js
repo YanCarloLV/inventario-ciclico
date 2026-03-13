@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 2.1 (Sincronización Total Monterrey)
+// server.js - Versión 3.0 (Sincronización Total + Inventario Teórico)
 // ==========================================
 
 const express = require('express');
@@ -9,7 +9,8 @@ const app = express();
 
 const PORT = process.env.PORT || 10000; 
 
-app.use(express.json());
+// Aumentamos el límite de JSON en caso de que el archivo del teórico sea muy grande
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- CONEXIÓN A BASE DE DATOS ---
@@ -42,13 +43,24 @@ inicializarContador();
 
 
 // ==========================================
-// MODELO DE INVENTARIO (ESQUEMA ROBUSTO)
+// NUEVO: MODELO DE INVENTARIO TEÓRICO (MAESTRO)
+// ==========================================
+const TeoricoSchema = new mongoose.Schema({
+    _id: String,
+    datos: { type: Map, of: Number, default: {} }
+});
+const Teorico = mongoose.model('Teorico', TeoricoSchema);
+
+
+// ==========================================
+// MODELO DE INVENTARIO CÍCLICO (ACTUALIZADO)
 // ==========================================
 const CiclicoSchema = new mongoose.Schema({
     id: String,           
     modelo: String,
     color: String,
-    tallas: [String],
+    // Se cambia a Array mixto para soportar tanto strings viejos como los nuevos objetos con el teórico
+    tallas: { type: Array, default: [] },
     totalTallas: { type: Number, default: 0 },
     conteoActual: { type: Number, default: 0 },
     progreso: { type: Number, default: 0 },
@@ -67,6 +79,24 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // ENDPOINTS DE LA API
 // ==========================================
 
+// 0. Cargar Inventario Teórico a la Base de Datos
+app.post('/api/teorico', async (req, res) => {
+    try {
+        const teoricoData = req.body;
+        
+        // Guardamos o actualizamos el documento "teorico_maestro" en MongoDB
+        await Teorico.findOneAndUpdate(
+            { _id: 'teorico_maestro' },
+            { datos: teoricoData },
+            { upsert: true, new: true }
+        );
+        
+        res.json({ success: true, conteo: Object.keys(teoricoData).length });
+    } catch (error) { 
+        res.status(500).json({ error: error.message }); 
+    }
+});
+
 // 1. Obtener listado completo
 app.get('/api/ciclicos', async (req, res) => {
     try {
@@ -75,7 +105,7 @@ app.get('/api/ciclicos', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 2. Crear Inventario con ID de 8 Dígitos y Fecha Monterrey
+// 2. Crear Inventario (AHORA INYECTA EL TEÓRICO A CADA TALLA)
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
         const { modelo, color, tallasRaw } = req.body;
@@ -98,14 +128,26 @@ app.post('/api/crear-ciclico', async (req, res) => {
 
         const idLargo = '#' + counter.secuencia.toString().padStart(8, '0');
 
-        const listaTallas = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+        // --- RECUPERAR EL TEÓRICO MAESTRO DE LA BD ---
+        let docTeorico = await Teorico.findById('teorico_maestro');
+        let mapaTeorico = docTeorico ? docTeorico.datos : new Map();
+
+        // --- Mapear las tallas inyectando su teórico correspondiente ---
+        const listaTallasStr = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
+        const listaTallasConTeorico = listaTallasStr.map(talla => {
+            const llaveBusqueda = `${modelo.trim()}_${color.trim()}_${talla}`;
+            return {
+                talla: talla,
+                teorico: mapaTeorico.get(llaveBusqueda) || 0 // Si existe lo pone, si no, es 0
+            };
+        });
 
         const nuevoRegistro = new Ciclico({
             id: idLargo, 
             modelo,
             color,
-            tallas: listaTallas,
-            totalTallas: listaTallas.length || 1,
+            tallas: listaTallasConTeorico, // Ahora guarda la estructura compleja
+            totalTallas: listaTallasConTeorico.length || 1,
             fecha: fechaMty 
         });
 
