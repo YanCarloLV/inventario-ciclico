@@ -5,19 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Almacén SAP - Intelligence</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --brand-navy: #001A33;
-            --brand-gold: #C5A059;
-            --brand-orange: #FF8C00;
-            --bg-body: #F4F7F6;
-            --text-main: #1C1C1E;
-            --text-muted: #8E8E93;
+            --brand-navy: #001A33; --brand-gold: #C5A059; --brand-orange: #FF8C00;
+            --bg-body: #F4F7F6; --text-main: #1C1C1E; --text-muted: #8E8E93;
             --card-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            --success: #34C759;
-            --danger: #FF3B30;
-            --info: #007AFF;
+            --success: #34C759; --danger: #FF3B30; --info: #007AFF;
         }
 
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-body); margin: 0; padding: 0 0 40px 0; color: var(--text-main); }
@@ -34,33 +29,29 @@
         h2 { font-size: 22px; color: var(--brand-navy); margin-top: 0; font-weight: 800; display: flex; align-items: center; gap: 10px; }
         h2::before { content: ""; width: 5px; height: 22px; background: var(--brand-gold); border-radius: 5px; }
 
-        /* Tabs */
         .tabs { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid #E5E5EA; padding-bottom: 15px; }
         .tab-btn { background: transparent; border: none; font-size: 16px; font-weight: 800; color: var(--text-muted); padding: 10px 20px; cursor: pointer; transition: 0.3s; border-radius: 12px; }
-        .tab-btn:hover { background: #F2F2F7; }
         .tab-btn.active { background: var(--brand-navy); color: white; box-shadow: 0 5px 15px rgba(0,26,51,0.2); }
 
-        .btn { padding: 12px 24px; border: none; border-radius: 14px; cursor: pointer; font-weight: 800; font-size: 14px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; font-family: inherit; color: white; }
+        .btn { padding: 12px 24px; border: none; border-radius: 14px; cursor: pointer; font-weight: 800; font-size: 14px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; color: white; font-family: inherit; }
         .btn:active { transform: scale(0.96); }
         .btn-green { background: var(--success); }
-        .btn-green:hover { box-shadow: 0 5px 15px rgba(52, 199, 89, 0.3); }
         .btn-orange { background: var(--brand-orange); }
         .btn-navy { background: var(--brand-navy); }
         .btn-outline { background: #F2F2F7; color: var(--text-main); }
+        .btn-purple { background: #5E5CE6; }
         
-        .search-box { width: 100%; padding: 16px; border: 2px solid #E5E5EA; border-radius: 14px; font-size: 15px; outline: none; background: #F9F9FB; font-weight: 600; margin-bottom: 20px; font-family: inherit; transition: 0.3s; }
+        .search-box { width: 100%; padding: 16px; border: 2px solid #E5E5EA; border-radius: 14px; font-size: 15px; outline: none; background: #F9F9FB; font-weight: 600; margin-bottom: 20px; box-sizing: border-box; }
         .search-box:focus { border-color: var(--brand-navy); background: white; }
 
         table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; }
-        th { background: white; color: var(--text-muted); text-align: left; padding: 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #E5E5EA; }
-        td { padding: 15px; border-bottom: 1px solid #F2F2F7; font-size: 14px; font-weight: 600; transition: background 0.2s; color: var(--brand-navy); }
+        th { background: white; color: var(--text-muted); text-align: left; padding: 15px; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid #E5E5EA; }
+        td { padding: 15px; border-bottom: 1px solid #F2F2F7; font-size: 14px; font-weight: 600; color: var(--brand-navy); }
         tbody tr:hover td { background: #F9F9FB; }
         
         .tag { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .tag-in { background: #E5F9E7; color: #28A745; }
         .tag-out { background: #FFEBEB; color: #FF3B30; }
-        .tag-dev { background: #E8F2FF; color: #007AFF; }
-        .tag-adj { background: #F2F2F7; color: #8E8E93; }
 
         /* Modal SAP */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s; }
@@ -72,16 +63,14 @@
         .form-group { display: flex; flex-direction: column; gap: 8px; }
         .form-group.full { grid-column: span 2; }
         label { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
-        .input-sap { padding: 14px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: inherit; background: #F9F9FB; outline: none; transition: 0.2s; color: var(--brand-navy); }
+        .input-sap { padding: 14px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: inherit; background: #F9F9FB; outline: none; }
         .input-sap:focus { border-color: var(--brand-orange); background: white; }
-        .input-sap:disabled { background: #E5E5EA; color: #8E8E93; cursor: not-allowed; }
 
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
         .toast { background: white; border-left: 5px solid var(--success); padding: 18px 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); font-weight: 700; font-size: 14px; color: var(--brand-navy); animation: slideInRight 0.4s forwards; }
         .toast.danger { border-color: var(--danger); }
+        .toast.warning { border-color: var(--brand-orange); }
         @keyframes slideInRight { from { transform: translateX(120%); } to { transform: translateX(0); } }
-        
-        .stock-highlight { font-size: 18px; color: var(--brand-orange); font-weight: 800; }
     </style>
 </head>
 <body>
@@ -89,9 +78,7 @@
 <div id="toast-container"></div>
 
 <div class="top-header">
-    <div class="logo-wrap">
-        <img src="/logo.png" alt="Logo Empresa">
-    </div>
+    <div class="logo-wrap"><img src="/logo.png" alt="Logo Empresa"></div>
 </div>
 
 <div class="container">
@@ -101,9 +88,10 @@
                 <button class="tab-btn active" onclick="switchTab('kardex')">📦 Stock Activo (Kardex)</button>
                 <button class="tab-btn" onclick="switchTab('historial')">📜 Bitácora de Movimientos</button>
             </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 25px;">
-                <button class="btn btn-green" onclick="abrirModal('Entrada')">📥 Ingreso Manual (Entrada)</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
+                <button class="btn btn-green" onclick="abrirModal('Entrada')">📥 Ingreso Manual</button>
                 <button class="btn btn-navy" onclick="abrirModal('Devolución')">🔄 Devolución</button>
+                <button class="btn btn-purple" onclick="abrirModalMasivo()">🚀 Carga Masiva (Excel)</button>
             </div>
         </div>
     </div>
@@ -113,18 +101,8 @@
         <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar por SKU, Modelo, Color o Lote..." onkeyup="filtrarTabla('tablaKardex', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaKardex">
-                <thead>
-                    <tr>
-                        <th>Modelo / Color</th>
-                        <th>Talla</th>
-                        <th>Lote</th>
-                        <th>Stock Actual</th>
-                        <th>Última Act.</th>
-                        <th>Acciones Rápidas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
+                <thead><tr><th>Modelo / Color</th><th>Talla</th><th>Lote</th><th>Stock Actual</th><th>Última Act.</th><th>Acciones Rápidas</th></tr></thead>
+                <tbody></tbody>
             </table>
         </div>
     </div>
@@ -134,19 +112,8 @@
         <input type="text" id="buscarHistorial" class="search-box" placeholder="🔍 Buscar por Folio, Modelo, Responsable o Referencia..." onkeyup="filtrarTabla('tablaHistorial', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaHistorial">
-                <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Fecha</th>
-                        <th>Tipo</th>
-                        <th>Producto & Lote</th>
-                        <th>Cant.</th>
-                        <th>Referencia</th>
-                        <th>Responsable</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
+                <thead><tr><th>Folio</th><th>Fecha</th><th>Tipo</th><th>Producto & Lote</th><th>Cant.</th><th>Referencia</th><th>Responsable</th></tr></thead>
+                <tbody></tbody>
             </table>
         </div>
     </div>
@@ -156,286 +123,184 @@
     <div class="modal-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 id="modal-title" style="margin:0;">Registrar Movimiento</h2>
-            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal()">❌</button>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalSAP')">❌</button>
         </div>
+        <div class="form-grid">
+            <div class="form-group full"><label>Tipo de Movimiento</label><input type="text" id="md-tipo" class="input-sap" disabled></div>
+            <div class="form-group"><label>Modelo</label><input type="text" id="md-modelo" class="input-sap" placeholder="Ej: 4040"></div>
+            <div class="form-group"><label>Color</label><input type="text" id="md-color" class="input-sap" placeholder="Ej: NEGRO"></div>
+            <div class="form-group"><label>Talla</label><input type="text" id="md-talla" class="input-sap" placeholder="Ej: 38R"></div>
+            <div class="form-group"><label>Lote Interno</label><input type="text" id="md-lote" class="input-sap" placeholder="Ej: LOTE-A"></div>
+            <div class="form-group"><label>Cantidad</label><input type="number" id="md-cantidad" class="input-sap" min="1"></div>
+            <div class="form-group"><label>Responsable</label><input type="text" id="md-responsable" class="input-sap"></div>
+            <div class="form-group full"><label>Referencia / Motivo</label><input type="text" id="md-referencia" class="input-sap"></div>
+        </div>
+        <button class="btn btn-navy" style="width: 100%; padding: 18px; font-size: 16px;" onclick="procesarMovimiento()" id="btn-save-modal">💾 Confirmar Movimiento</button>
+    </div>
+</div>
 
+<div class="modal-overlay" id="modalMasivo">
+    <div class="modal-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">🚀 Carga Masiva (Excel/CSV)</h2>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalMasivo')">❌</button>
+        </div>
         <div class="form-grid">
             <div class="form-group full">
-                <label>Tipo de Movimiento</label>
-                <input type="text" id="md-tipo" class="input-sap" disabled>
-            </div>
-            
-            <div class="form-group" id="grp-modelo">
-                <label>Modelo del Producto</label>
-                <select id="md-modelo" class="input-sap" onchange="actualizarColores()">
-                    <option value="" disabled selected>Seleccione...</option>
-                </select>
-            </div>
-            <div class="form-group" id="grp-color">
-                <label>Color</label>
-                <select id="md-color" class="input-sap">
-                    <option value="" disabled selected>Seleccione...</option>
-                </select>
-            </div>
-            <div class="form-group" id="grp-talla">
-                <label>Talla</label>
-                <select id="md-talla" class="input-sap">
-                    <option value="" disabled selected>Seleccione...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Lote Interno / Compra</label>
-                <input type="text" id="md-lote" class="input-sap" placeholder="Ej: LOTE-2026-A" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label>Cantidad (Piezas)</label>
-                <input type="number" id="md-cantidad" class="input-sap" min="1" placeholder="0">
-            </div>
-            <div class="form-group">
-                <label>Responsable (Autoriza)</label>
-                <input type="text" id="md-responsable" class="input-sap" placeholder="Tu nombre">
+                <label>Archivo Excel/CSV (Columnas: MODELO, COLOR, TALLA, CANTIDAD)</label>
+                <input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv">
             </div>
             <div class="form-group full">
-                <label>Referencia / Motivo (# Pedido, Prestamo, etc)</label>
-                <input type="text" id="md-referencia" class="input-sap" placeholder="Ej: Pedido #4582 / Cliente Juan" autocomplete="off">
+                <label>Tipo de Operación</label>
+                <select id="mas-tipo" class="input-sap">
+                    <option value="Entrada Inicial">📥 Entrada Inicial (Base KARDEX)</option>
+                    <option value="Entrada Masiva">📥 Entrada Masiva (Proveedores)</option>
+                    <option value="Salida Masiva">📤 Salida Masiva (Envíos)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Lote Global Aplicado</label>
+                <input type="text" id="mas-lote" class="input-sap" placeholder="Ej: INVENTARIO-BASE">
+            </div>
+            <div class="form-group">
+                <label>Responsable</label>
+                <input type="text" id="mas-responsable" class="input-sap">
+            </div>
+            <div class="form-group full">
+                <label>Referencia Global</label>
+                <input type="text" id="mas-referencia" class="input-sap" placeholder="Ej: Carga inicial de sistema">
             </div>
         </div>
-
-        <button class="btn btn-navy" style="width: 100%; padding: 18px; font-size: 16px; margin-top: 10px;" onclick="procesarMovimiento()" id="btn-save-modal">💾 Confirmar Movimiento</button>
+        <button class="btn btn-purple" style="width: 100%; padding: 18px; font-size: 16px;" onclick="procesarExcelMasivo()" id="btn-save-masivo">⚡ Procesar Excel</button>
     </div>
 </div>
 
 <script>
-    // ==========================================
-    // 1. CATÁLOGOS BASE (Igual que Supervisor)
-    // ==========================================
-    const catalogoProductos = [
-        { modelo: "C67901-1 LUCIANO FERRETTI", color: "NEGRO" }, { modelo: "C67901-2B LUCIANO FERRETTI", color: "MARINO" },
-        { modelo: "C67901-1 PATRICK HUNTER", color: "NEGRO" }, { modelo: "C67901-2B PATRICK HUNTER", color: "MARINO" },
-        { modelo: "C67901-3", color: "GRIS OXFORD" }, { modelo: "C67901-4 LUCIANO FERRETTI", color: "GRIS MEDIO" },
-        { modelo: "C67901-5A", color: "BLANCO" }, { modelo: "C67901-11", color: "BEIGE SOLIDO" },
-        { modelo: "C67901-17 LUCIANO FERRETTI", color: "AZUL FRANCIA" }, { modelo: "G47815-1", color: "NEGRO SOLIDO" },
-        { modelo: "G47815-2B", color: "MARINO NUEVO" }, { modelo: "M40901-1", color: "NEGRO" },
-        { modelo: "ARAMIS H-803797", color: "AZUL" }, { modelo: "ARAMIS 306598", color: "CELESTE" },
-        { modelo: "4040", color: "OXFORD" }, { modelo: "33739", color: "R-BLUE" }, { modelo: "TR-1", color: "NEGRO" }
-    ]; // (Resumido para la vista, puedes pegar el array completo de supervisor aquí si lo deseas)
-
-    const tallasBase = ["32C","32R","32L","34C","34R","34L","36C","36R","36L","38C","38R","38L","40C","40R","40L","42C","42R","42L","44C","44R","44L","46C","46R","46L","48C","48R","48L","50C","50R","50L","S","M","L","XL","XXL"];
-
-    // ==========================================
-    // 2. UTILIDADES UI
-    // ==========================================
-    function showToast(mensaje, tipo = 'success') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${tipo}`;
-        toast.innerHTML = tipo === 'success' ? `✅ ${mensaje}` : `⚠️ ${mensaje}`;
-        container.appendChild(toast);
-        setTimeout(() => { toast.remove(); }, 3500);
+    function showToast(msj, tipo='success'){
+        const c = document.getElementById('toast-container'); const t = document.createElement('div');
+        t.className = `toast ${tipo}`; t.innerHTML = tipo==='success'?`✅ ${msj}`:`⚠️ ${msj}`;
+        c.appendChild(t); setTimeout(()=>t.remove(), 4500);
     }
 
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    function switchTab(tId){
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         event.target.classList.add('active');
-        document.getElementById('vista-kardex').style.display = tabId === 'kardex' ? 'block' : 'none';
-        document.getElementById('vista-historial').style.display = tabId === 'historial' ? 'block' : 'none';
+        document.getElementById('vista-kardex').style.display = tId==='kardex'?'block':'none';
+        document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
     }
 
-    function filtrarTabla(idTabla, texto) {
+    function filtrarTabla(id, texto){
         const filtro = texto.toLowerCase();
-        const filas = document.querySelectorAll(`#${idTabla} tbody tr`);
-        filas.forEach(fila => {
-            const textoFila = fila.innerText.toLowerCase();
-            fila.style.display = textoFila.includes(filtro) ? '' : 'none';
+        document.querySelectorAll(`#${id} tbody tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(filtro)?'':'none');
+    }
+
+    async function cargarKardex(){
+        const res = await fetch('/api/kardex'); const data = await res.json();
+        const tbody = document.querySelector('#tablaKardex tbody'); tbody.innerHTML = '';
+        data.forEach(i => tbody.innerHTML += `<tr><td><b>${i.modelo}</b><br><small style="color:var(--text-muted);">${i.color}</small></td><td><b style="color:var(--brand-navy); font-size: 16px;">${i.talla}</b></td><td><span class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E">${i.lote}</span></td><td><span style="font-size: 18px; color: var(--brand-orange); font-weight: 800;">${i.cantidad}</span> pz</td><td><small>${i.ultimaActualizacion||'---'}</small></td><td><button class="btn btn-orange" style="padding:6px 12px; font-size:11px;" onclick="abrirModalSalida('${i.modelo}','${i.color}','${i.talla}','${i.lote}',${i.cantidad})">📤 Salida</button> <button class="btn btn-outline" style="padding:6px 12px; font-size:11px;" onclick="abrirModalAjuste('${i.modelo}','${i.color}','${i.talla}','${i.lote}')">⚖️ Ajuste</button></td></tr>`);
+    }
+
+    async function cargarHistorial(){
+        const res = await fetch('/api/historial-almacen'); const data = await res.json();
+        const tbody = document.querySelector('#tablaHistorial tbody'); tbody.innerHTML = '';
+        data.forEach(m => {
+            let color = m.tipo.includes('Entrada')?'tag-in':(m.tipo.includes('Salida')?'tag-out':'tag-in');
+            tbody.innerHTML += `<tr><td><b>${m.folio}</b></td><td><small>${m.fecha}</small></td><td><span class="tag ${color}">${m.tipo}</span></td><td><b>${m.modelo}</b> (${m.talla})<br><small style="color:var(--text-muted);">Lote: ${m.lote}</small></td><td><b>${m.cantidad}</b></td><td><small>${m.referencia}</small></td><td>${m.responsable}</td></tr>`;
         });
     }
 
-    function poblarSelects() {
-        const selModelo = document.getElementById('md-modelo');
-        const selTalla = document.getElementById('md-talla');
-        
-        const modelosUnicos = [...new Set(catalogoProductos.map(p => p.modelo))].sort();
-        selModelo.innerHTML = '<option value="" disabled selected>Seleccione...</option>';
-        modelosUnicos.forEach(m => selModelo.innerHTML += `<option value="${m}">${m}</option>`);
-
-        selTalla.innerHTML = '<option value="" disabled selected>Seleccione...</option>';
-        tallasBase.forEach(t => selTalla.innerHTML += `<option value="${t}">${t}</option>`);
-    }
-
-    function actualizarColores() {
-        const modelo = document.getElementById('md-modelo').value;
-        const selColor = document.getElementById('md-color');
-        selColor.innerHTML = '<option value="" disabled selected>Seleccione...</option>';
-        catalogoProductos.filter(p => p.modelo === modelo).forEach(p => {
-            selColor.innerHTML += `<option value="${p.color}">${p.color}</option>`;
-        });
-    }
-
-    // ==========================================
-    // 3. CARGA DE DATOS (API REST)
-    // ==========================================
-    async function cargarKardex() {
-        try {
-            const res = await fetch('/api/kardex');
-            const data = await res.json();
-            const tbody = document.querySelector('#tablaKardex tbody');
-            tbody.innerHTML = '';
-
-            data.forEach(item => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td><b>${item.modelo}</b><br><small style="color:var(--text-muted);">${item.color}</small></td>
-                        <td><b style="color:var(--brand-navy); font-size: 16px;">${item.talla}</b></td>
-                        <td><span class="tag tag-adj">${item.lote}</span></td>
-                        <td><span class="stock-highlight">${item.cantidad}</span> pz</td>
-                        <td><small>${item.ultimaActualizacion || '---'}</small></td>
-                        <td>
-                            <button class="btn btn-orange" style="padding: 6px 12px; font-size: 11px;" onclick="abrirModalSalida('${item.modelo}', '${item.color}', '${item.talla}', '${item.lote}', ${item.cantidad})">📤 Salida</button>
-                            <button class="btn btn-outline" style="padding: 6px 12px; font-size: 11px; margin-left: 5px;" onclick="abrirModalAjuste('${item.modelo}', '${item.color}', '${item.talla}', '${item.lote}')">⚖️ Ajuste</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        } catch (e) { console.error("Error cargando Kardex"); }
-    }
-
-    async function cargarHistorial() {
-        try {
-            const res = await fetch('/api/historial-almacen');
-            const data = await res.json();
-            const tbody = document.querySelector('#tablaHistorial tbody');
-            tbody.innerHTML = '';
-
-            data.forEach(m => {
-                let colorTag = 'tag-adj';
-                if(m.tipo === 'Entrada') colorTag = 'tag-in';
-                if(m.tipo === 'Salida') colorTag = 'tag-out';
-                if(m.tipo === 'Devolución') colorTag = 'tag-dev';
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td><b>${m.folio}</b></td>
-                        <td><small>${m.fecha}</small></td>
-                        <td><span class="tag ${colorTag}">${m.tipo}</span></td>
-                        <td><b>${m.modelo}</b> (${m.talla})<br><small style="color:var(--text-muted);">Lote: ${m.lote}</small></td>
-                        <td><b>${m.cantidad}</b></td>
-                        <td><small>${m.referencia}</small></td>
-                        <td>${m.responsable}</td>
-                    </tr>
-                `;
-            });
-        } catch (e) { console.error("Error cargando Historial"); }
-    }
-
-    // ==========================================
-    // 4. GESTIÓN DEL MODAL
-    // ==========================================
-    function abrirModal(tipo) {
+    function abrirModal(tipo){
         document.getElementById('modal-title').innerText = `Registrar ${tipo}`;
         document.getElementById('md-tipo').value = tipo;
-        
-        // Habilitar y limpiar campos
-        ['md-modelo', 'md-color', 'md-talla', 'md-lote', 'md-cantidad', 'md-referencia'].forEach(id => {
-            document.getElementById(id).value = '';
-            document.getElementById(id).disabled = false;
-        });
-        
-        // Restaurar responsable previo si existe
-        if(localStorage.getItem('almacen_responsable')) {
-            document.getElementById('md-responsable').value = localStorage.getItem('almacen_responsable');
-        }
-
-        const modal = document.getElementById('modalSAP');
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('show'), 10);
+        ['md-modelo','md-color','md-talla','md-lote','md-cantidad','md-referencia'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).disabled = false; });
+        if(localStorage.getItem('almacen_resp')) document.getElementById('md-responsable').value = localStorage.getItem('almacen_resp');
+        const m = document.getElementById('modalSAP'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
-    // Modal Pre-llenado para Salidas directas desde el KARDEX
-    function abrirModalSalida(modelo, color, talla, lote, stockActual) {
+    function abrirModalMasivo(){
+        if(localStorage.getItem('almacen_resp')) document.getElementById('mas-responsable').value = localStorage.getItem('almacen_resp');
+        const m = document.getElementById('modalMasivo'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+    }
+
+    function abrirModalSalida(m, c, t, l, max){
         abrirModal('Salida');
-        
-        // Asignar y bloquear
-        document.getElementById('md-modelo').innerHTML = `<option value="${modelo}">${modelo}</option>`;
-        document.getElementById('md-modelo').value = modelo;
-        document.getElementById('md-color').innerHTML = `<option value="${color}">${color}</option>`;
-        document.getElementById('md-color').value = color;
-        document.getElementById('md-talla').innerHTML = `<option value="${talla}">${talla}</option>`;
-        document.getElementById('md-talla').value = talla;
-        document.getElementById('md-lote').value = lote;
-
-        ['md-modelo', 'md-color', 'md-talla', 'md-lote'].forEach(id => document.getElementById(id).disabled = true);
-        
-        document.getElementById('modal-title').innerHTML = `Registrar Salida <br><small style="color:var(--brand-orange); font-size:14px;">Stock en Lote: ${stockActual} pz</small>`;
-        document.getElementById('md-cantidad').max = stockActual;
+        document.getElementById('md-modelo').value = m; document.getElementById('md-color').value = c;
+        document.getElementById('md-talla').value = t; document.getElementById('md-lote').value = l;
+        ['md-modelo','md-color','md-talla','md-lote'].forEach(id => document.getElementById(id).disabled = true);
+        document.getElementById('modal-title').innerHTML = `Registrar Salida <br><small style="color:var(--brand-orange)">Stock: ${max} pz</small>`;
     }
 
-    // Modal Pre-llenado para Ajustes de discrepancia
-    function abrirModalAjuste(modelo, color, talla, lote) {
-        abrirModalSalida(modelo, color, talla, lote, '---');
-        document.getElementById('md-tipo').value = "Ajuste Negativo"; // Por defecto, asume merma o pérdida
-        document.getElementById('modal-title').innerHTML = `Ajuste de Inventario`;
-        document.getElementById('md-referencia').value = "Ajuste de Cíclico / Conteo físico";
+    function abrirModalAjuste(m, c, t, l){ abrirModalSalida(m, c, t, l, '---'); document.getElementById('md-tipo').value = "Ajuste Negativo"; document.getElementById('modal-title').innerHTML = `Ajuste de Inventario`; }
+
+    function cerrarModal(id){
+        const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display = 'none', 300);
     }
 
-    function cerrarModal() {
-        const modal = document.getElementById('modalSAP');
-        modal.classList.remove('show');
-        setTimeout(() => modal.style.display = 'none', 300);
-        poblarSelects(); // Resetear opciones por si fueron bloqueadas
-    }
-
-    // ==========================================
-    // 5. PROCESAMIENTO A BASE DE DATOS
-    // ==========================================
-    async function procesarMovimiento() {
+    async function procesarMovimiento(){
         const data = {
-            tipo: document.getElementById('md-tipo').value,
-            modelo: document.getElementById('md-modelo').value,
-            color: document.getElementById('md-color').value,
-            talla: document.getElementById('md-talla').value,
-            lote: document.getElementById('md-lote').value.trim().toUpperCase(),
-            cantidad: document.getElementById('md-cantidad').value,
-            referencia: document.getElementById('md-referencia').value.trim(),
-            responsable: document.getElementById('md-responsable').value.trim()
+            tipo: document.getElementById('md-tipo').value, modelo: document.getElementById('md-modelo').value.toUpperCase(),
+            color: document.getElementById('md-color').value.toUpperCase(), talla: document.getElementById('md-talla').value.toUpperCase(),
+            lote: document.getElementById('md-lote').value.trim().toUpperCase(), cantidad: document.getElementById('md-cantidad').value,
+            referencia: document.getElementById('md-referencia').value, responsable: document.getElementById('md-responsable').value
         };
+        if(!data.modelo || !data.lote || !data.cantidad || !data.referencia || !data.responsable) return showToast("Faltan datos", "danger");
 
-        if(!data.modelo || !data.color || !data.talla || !data.lote || !data.cantidad || !data.referencia || !data.responsable) {
-            return showToast("Completa todos los campos obligatorios.", "danger");
-        }
-
-        const btn = document.getElementById('btn-save-modal');
-        btn.innerHTML = "Procesando..."; btn.disabled = true;
-
+        const btn = document.getElementById('btn-save-modal'); btn.innerHTML = "Procesando..."; btn.disabled = true;
         try {
-            const res = await fetch('/api/movimiento', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+            const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            const result = await res.json();
+            if(res.ok) {
+                localStorage.setItem('almacen_resp', data.responsable);
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                showToast(`Folio: ${result.folio}`); cerrarModal('modalSAP'); cargarKardex(); cargarHistorial();
+            } else showToast(result.error, "danger");
+        } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar"; btn.disabled = false; }
+    }
+
+    function procesarExcelMasivo(){
+        const file = document.getElementById('file-masivo').files[0];
+        const tipo = document.getElementById('mas-tipo').value;
+        const loteGlobal = document.getElementById('mas-lote').value.trim().toUpperCase();
+        const referenciaGlobal = document.getElementById('mas-referencia').value.trim();
+        const responsable = document.getElementById('mas-responsable').value.trim();
+
+        if(!file || !loteGlobal || !referenciaGlobal || !responsable) return showToast("Llena todos los campos y sube el archivo", "warning");
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            
+            let items = [];
+            rows.forEach(r => {
+                if(r.MODELO && r.COLOR && r.TALLA && r.CANTIDAD) {
+                    items.push({ modelo: String(r.MODELO), color: String(r.COLOR), talla: String(r.TALLA), cantidad: parseFloat(r.CANTIDAD) });
+                }
             });
 
-            const result = await res.json();
+            if(items.length === 0) return showToast("El Excel no tiene las columnas MODELO, COLOR, TALLA, CANTIDAD", "danger");
 
-            if(res.ok) {
-                localStorage.setItem('almacen_responsable', data.responsable); // Guardar para no reescribir
-                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#34C759', '#001A33', '#C5A059'] });
-                showToast(`¡Listo! Folio generado: ${result.folio}`);
-                cerrarModal();
-                cargarKardex();
-                cargarHistorial();
-            } else {
-                showToast(result.error || "Error al procesar", "danger");
-            }
-        } catch (e) {
-            showToast("Error de conexión con el servidor", "danger");
-        } finally {
-            btn.innerHTML = "💾 Confirmar Movimiento"; btn.disabled = false;
-        }
+            const btn = document.getElementById('btn-save-masivo'); btn.innerHTML = "⚡ Subiendo..."; btn.disabled = true;
+            try {
+                const res = await fetch('/api/movimiento-masivo', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ tipo, loteGlobal, referenciaGlobal, responsable, items })
+                });
+                const result = await res.json();
+                if(res.ok) {
+                    localStorage.setItem('almacen_resp', responsable);
+                    confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } });
+                    showToast(`Éxito! Folio ${result.folio}. Se procesaron ${result.procesados} registros.`);
+                    if(result.errores && result.errores.length > 0) alert("Algunos fallaron por falta de stock:\n" + result.errores.join("\n"));
+                    cerrarModal('modalMasivo'); cargarKardex(); cargarHistorial();
+                } else showToast(result.error, "danger");
+            } catch(e) { showToast("Error de conexión", "danger"); } finally { btn.innerHTML = "⚡ Procesar Excel"; btn.disabled = false; }
+        };
+        reader.readAsArrayBuffer(file);
     }
 
-    // Inicializar
-    poblarSelects();
-    cargarKardex();
-    cargarHistorial();
+    cargarKardex(); cargarHistorial();
 </script>
 </body>
 </html>
