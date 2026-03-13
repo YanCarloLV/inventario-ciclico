@@ -23,13 +23,13 @@
         .logo-wrap { background: white; display: inline-block; padding: 12px 35px; border-radius: 40px; box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3); }
         .logo-wrap img { max-height: 70px; vertical-align: middle; }
 
-        .container { max-width: 1300px; margin: 30px auto; padding: 0 20px; }
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
         .card { background: white; padding: 30px; border-radius: 24px; box-shadow: var(--card-shadow); margin-bottom: 30px; border: 1px solid rgba(0,0,0,0.03); }
         
         h2 { font-size: 22px; color: var(--brand-navy); margin-top: 0; font-weight: 800; display: flex; align-items: center; gap: 10px; }
         h2::before { content: ""; width: 5px; height: 22px; background: var(--brand-gold); border-radius: 5px; }
 
-        .tabs { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid #E5E5EA; padding-bottom: 15px; }
+        .tabs { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid #E5E5EA; padding-bottom: 15px; overflow-x: auto; white-space: nowrap; }
         .tab-btn { background: transparent; border: none; font-size: 16px; font-weight: 800; color: var(--text-muted); padding: 10px 20px; cursor: pointer; transition: 0.3s; border-radius: 12px; }
         .tab-btn.active { background: var(--brand-navy); color: white; box-shadow: 0 5px 15px rgba(0,26,51,0.2); }
 
@@ -52,11 +52,12 @@
         .tag { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .tag-in { background: #E5F9E7; color: #28A745; }
         .tag-out { background: #FFEBEB; color: #FF3B30; }
+        .tag-loan { background: #FFF4E5; color: #FF8C00; }
 
         /* Modal SAP */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s; }
         .modal-overlay.show { display: flex; opacity: 1; }
-        .modal-box { background: white; width: 90%; max-width: 600px; padding: 35px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); transform: translateY(30px); transition: 0.3s; max-height: 90vh; overflow-y: auto; }
+        .modal-box { background: white; width: 90%; max-width: 650px; padding: 35px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); transform: translateY(30px); transition: 0.3s; max-height: 90vh; overflow-y: auto; }
         .modal-overlay.show .modal-box { transform: translateY(0); }
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
@@ -71,6 +72,11 @@
         .toast.danger { border-color: var(--danger); }
         .toast.warning { border-color: var(--brand-orange); }
         @keyframes slideInRight { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
+        /* Lista Historial Modal */
+        .historial-lista { max-height: 300px; overflow-y: auto; background: #F9F9FB; border-radius: 12px; padding: 15px; border: 1px solid #E5E5EA; }
+        .hist-item { padding: 10px; border-bottom: 1px solid #E5E5EA; font-size: 13px; }
+        .hist-item:last-child { border: none; }
     </style>
 </head>
 <body>
@@ -85,31 +91,43 @@
     <div class="card reveal" style="padding-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('kardex')">📦 Stock Activo (Kardex)</button>
-                <button class="tab-btn" onclick="switchTab('historial')">📜 Bitácora de Movimientos</button>
+                <button class="tab-btn active" onclick="switchTab('kardex')">📦 Stock Activo</button>
+                <button class="tab-btn" onclick="switchTab('prestamos')">🤝 Préstamos Activos</button>
+                <button class="tab-btn" onclick="switchTab('historial')">📜 Bitácora General</button>
             </div>
             <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
                 <button class="btn btn-green" onclick="abrirModal('Entrada')">📥 Ingreso Manual</button>
-                <button class="btn btn-navy" onclick="abrirModal('Devolución')">🔄 Devolución</button>
                 <button class="btn btn-purple" onclick="abrirModalMasivo()">🚀 Carga Masiva (Excel)</button>
+                <button class="btn btn-navy" onclick="descargarStockExcel()">📊 Descargar Stock General</button>
             </div>
         </div>
     </div>
 
     <div id="vista-kardex" class="card reveal" style="animation-delay: 0.1s;">
         <h2>Inventario Disponible por Lotes</h2>
-        <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar por SKU, Modelo, Color o Lote..." onkeyup="filtrarTabla('tablaKardex', this.value)">
+        <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar por cualquier cruce (Ej: 4040 negro 38R)..." onkeyup="filtrarTablaInteligente('tablaKardex', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaKardex">
-                <thead><tr><th>Modelo / Color</th><th>Talla</th><th>Lote</th><th>Stock Actual</th><th>Última Act.</th><th>Acciones Rápidas</th></tr></thead>
+                <thead><tr><th>Modelo / Color</th><th>Talla</th><th>Lote</th><th>Stock Actual</th><th>Última Act.</th><th>Acciones de SAP</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="vista-prestamos" class="card reveal" style="display: none;">
+        <h2>Mercancía Prestada (Fuera de Stock)</h2>
+        <input type="text" id="buscarPrestamos" class="search-box" placeholder="🔍 Buscar a quién se prestó o modelo..." onkeyup="filtrarTablaInteligente('tablaPrestamos', this.value)">
+        <div style="overflow-x: auto;">
+            <table id="tablaPrestamos">
+                <thead><tr><th>ID Préstamo</th><th>Producto</th><th>Lote Origen</th><th>Cantidad</th><th>Prestatario / Cliente</th><th>Responsable Autoriza</th><th>Fecha Salida</th><th>Acción</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
     </div>
 
     <div id="vista-historial" class="card reveal" style="display: none;">
-        <h2>Trazabilidad de Movimientos (SAP Log)</h2>
-        <input type="text" id="buscarHistorial" class="search-box" placeholder="🔍 Buscar por Folio, Modelo, Responsable o Referencia..." onkeyup="filtrarTabla('tablaHistorial', this.value)">
+        <h2>Trazabilidad Global (SAP Log)</h2>
+        <input type="text" id="buscarHistorial" class="search-box" placeholder="🔍 Buscar por Folio, Modelo, Responsable o Referencia..." onkeyup="filtrarTablaInteligente('tablaHistorial', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaHistorial">
                 <thead><tr><th>Folio</th><th>Fecha</th><th>Tipo</th><th>Producto & Lote</th><th>Cant.</th><th>Referencia</th><th>Responsable</th></tr></thead>
@@ -126,16 +144,41 @@
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalSAP')">❌</button>
         </div>
         <div class="form-grid">
-            <div class="form-group full"><label>Tipo de Movimiento</label><input type="text" id="md-tipo" class="input-sap" disabled></div>
+            <div class="form-group full" id="div-tipo-input">
+                <label>Tipo de Movimiento</label>
+                <input type="text" id="md-tipo-texto" class="input-sap" disabled>
+            </div>
+            <div class="form-group full" id="div-tipo-select" style="display:none;">
+                <label>Selecciona el tipo de ajuste</label>
+                <select id="md-tipo-select" class="input-sap">
+                    <option value="Ajuste Positivo">Ajuste Positivo (+ Ingresar piezas)</option>
+                    <option value="Ajuste Negativo">Ajuste Negativo (- Retirar piezas)</option>
+                </select>
+            </div>
+            
             <div class="form-group"><label>Modelo</label><input type="text" id="md-modelo" class="input-sap" placeholder="Ej: 4040"></div>
             <div class="form-group"><label>Color</label><input type="text" id="md-color" class="input-sap" placeholder="Ej: NEGRO"></div>
             <div class="form-group"><label>Talla</label><input type="text" id="md-talla" class="input-sap" placeholder="Ej: 38R"></div>
             <div class="form-group"><label>Lote Interno</label><input type="text" id="md-lote" class="input-sap" placeholder="Ej: LOTE-A"></div>
             <div class="form-group"><label>Cantidad</label><input type="number" id="md-cantidad" class="input-sap" min="1"></div>
             <div class="form-group"><label>Responsable</label><input type="text" id="md-responsable" class="input-sap"></div>
-            <div class="form-group full"><label>Referencia / Motivo</label><input type="text" id="md-referencia" class="input-sap"></div>
+            <div class="form-group full"><label id="lbl-referencia">Referencia / Motivo</label><input type="text" id="md-referencia" class="input-sap"></div>
         </div>
         <button class="btn btn-navy" style="width: 100%; padding: 18px; font-size: 16px;" onclick="procesarMovimiento()" id="btn-save-modal">💾 Confirmar Movimiento</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalHistorialItem">
+    <div class="modal-box" style="max-width: 800px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">📜 Historial Detallado del Producto</h2>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalHistorialItem')">❌</button>
+        </div>
+        <div style="background:var(--brand-navy); color:white; padding:15px; border-radius:12px; margin-bottom: 15px;">
+            <h3 id="hist-item-title" style="margin:0;">Cargando...</h3>
+        </div>
+        <div class="historial-lista" id="lista-historial-1a1">
+            </div>
     </div>
 </div>
 
@@ -176,6 +219,8 @@
 </div>
 
 <script>
+    let rawKardexData = []; // Para poder exportar
+
     function showToast(msj, tipo='success'){
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
         t.className = `toast ${tipo}`; t.innerHTML = tipo==='success'?`✅ ${msj}`:`⚠️ ${msj}`;
@@ -186,34 +231,86 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         event.target.classList.add('active');
         document.getElementById('vista-kardex').style.display = tId==='kardex'?'block':'none';
+        document.getElementById('vista-prestamos').style.display = tId==='prestamos'?'block':'none';
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
     }
 
-    function filtrarTabla(id, texto){
-        const filtro = texto.toLowerCase();
-        document.querySelectorAll(`#${id} tbody tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(filtro)?'':'none');
+    // BUSCADOR INTELIGENTE (Cruza multiples palabras)
+    function filtrarTablaInteligente(id, texto){
+        const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+        document.querySelectorAll(`#${id} tbody tr`).forEach(r => {
+            const rowText = r.innerText.toLowerCase();
+            const coincide = terminos.every(term => rowText.includes(term));
+            r.style.display = coincide ? '' : 'none';
+        });
     }
 
     async function cargarKardex(){
-        const res = await fetch('/api/kardex'); const data = await res.json();
+        const res = await fetch('/api/kardex'); rawKardexData = await res.json();
         const tbody = document.querySelector('#tablaKardex tbody'); tbody.innerHTML = '';
-        data.forEach(i => tbody.innerHTML += `<tr><td><b>${i.modelo}</b><br><small style="color:var(--text-muted);">${i.color}</small></td><td><b style="color:var(--brand-navy); font-size: 16px;">${i.talla}</b></td><td><span class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E">${i.lote}</span></td><td><span style="font-size: 18px; color: var(--brand-orange); font-weight: 800;">${i.cantidad}</span> pz</td><td><small>${i.ultimaActualizacion||'---'}</small></td><td><button class="btn btn-orange" style="padding:6px 12px; font-size:11px;" onclick="abrirModalSalida('${i.modelo}','${i.color}','${i.talla}','${i.lote}',${i.cantidad})">📤 Salida</button> <button class="btn btn-outline" style="padding:6px 12px; font-size:11px;" onclick="abrirModalAjuste('${i.modelo}','${i.color}','${i.talla}','${i.lote}')">⚖️ Ajuste</button></td></tr>`);
+        rawKardexData.forEach(i => {
+            const llaveObj = `${i.modelo}_${i.color}_${i.talla}`;
+            tbody.innerHTML += `
+            <tr>
+                <td><b>${i.modelo}</b><br><small style="color:var(--text-muted);">${i.color}</small></td>
+                <td><b style="color:var(--brand-navy); font-size: 16px;">${i.talla}</b></td>
+                <td><span class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E">${i.lote}</span></td>
+                <td><span style="font-size: 18px; color: var(--brand-orange); font-weight: 800;">${i.cantidad}</span> pz</td>
+                <td><small>${i.ultimaActualizacion||'---'}</small></td>
+                <td>
+                    <button class="btn btn-orange" style="padding:6px 10px; font-size:10px;" onclick="abrirModalSalida('${i.modelo}','${i.color}','${i.talla}','${i.lote}',${i.cantidad})">📤 Salida</button> 
+                    <button class="btn btn-outline" style="padding:6px 10px; font-size:10px; color:#FF8C00; border: 1px solid #FF8C00" onclick="abrirModalPrestamo('${i.modelo}','${i.color}','${i.talla}','${i.lote}',${i.cantidad})">🤝 Prestar</button>
+                    <button class="btn btn-outline" style="padding:6px 10px; font-size:10px;" onclick="abrirModalAjuste('${i.modelo}','${i.color}','${i.talla}','${i.lote}')">⚖️ Ajuste</button>
+                    <button class="btn btn-navy" style="padding:6px 10px; font-size:10px;" onclick="verHistorialIndividual('${llaveObj}')">📜 Bitácora</button>
+                </td>
+            </tr>`;
+        });
     }
 
     async function cargarHistorial(){
         const res = await fetch('/api/historial-almacen'); const data = await res.json();
         const tbody = document.querySelector('#tablaHistorial tbody'); tbody.innerHTML = '';
         data.forEach(m => {
-            let color = m.tipo.includes('Entrada')?'tag-in':(m.tipo.includes('Salida')?'tag-out':'tag-in');
+            let color = m.tipo.includes('Entrada')?'tag-in':(m.tipo.includes('Salida')?'tag-out':(m.tipo.includes('Préstamo')?'tag-loan':'tag-in'));
             tbody.innerHTML += `<tr><td><b>${m.folio}</b></td><td><small>${m.fecha}</small></td><td><span class="tag ${color}">${m.tipo}</span></td><td><b>${m.modelo}</b> (${m.talla})<br><small style="color:var(--text-muted);">Lote: ${m.lote}</small></td><td><b>${m.cantidad}</b></td><td><small>${m.referencia}</small></td><td>${m.responsable}</td></tr>`;
         });
     }
 
+    async function cargarPrestamos(){
+        const res = await fetch('/api/prestamos'); const data = await res.json();
+        const tbody = document.querySelector('#tablaPrestamos tbody'); tbody.innerHTML = '';
+        data.forEach(p => {
+            tbody.innerHTML += `
+            <tr>
+                <td><b>${p.idPrestamo}</b></td>
+                <td><b>${p.modelo}</b><br><small>${p.color} (${p.talla})</small></td>
+                <td><small>${p.lote}</small></td>
+                <td><b style="color:var(--brand-orange)">${p.cantidad}</b> pz</td>
+                <td><b>${p.prestatario}</b></td>
+                <td><small>${p.responsable}</small></td>
+                <td><small>${p.fechaSalida}</small></td>
+                <td><button class="btn btn-green" style="padding:6px 12px; font-size:11px;" onclick="retornarPrestamo('${p.idPrestamo}', '${p.modelo}', '${p.color}', '${p.talla}', '${p.lote}', ${p.cantidad})">📥 Retornar a Kardex</button></td>
+            </tr>`;
+        });
+    }
+
+    // MODALES Y LÓGICAS
     function abrirModal(tipo){
         document.getElementById('modal-title').innerText = `Registrar ${tipo}`;
-        document.getElementById('md-tipo').value = tipo;
+        
+        if(tipo === 'Ajuste') {
+            document.getElementById('div-tipo-input').style.display = 'none';
+            document.getElementById('div-tipo-select').style.display = 'block';
+        } else {
+            document.getElementById('div-tipo-input').style.display = 'block';
+            document.getElementById('div-tipo-select').style.display = 'none';
+            document.getElementById('md-tipo-texto').value = tipo;
+        }
+
+        document.getElementById('lbl-referencia').innerText = "Referencia / Motivo";
         ['md-modelo','md-color','md-talla','md-lote','md-cantidad','md-referencia'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).disabled = false; });
         if(localStorage.getItem('almacen_resp')) document.getElementById('md-responsable').value = localStorage.getItem('almacen_resp');
+        
         const m = document.getElementById('modalSAP'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
@@ -227,23 +324,83 @@
         document.getElementById('md-modelo').value = m; document.getElementById('md-color').value = c;
         document.getElementById('md-talla').value = t; document.getElementById('md-lote').value = l;
         ['md-modelo','md-color','md-talla','md-lote'].forEach(id => document.getElementById(id).disabled = true);
-        document.getElementById('modal-title').innerHTML = `Registrar Salida <br><small style="color:var(--brand-orange)">Stock: ${max} pz</small>`;
+        document.getElementById('modal-title').innerHTML = `Registrar Salida <br><small style="color:var(--brand-orange)">Stock Disp: ${max} pz</small>`;
+        document.getElementById('md-cantidad').max = max;
     }
 
-    function abrirModalAjuste(m, c, t, l){ abrirModalSalida(m, c, t, l, '---'); document.getElementById('md-tipo').value = "Ajuste Negativo"; document.getElementById('modal-title').innerHTML = `Ajuste de Inventario`; }
+    function abrirModalPrestamo(m, c, t, l, max){
+        abrirModalSalida(m, c, t, l, max);
+        document.getElementById('md-tipo-texto').value = "Préstamo";
+        document.getElementById('modal-title').innerHTML = `🤝 Registrar Préstamo <br><small style="color:var(--brand-orange)">Stock Disp: ${max} pz</small>`;
+        document.getElementById('lbl-referencia').innerText = "Nombre de a quién se le presta";
+        document.getElementById('md-referencia').placeholder = "Ej: Vendedor Juan / Cliente Expo";
+    }
+
+    function abrirModalAjuste(m, c, t, l){ 
+        abrirModalSalida(m, c, t, l, '---'); 
+        document.getElementById('div-tipo-input').style.display = 'none';
+        document.getElementById('div-tipo-select').style.display = 'block';
+        document.getElementById('modal-title').innerHTML = `⚖️ Ajuste de Inventario`; 
+    }
 
     function cerrarModal(id){
         const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display = 'none', 300);
     }
 
-    async function procesarMovimiento(){
+    // RETORNAR PRESTAMO (Hace la funcion automatica)
+    async function retornarPrestamo(idPrestamo, modelo, color, talla, lote, cantidad) {
+        if(!confirm(`¿Confirmas que recibiste físicamente las ${cantidad} piezas de ${modelo}? Volverán al Lote ${lote}.`)) return;
+        
         const data = {
-            tipo: document.getElementById('md-tipo').value, modelo: document.getElementById('md-modelo').value.toUpperCase(),
+            tipo: "Retorno de Préstamo", modelo: modelo, color: color, talla: talla, lote: lote,
+            cantidad: cantidad, referencia: idPrestamo, responsable: localStorage.getItem('almacen_resp') || "Sistema"
+        };
+        
+        try {
+            const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            if(res.ok) { showToast("Préstamo retornado al stock con éxito"); cargarKardex(); cargarPrestamos(); cargarHistorial(); }
+        } catch(e) {}
+    }
+
+    // HISTORIAL 1 a 1
+    async function verHistorialIndividual(llaveObj) {
+        document.getElementById('hist-item-title').innerText = llaveObj.replace(/_/g, " - ");
+        const lista = document.getElementById('lista-historial-1a1'); lista.innerHTML = "Buscando en SAP Log...";
+        const m = document.getElementById('modalHistorialItem'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+        
+        try {
+            const res = await fetch(`/api/historial-almacen?llave=${encodeURIComponent(llaveObj)}`);
+            const data = await res.json();
+            lista.innerHTML = "";
+            if(data.length === 0) return lista.innerHTML = "No hay movimientos registrados para este producto.";
+            
+            data.forEach(d => {
+                let color = d.tipo.includes('Entrada')?'#28A745':(d.tipo.includes('Salida')?'#FF3B30':'#FF8C00');
+                lista.innerHTML += `
+                <div class="hist-item">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <b>${d.folio}</b> <span><small>${d.fecha}</small></span>
+                    </div>
+                    <div><span style="color:${color}; font-weight:800">${d.tipo}</span> • <b style="font-size:15px">${d.cantidad} pz</b> del lote ${d.lote}</div>
+                    <div style="margin-top:5px; color:var(--text-muted)"><small>Ref: ${d.referencia} | Resp: ${d.responsable}</small></div>
+                </div>`;
+            });
+        } catch(e) { lista.innerHTML = "Error cargando historial."; }
+    }
+
+    async function procesarMovimiento(){
+        let tipoElegido = document.getElementById('md-tipo-texto').value;
+        if(document.getElementById('div-tipo-select').style.display === 'block'){
+            tipoElegido = document.getElementById('md-tipo-select').value;
+        }
+
+        const data = {
+            tipo: tipoElegido, modelo: document.getElementById('md-modelo').value.toUpperCase(),
             color: document.getElementById('md-color').value.toUpperCase(), talla: document.getElementById('md-talla').value.toUpperCase(),
             lote: document.getElementById('md-lote').value.trim().toUpperCase(), cantidad: document.getElementById('md-cantidad').value,
             referencia: document.getElementById('md-referencia').value, responsable: document.getElementById('md-responsable').value
         };
-        if(!data.modelo || !data.lote || !data.cantidad || !data.referencia || !data.responsable) return showToast("Faltan datos", "danger");
+        if(!data.modelo || !data.lote || !data.cantidad || !data.referencia || !data.responsable) return showToast("Faltan datos obligatorios", "danger");
 
         const btn = document.getElementById('btn-save-modal'); btn.innerHTML = "Procesando..."; btn.disabled = true;
         try {
@@ -252,7 +409,7 @@
             if(res.ok) {
                 localStorage.setItem('almacen_resp', data.responsable);
                 confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-                showToast(`Folio: ${result.folio}`); cerrarModal('modalSAP'); cargarKardex(); cargarHistorial();
+                showToast(`Folio: ${result.folio}`); cerrarModal('modalSAP'); cargarKardex(); cargarHistorial(); cargarPrestamos();
             } else showToast(result.error, "danger");
         } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar"; btn.disabled = false; }
     }
@@ -283,16 +440,12 @@
 
             const btn = document.getElementById('btn-save-masivo'); btn.innerHTML = "⚡ Subiendo..."; btn.disabled = true;
             try {
-                const res = await fetch('/api/movimiento-masivo', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ tipo, loteGlobal, referenciaGlobal, responsable, items })
-                });
+                const res = await fetch('/api/movimiento-masivo', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ tipo, loteGlobal, referenciaGlobal, responsable, items }) });
                 const result = await res.json();
                 if(res.ok) {
                     localStorage.setItem('almacen_resp', responsable);
                     confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } });
-                    showToast(`Éxito! Folio ${result.folio}. Se procesaron ${result.procesados} registros.`);
-                    if(result.errores && result.errores.length > 0) alert("Algunos fallaron por falta de stock:\n" + result.errores.join("\n"));
+                    showToast(`Éxito! Folio ${result.folio}. Registros: ${result.procesados}.`);
                     cerrarModal('modalMasivo'); cargarKardex(); cargarHistorial();
                 } else showToast(result.error, "danger");
             } catch(e) { showToast("Error de conexión", "danger"); } finally { btn.innerHTML = "⚡ Procesar Excel"; btn.disabled = false; }
@@ -300,7 +453,20 @@
         reader.readAsArrayBuffer(file);
     }
 
-    cargarKardex(); cargarHistorial();
+    // EXPORTAR KARDEX A EXCEL
+    function descargarStockExcel() {
+        if(rawKardexData.length === 0) return showToast("No hay datos para exportar", "warning");
+        const exportData = rawKardexData.map(i => ({
+            'Modelo': i.modelo, 'Color': i.color, 'Talla': i.talla, 'Lote': i.lote,
+            'Piezas en Stock': i.cantidad, 'Último Movimiento': i.ultimaActualizacion
+        }));
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Kardex Activo");
+        XLSX.writeFile(wb, `Reporte_Global_Stock_${new Date().toLocaleDateString('es-MX').replace(/\//g,'-')}.xlsx`);
+    }
+
+    cargarKardex(); cargarPrestamos(); cargarHistorial();
 </script>
 </body>
 </html>

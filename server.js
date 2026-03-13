@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 4.5 (Ecosistema SAP + Carga Masiva)
+// server.js - Versión 5.0 (Ecosistema SAP + Préstamos + Historial Individual)
 // ==========================================
 
 const express = require('express');
@@ -29,6 +29,7 @@ async function inicializarContadores() {
     try {
         if (!await Counter.findById('inventario_id')) await new Counter({ _id: 'inventario_id', secuencia: 0 }).save();
         if (!await Counter.findById('movimiento_id')) await new Counter({ _id: 'movimiento_id', secuencia: 0 }).save();
+        if (!await Counter.findById('prestamo_id')) await new Counter({ _id: 'prestamo_id', secuencia: 0 }).save();
     } catch (e) {}
 }
 inicializarContadores();
@@ -49,7 +50,7 @@ const CiclicoSchema = new mongoose.Schema({
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 
 // ==========================================
-// 3. MODELOS DE ALMACÉN (KARDEX SAP)
+// 3. MODELOS DE ALMACÉN (KARDEX, MOVIMIENTOS Y PRÉSTAMOS)
 // ==========================================
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
@@ -64,44 +65,45 @@ const MovimientoSchema = new mongoose.Schema({
 });
 const Movimiento = mongoose.model('Movimiento', MovimientoSchema);
 
+const PrestamoSchema = new mongoose.Schema({
+    idPrestamo: String, llave: String, modelo: String, color: String, talla: String,
+    lote: String, cantidad: Number, prestatario: String, responsable: String,
+    fechaSalida: String, estatus: { type: String, default: "Activo" } 
+});
+const Prestamo = mongoose.model('Prestamo', PrestamoSchema);
+
 // ==========================================
 // ENDPOINTS DE INVENTARIO CÍCLICO
 // ==========================================
 app.post('/api/teorico', async (req, res) => {
     try {
-        const teoricoData = req.body;
-        await Teorico.findOneAndUpdate({ _id: 'teorico_maestro' }, { datos: teoricoData }, { upsert: true, new: true });
-        res.json({ success: true, conteo: Object.keys(teoricoData).length });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+        await Teorico.findOneAndUpdate({ _id: 'teorico_maestro' }, { datos: req.body }, { upsert: true, new: true });
+        res.json({ success: true, conteo: Object.keys(req.body).length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/ciclicos', async (req, res) => {
-    try { res.json(await Ciclico.find().sort({ _id: -1 })); } catch (error) { res.status(500).json({ error: error.message }); }
+    try { res.json(await Ciclico.find().sort({ _id: -1 })); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/crear-ciclico', async (req, res) => {
     try {
         const { modelo, color, tallasRaw } = req.body;
-        const hoy = new Date();
-        const fechaMty = hoy.toLocaleDateString('es-MX', { timeZone: 'America/Monterrey', day: '2-digit', month: '2-digit', year: 'numeric' });
+        const fechaMty = new Date().toLocaleDateString('es-MX', { timeZone: 'America/Monterrey', day: '2-digit', month: '2-digit', year: 'numeric' });
         const counter = await Counter.findByIdAndUpdate('inventario_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
         const idLargo = '#' + counter.secuencia.toString().padStart(8, '0');
         let docTeorico = await Teorico.findById('teorico_maestro');
         let mapaTeorico = docTeorico ? docTeorico.datos : new Map();
         const listaTallasStr = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
-        const listaTallasConTeorico = listaTallasStr.map(talla => {
-            const llaveBusqueda = `${modelo.trim()}_${color.trim()}_${talla}`;
-            return { talla: talla, teorico: mapaTeorico.get(llaveBusqueda) || 0 };
-        });
+        const listaTallasConTeorico = listaTallasStr.map(t => ({ talla: t, teorico: mapaTeorico.get(`${modelo.trim()}_${color.trim()}_${t}`) || 0 }));
         const nuevoRegistro = new Ciclico({ id: idLargo, modelo, color, tallas: listaTallasConTeorico, totalTallas: listaTallasConTeorico.length || 1, fecha: fechaMty });
         await nuevoRegistro.save(); res.json(nuevoRegistro);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/liberar-inventario', async (req, res) => {
     try { await Ciclico.findOneAndUpdate({ id: req.body.id }, { estatus: "Pendiente", asignadoA: null, progreso: 0, conteoActual: 0, resultados: [], horaInicio: null, horaFin: null }); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.post('/api/actualizar-progreso', async (req, res) => {
     try {
         const { id, progreso, conteoActual, resultados, horaFin, estatus } = req.body;
@@ -110,31 +112,36 @@ app.post('/api/actualizar-progreso', async (req, res) => {
         await Ciclico.findOneAndUpdate({ id: id }, up); res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.post('/api/asignar-operador', async (req, res) => {
     try { await Ciclico.findOneAndUpdate({ id: req.body.id }, { asignadoA: req.body.operador, estatus: "En Proceso", horaInicio: req.body.horaInicio }); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.delete('/api/eliminar-ciclico/:id', async (req, res) => {
     try { await Ciclico.findOneAndDelete({ id: req.params.id }); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.delete('/api/eliminar-todos-finalizados', async (req, res) => {
     try { const r = await Ciclico.deleteMany({ estatus: "Finalizado" }); res.json({ success: true, conteo: r.deletedCount }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==========================================
-// ENDPOINTS DE ALMACÉN (KARDEX Y MOVIMIENTOS)
+// ENDPOINTS DE ALMACÉN
 // ==========================================
 app.get('/api/kardex', async (req, res) => {
-    try { res.json(await Kardex.find().sort({ llave: 1, lote: 1 })); } catch (error) { res.status(500).json({ error: error.message }); }
+    try { res.json(await Kardex.find().sort({ llave: 1, lote: 1 })); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/historial-almacen', async (req, res) => {
-    try { res.json(await Movimiento.find().sort({ timestamp: -1 }).limit(1000)); } catch (error) { res.status(500).json({ error: error.message }); }
+    try {
+        // Filtrado inteligente: si mandan "llave", trae solo la historia de ese producto
+        const filtro = req.query.llave ? { llave: req.query.llave } : {};
+        res.json(await Movimiento.find(filtro).sort({ timestamp: -1 }).limit(1000));
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Movimiento Individual
+app.get('/api/prestamos', async (req, res) => {
+    try { res.json(await Prestamo.find({ estatus: "Activo" }).sort({ _id: -1 })); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Movimiento Individual General (Incluye Préstamos y Ajustes +/-)
 app.post('/api/movimiento', async (req, res) => {
     try {
         const { tipo, modelo, color, talla, lote, cantidad, referencia, responsable } = req.body;
@@ -142,24 +149,37 @@ app.post('/api/movimiento', async (req, res) => {
         const cantFloat = parseFloat(cantidad);
         if (cantFloat <= 0) return res.status(400).json({ error: "Cantidad inválida." });
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
-        const counter = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
-        const folioMov = 'MOV-' + counter.secuencia.toString().padStart(6, '0');
+        
+        const counterMov = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
+        const folioMov = 'MOV-' + counterMov.secuencia.toString().padStart(6, '0');
 
         let kardexItem = await Kardex.findOne({ llave, lote });
         let docTeorico = await Teorico.findById('teorico_maestro');
         if (!docTeorico) { docTeorico = new Teorico({ _id: 'teorico_maestro', datos: {} }); }
         let actualTeorico = docTeorico.datos.get(llave) || 0;
 
-        if (tipo === 'Entrada' || tipo === 'Devolución' || tipo === 'Ajuste Positivo') {
+        // LÓGICA DE KARDEX Y TEÓRICO
+        if (tipo === 'Entrada' || tipo === 'Devolución' || tipo === 'Ajuste Positivo' || tipo === 'Retorno de Préstamo') {
             if (kardexItem) { kardexItem.cantidad += cantFloat; kardexItem.ultimaActualizacion = fechaMty; await kardexItem.save(); } 
             else { await new Kardex({ llave, modelo, color, talla, lote, cantidad: cantFloat, ultimaActualizacion: fechaMty }).save(); }
             docTeorico.datos.set(llave, actualTeorico + cantFloat);
-        } else if (tipo === 'Salida' || tipo === 'Ajuste Negativo') {
+        } else if (tipo === 'Salida' || tipo === 'Ajuste Negativo' || tipo === 'Préstamo') {
             if (!kardexItem || kardexItem.cantidad < cantFloat) return res.status(400).json({ error: "Stock insuficiente en el lote." });
             kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
             if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); else await kardexItem.save();
             let nuevoTeorico = actualTeorico - cantFloat; docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
         }
+
+        // LÓGICA ESPECIAL PARA PRÉSTAMOS
+        if (tipo === 'Préstamo') {
+            const counterPres = await Counter.findByIdAndUpdate('prestamo_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
+            const idPres = 'PRES-' + counterPres.secuencia.toString().padStart(5, '0');
+            await new Prestamo({ idPrestamo: idPres, llave, modelo, color, talla, lote, cantidad: cantFloat, prestatario: referencia, responsable, fechaSalida: fechaMty }).save();
+        } else if (tipo === 'Retorno de Préstamo') {
+            // "referencia" trae el idPrestamo en este caso
+            await Prestamo.findOneAndUpdate({ idPrestamo: referencia }, { estatus: "Devuelto" });
+        }
+
         await new Movimiento({ folio: folioMov, tipo, llave, modelo, color, talla, lote, cantidad: cantFloat, referencia, responsable, fecha: fechaMty }).save();
         await docTeorico.save();
         res.json({ success: true, folio: folioMov });
@@ -173,7 +193,6 @@ app.post('/api/movimiento-masivo', async (req, res) => {
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
         const counter = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
         const folioMov = 'MOV-' + counter.secuencia.toString().padStart(6, '0');
-
         let docTeorico = await Teorico.findById('teorico_maestro');
         if (!docTeorico) { docTeorico = new Teorico({ _id: 'teorico_maestro', datos: {} }); }
 
