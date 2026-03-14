@@ -41,7 +41,7 @@
         .btn-green { background: var(--success); }
         .btn-orange { background: var(--brand-orange); }
         .btn-navy { background: var(--brand-navy); }
-        .btn-outline { background: #F2F2F7; color: var(--text-main); }
+        .btn-outline { background: #F2F2F7; color: var(--text-main); border: 1px solid #E5E5EA; }
         .btn-purple { background: #5E5CE6; }
         .btn-black { background: #1C1C1E; }
         
@@ -49,7 +49,7 @@
         .search-box:focus { border-color: var(--brand-navy); background: white; }
 
         table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; }
-        th { background: white; color: var(--text-muted); text-align: left; padding: 15px; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid #E5E5EA; }
+        th { background: white; color: var(--text-muted); text-align: left; padding: 15px; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid #E5E5EA; position: sticky; top: 0; z-index: 10;}
         td { padding: 15px; border-bottom: 1px solid #F2F2F7; font-size: 14px; font-weight: 600; color: var(--brand-navy); }
         tbody tr:hover td { background: #F9F9FB; }
         
@@ -205,31 +205,56 @@
 </div>
 
 <div class="modal-overlay" id="modalMasivo">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width: 700px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin:0;">🚀 Carga Masiva (Excel/CSV)</h2>
-            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalMasivo')">❌</button>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cancelarPrevisualizacion()">❌</button>
         </div>
-        <div class="form-grid">
-            <div class="form-group full"><label>Archivo Excel/CSV (Columnas: MODELO, COLOR, TALLA, CANTIDAD)</label><input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv"></div>
-            <div class="form-group full">
-                <label>Tipo de Operación</label>
-                <select id="mas-tipo" class="input-sap">
-                    <option value="Entrada Inicial">📥 Entrada Inicial (Base KARDEX)</option>
-                    <option value="Entrada Masiva">📥 Entrada Masiva (Proveedores)</option>
-                    <option value="Salida Masiva">📤 Salida Masiva (Envíos)</option>
-                </select>
+        
+        <div id="form-masivo-inputs">
+            <div class="form-grid">
+                <div class="form-group full"><label>Archivo Excel/CSV (Columnas: MODELO, COLOR, TALLA, CANTIDAD)</label><input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv"></div>
+                <div class="form-group full">
+                    <label>Tipo de Operación</label>
+                    <select id="mas-tipo" class="input-sap">
+                        <option value="Entrada Inicial">📥 Entrada Inicial (Base KARDEX)</option>
+                        <option value="Entrada Masiva">📥 Entrada Masiva (Proveedores)</option>
+                        <option value="Salida Masiva">📤 Salida Masiva (Envíos)</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Lote Global Aplicado</label><input type="text" id="mas-lote" class="input-sap" placeholder="Ej: INVENTARIO-BASE"></div>
+                <div class="form-group"><label>Responsable</label><input type="text" id="mas-responsable" class="input-sap"></div>
+                <div class="form-group full"><label>Referencia Global</label><input type="text" id="mas-referencia" class="input-sap" placeholder="Ej: Carga inicial de sistema"></div>
             </div>
-            <div class="form-group"><label>Lote Global Aplicado</label><input type="text" id="mas-lote" class="input-sap" placeholder="Ej: INVENTARIO-BASE"></div>
-            <div class="form-group"><label>Responsable</label><input type="text" id="mas-responsable" class="input-sap"></div>
-            <div class="form-group full"><label>Referencia Global</label><input type="text" id="mas-referencia" class="input-sap" placeholder="Ej: Carga inicial de sistema"></div>
         </div>
-        <button class="btn btn-purple" style="width: 100%; padding: 18px; font-size: 16px;" onclick="procesarExcelMasivo()" id="btn-save-masivo">⚡ Procesar Excel</button>
+
+        <div id="preview-masivo-container" style="display: none;">
+            <div style="background: #E8F2FF; border-left: 5px solid #007AFF; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0; color: #001A33; display: flex; align-items: center; gap: 10px;">
+                    👁️ Vista Previa del Excel 
+                    <span id="lbl-preview-total" style="font-size: 13px; font-weight: 600; color: #007AFF;"></span>
+                </h4>
+            </div>
+            <div style="max-height: 250px; overflow-y: auto; border: 1px solid #E5E5EA; border-radius: 12px; margin-bottom: 20px;">
+                <table id="tabla-preview-masivo">
+                    <thead><tr><th>Producto Final</th><th>Color</th><th>Talla</th><th>Cant.</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <button class="btn btn-purple" style="width: 100%; padding: 18px; font-size: 16px; margin-bottom: 10px;" onclick="previsualizarExcelMasivo()" id="btn-preview-masivo">👁️ Leer y Previsualizar Archivo</button>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-outline" style="flex: 1; padding: 16px; display: none;" onclick="cancelarPrevisualizacion()" id="btn-cancel-masivo">❌ Cancelar / Cambiar Archivo</button>
+            <button class="btn btn-green" style="flex: 2; padding: 16px; display: none;" onclick="confirmarExcelMasivo()" id="btn-save-masivo">💾 Confirmar y Ejecutar Movimientos</button>
+        </div>
     </div>
 </div>
 
 <script>
     let rawKardexData = []; 
+    let datosMasivosGlobales = null; // Almacenará los datos validados del Excel
 
     function showToast(msj, tipo='success'){
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
@@ -303,15 +328,6 @@
         const m = document.getElementById('modalSAP'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
-    function abrirModalMasivo(){
-        if(localStorage.getItem('almacen_resp')) document.getElementById('mas-responsable').value = localStorage.getItem('almacen_resp');
-        const m = document.getElementById('modalMasivo'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
-    }
-
-    function abrirModalAuditoria() {
-        const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
-    }
-
     function abrirModalSalida(m, c, t, l, max){
         abrirModal('Salida'); document.getElementById('md-modelo').value = m; document.getElementById('md-color').value = c; document.getElementById('md-talla').value = t; document.getElementById('md-lote').value = l;
         ['md-modelo','md-color','md-talla','md-lote'].forEach(id => document.getElementById(id).disabled = true);
@@ -332,6 +348,7 @@
 
     function cerrarModal(id){
         const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display = 'none', 300);
+        if(id === 'modalMasivo') cancelarPrevisualizacion(); // Resetear UI al cerrar
     }
 
     async function retornarPrestamo(idPrestamo, modelo, color, talla, lote, cantidad) {
@@ -366,23 +383,147 @@
         } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar"; btn.disabled = false; }
     }
 
-    function procesarExcelMasivo(){
-        const file = document.getElementById('file-masivo').files[0]; const tipo = document.getElementById('mas-tipo').value; const loteGlobal = document.getElementById('mas-lote').value.trim().toUpperCase(); const referenciaGlobal = document.getElementById('mas-referencia').value.trim(); const responsable = document.getElementById('mas-responsable').value.trim();
-        if(!file || !loteGlobal || !referenciaGlobal || !responsable) return showToast("Llena todos los campos", "warning");
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            let items = []; rows.forEach(r => { if(r.MODELO && r.COLOR && r.TALLA && r.CANTIDAD) items.push({ modelo: String(r.MODELO), color: String(r.COLOR), talla: String(r.TALLA), cantidad: parseFloat(r.CANTIDAD) }); });
-            if(items.length === 0) return showToast("El Excel no tiene las columnas requeridas", "danger");
-            const btn = document.getElementById('btn-save-masivo'); btn.innerHTML = "⚡ Subiendo..."; btn.disabled = true;
-            try {
-                const res = await fetch('/api/movimiento-masivo', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ tipo, loteGlobal, referenciaGlobal, responsable, items }) }); const result = await res.json();
-                if(res.ok) { localStorage.setItem('almacen_resp', responsable); confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } }); showToast(`Éxito! Procesados: ${result.procesados}.`); cerrarModal('modalMasivo'); cargarKardex(); cargarHistorial(); } else showToast(result.error, "danger");
-            } catch(e) { showToast("Error", "danger"); } finally { btn.innerHTML = "⚡ Procesar Excel"; btn.disabled = false; }
-        }; reader.readAsArrayBuffer(file);
+
+    // ==========================================
+    // LÓGICA DE PREVISUALIZACIÓN MASIVA
+    // ==========================================
+    function abrirModalMasivo(){
+        if(localStorage.getItem('almacen_resp')) document.getElementById('mas-responsable').value = localStorage.getItem('almacen_resp');
+        cancelarPrevisualizacion(); // Resetear siempre al abrir
+        const m = document.getElementById('modalMasivo'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
+    function cancelarPrevisualizacion() {
+        datosMasivosGlobales = null;
+        document.getElementById('form-masivo-inputs').style.display = 'block';
+        document.getElementById('preview-masivo-container').style.display = 'none';
+        document.getElementById('btn-preview-masivo').style.display = 'block';
+        document.getElementById('btn-save-masivo').style.display = 'none';
+        document.getElementById('btn-cancel-masivo').style.display = 'none';
+        document.getElementById('file-masivo').value = '';
+    }
+
+    function previsualizarExcelMasivo(){
+        const file = document.getElementById('file-masivo').files[0]; 
+        const tipo = document.getElementById('mas-tipo').value; 
+        const loteGlobal = document.getElementById('mas-lote').value.trim().toUpperCase(); 
+        const referenciaGlobal = document.getElementById('mas-referencia').value.trim(); 
+        const responsable = document.getElementById('mas-responsable').value.trim();
+
+        if(!file || !loteGlobal || !referenciaGlobal || !responsable) return showToast("Por favor llena todos los campos.", "warning");
+
+        const btn = document.getElementById('btn-preview-masivo');
+        btn.innerHTML = "⌛ Leyendo Archivo..."; btn.disabled = true;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result); 
+                const workbook = XLSX.read(data, { type: 'array' }); 
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                let items = []; 
+                let totalPiezas = 0;
+
+                rows.forEach(r => { 
+                    let modRaw = r.MODELO || r.Modelo;
+                    let colRaw = r.COLOR || r.Color;
+                    let talRaw = r.TALLA || r.Talla;
+                    let cantRaw = r.CANTIDAD || r.Cantidad;
+                    let tipoRaw = r.TIPO || r.Tipo || r.tipo;
+
+                    if(modRaw && colRaw && talRaw && cantRaw) {
+                        let modeloFinal = String(modRaw).trim().toUpperCase();
+                        let tipoVal = tipoRaw ? String(tipoRaw).trim().toUpperCase() : "";
+                        
+                        // Lógica inteligente: Si es BLAZER o diferente a TRAJE, se pega al modelo
+                        if(tipoVal && tipoVal !== "TRAJE" && tipoVal !== "TRAJES") {
+                            modeloFinal = modeloFinal + " " + tipoVal;
+                        }
+
+                        // Lógica: Quitar espacios en tallas
+                        let tallaFinal = String(talRaw).replace(/\s+/g, '').toUpperCase();
+                        let cantidad = parseFloat(cantRaw);
+
+                        if(!isNaN(cantidad) && cantidad > 0) {
+                            items.push({ modelo: modeloFinal, color: String(colRaw).trim().toUpperCase(), talla: tallaFinal, cantidad: cantidad });
+                            totalPiezas += cantidad;
+                        }
+                    } 
+                });
+
+                if(items.length === 0) {
+                    btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
+                    return showToast("El Excel no tiene las columnas requeridas (MODELO, COLOR, TALLA, CANTIDAD)", "danger");
+                }
+
+                // Guardar los datos en la variable global para cuando le den confirmar
+                datosMasivosGlobales = { tipo, loteGlobal, referenciaGlobal, responsable, items };
+
+                // Pintar la tabla de previsualización
+                const tbody = document.querySelector('#tabla-preview-masivo tbody');
+                tbody.innerHTML = '';
+                items.forEach(item => {
+                    tbody.innerHTML += `<tr><td><b>${item.modelo}</b></td><td><small>${item.color}</small></td><td><b>${item.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${item.cantidad}</span></td></tr>`;
+                });
+
+                document.getElementById('lbl-preview-total').innerText = `(${items.length} Filas | ${totalPiezas} Piezas Total)`;
+
+                // Ocultar formulario, mostrar tabla y botones nuevos
+                document.getElementById('form-masivo-inputs').style.display = 'none';
+                document.getElementById('btn-preview-masivo').style.display = 'none';
+                document.getElementById('preview-masivo-container').style.display = 'block';
+                document.getElementById('btn-save-masivo').style.display = 'block';
+                document.getElementById('btn-cancel-masivo').style.display = 'block';
+
+            } catch(error) {
+                showToast("Error al leer el archivo Excel.", "danger");
+            } finally {
+                btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
+            }
+        }; 
+        reader.readAsArrayBuffer(file);
+    }
+
+    async function confirmarExcelMasivo() {
+        if(!datosMasivosGlobales) return showToast("No hay datos cargados.", "danger");
+
+        const btn = document.getElementById('btn-save-masivo'); 
+        btn.innerHTML = "⚡ Procesando y Guardando..."; btn.disabled = true;
+        document.getElementById('btn-cancel-masivo').disabled = true;
+
+        try {
+            const res = await fetch('/api/movimiento-masivo', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(datosMasivosGlobales) 
+            }); 
+            const result = await res.json();
+            
+            if(res.ok) { 
+                localStorage.setItem('almacen_resp', datosMasivosGlobales.responsable); 
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } }); 
+                showToast(`¡Movimiento Exitoso! Folio: ${result.folio}. Registros procesados: ${result.procesados}.`); 
+                if(result.errores && result.errores.length > 0) alert("Algunos registros fallaron (Sin Stock):\n" + result.errores.join("\n"));
+                cerrarModal('modalMasivo'); 
+                cargarKardex(); cargarHistorial(); 
+            } else {
+                showToast(result.error || "Error al procesar", "danger");
+            }
+        } catch(e) { 
+            showToast("Error de conexión con el servidor", "danger"); 
+        } finally { 
+            btn.innerHTML = "💾 Confirmar y Ejecutar Movimientos"; btn.disabled = false; 
+            document.getElementById('btn-cancel-masivo').disabled = false;
+        }
+    }
+
+
     // === LÓGICA DE AUDITORÍA (MATCH FÍSICO VS SISTEMA) ===
+    function abrirModalAuditoria() {
+        const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+    }
+
     function generarMatchAuditoria() {
         const fileInput = document.getElementById('file-auditoria');
         if(!fileInput.files[0]) return showToast("Debes subir tu archivo físico", "warning");
@@ -397,7 +538,6 @@
                 const workbook = XLSX.read(data, {type: 'array'});
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-                // 1. Agrupar conteo físico (por Modelo_Color_Talla)
                 let fisicoMap = {};
                 rows.forEach(r => {
                     let mod = String(r.MODELO || '').trim().toUpperCase();
@@ -410,14 +550,12 @@
                     }
                 });
 
-                // 2. Agrupar conteo del Sistema Teórico (rawKardexData ya cargado)
                 let teoricoMap = {};
                 rawKardexData.forEach(item => {
                     let key = `${String(item.modelo).trim().toUpperCase()}_${String(item.color).trim().toUpperCase()}_${String(item.talla).trim().toUpperCase()}`;
                     teoricoMap[key] = (teoricoMap[key] || 0) + parseFloat(item.cantidad);
                 });
 
-                // 3. Cruzar ambos mapas
                 let keys = new Set([...Object.keys(fisicoMap), ...Object.keys(teoricoMap)]);
                 let reporte = [];
 
@@ -442,10 +580,8 @@
                     });
                 });
 
-                // Ordenar: Mostrar primero los descuadres más graves
                 reporte.sort((a, b) => Math.abs(b.Diferencia) - Math.abs(a.Diferencia));
 
-                // Descargar Excel
                 const ws = XLSX.utils.json_to_sheet(reporte);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Auditoria Match");
