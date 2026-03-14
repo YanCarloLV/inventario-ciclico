@@ -344,6 +344,25 @@
 </div>
 
 <script>
+    // ==============================================================
+    // FIX: CREACIÓN DEL OBJETO FAKELOADER
+    // ==============================================================
+    const fakeLoader = {
+        show: function(msgText, statusText) {
+            this.msg.innerText = msgText || "Procesando...";
+            this.status.innerText = statusText || "Sincronizando...";
+            this.perc.innerText = "0%";
+            document.getElementById('fake-loader-overlay').classList.add('show');
+            setTimeout(() => document.getElementById('fake-loader-overlay').classList.add('animating'), 20);
+        },
+        hide: function() {
+            document.getElementById('fake-loader-overlay').classList.remove('show', 'animating');
+        },
+        get msg() { return document.getElementById('fake-loader-msg'); },
+        get perc() { return document.getElementById('fake-loader-perc'); },
+        get status() { return document.getElementById('fake-loader-status'); }
+    };
+
     let miNombre = localStorage.getItem('operador_nombre');
     
     // Variables Inventario
@@ -394,7 +413,7 @@
             renderListaDisponibles(datosInv);
 
             // Cargar Pedidos WMS
-            const resPed = await fetch('/api/pedidos'); // Este endpoint lo crearemos en server.js
+            const resPed = await fetch('/api/pedidos');
             if(resPed.ok) {
                 const datosPed = await resPed.json();
                 renderListaPedidos(datosPed);
@@ -403,7 +422,7 @@
     }
 
     // ==============================================================
-    // MODULO 1: INVENTARIOS CÍCLICOS (Intacto)
+    // MODULO 1: INVENTARIOS CÍCLICOS
     // ==============================================================
     function renderListaDisponibles(datos) {
         const contenedor = document.getElementById('lista-pendientes');
@@ -563,13 +582,11 @@
     }
 
     async function apartarPedido(ped) {
-        // Lógica para asignar en DB
         const res = await fetch('/api/asignar-pedido', { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ folio: ped.folio, operador: miNombre }) 
         });
         if(res.ok) {
-            // Refrescar info del pedido desde BD para tener items actualizados
             const res2 = await fetch('/api/pedidos'); const todos = await res2.json();
             pedidoActivo = todos.find(p => p.folio === ped.folio);
             abrirPicking(pedidoActivo);
@@ -579,7 +596,7 @@
     function abrirPicking(ped) {
         document.getElementById('listado-screen').style.display = 'none'; 
         document.getElementById('picking-screen').style.display = 'block';
-        document.body.style.backgroundColor = 'var(--bg-pedido)'; // Color temático azul clarito
+        document.body.style.backgroundColor = 'var(--bg-pedido)'; 
 
         document.getElementById('pick-header').innerHTML = `
             <div>
@@ -618,7 +635,6 @@
                 </div>`;
         });
         
-        // Actualizar UI
         const porc = Math.round((piezasSurtidasTotal / pedidoActivo.totalPiezas) * 100);
         document.getElementById('pick-bar-progreso').style.width = porc + "%";
         document.getElementById('pick-texto-progreso').innerText = `Surtido: ${porc}%`;
@@ -634,7 +650,6 @@
         const inputCant = document.getElementById('pick-cant');
         inputCant.value = item.surtido > 0 ? item.surtido : "";
         
-        // Petición Inteligente de Lotes al Kardex
         const selectLote = document.getElementById('pick-lote');
         const hint = document.getElementById('pick-lote-hint');
         selectLote.innerHTML = '<option value="" disabled selected>Buscando en Kardex...</option>';
@@ -683,7 +698,6 @@
         
         const n = parseInt(cantStr); if (isNaN(n) || n < 0) return;
 
-        // Actualizar en el objeto local
         pedidoActivo.items[itemActivoIndex].surtido = n;
         pedidoActivo.items[itemActivoIndex].loteOrigen = loteVal;
 
@@ -691,14 +705,12 @@
         renderItemsPicking();
         enfocarSiguienteTalla(`pick-${itemActivoIndex}`, '#sticky-pick');
 
-        // Guardar avance en servidor para que no se pierda si se apaga el cel
         fetch('/api/actualizar-pedido', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items })
         });
     }
 
-    // Scroll Automático Compartido
     function enfocarSiguienteTalla(idParcial, stickySelector) {
         setTimeout(() => {
             const filaActual = document.getElementById(`fila-${idParcial}`);
@@ -724,7 +736,6 @@
     // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE)
     // ==============================================================
     async function finalizarPedidoWMS() {
-        // Validar si surtió todo
         let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
         if(piezasSurtidasTotal < pedidoActivo.totalPiezas) {
             if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas solicitadas. Lo que falte se quedará como pendiente en la remisión. ¿Continuar y cerrar pedido?`)) return;
@@ -733,7 +744,6 @@
         fakeLoader.show("Generando Remisión PDF...", "Descontando mercancía del Kardex central");
 
         try {
-            // 1. Enviar petición final al servidor (El servidor hará la baja del Kardex)
             const res = await fetch('/api/finalizar-pedido-wms', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items, operador: miNombre })
@@ -741,10 +751,8 @@
 
             if(!res.ok) throw new Error("Error en servidor");
 
-            // 2. Generar el PDF corporativo
             await generarPDFRemision(pedidoActivo);
 
-            // 3. Animación de Éxito
             await new Promise(resolve => setTimeout(resolve, 3000));
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
             fakeLoader.msg.innerText = "¡Surtido Finalizado! 🖨️";
@@ -763,16 +771,14 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'letter');
         
-        // Helper Imagen
         const logoBase64 = await getBase64ImageFromUrl('/logo.png');
         if(logoBase64) {
             doc.addImage(logoBase64, 'PNG', 40, 30, 150, 60);
         }
 
-        // Título y Datos Cabecera
         doc.setFont("helvetica", "bold");
         doc.setFontSize(22);
-        doc.setTextColor(0, 26, 51); // Navy
+        doc.setTextColor(0, 26, 51);
         doc.text("REMISIÓN DE SURTIDO WMS", 300, 55, { align: "center" });
 
         doc.setFontSize(11);
@@ -784,7 +790,6 @@
         doc.text(`Surtido por: ${miNombre} (Almacén Central)`, 40, 100);
         if(pedido.notas) doc.text(`Notas del Supervisor: ${pedido.notas}`, 40, 115);
 
-        // Crear la Tabla
         const tableBody = [];
         let totalSolicitado = 0;
         let totalSurtido = 0;
@@ -807,7 +812,6 @@
             ]);
         });
 
-        // Fila de Totales
         tableBody.push([{ content: 'TOTALES', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, totalSolicitado.toString(), totalSurtido.toString(), '']);
 
         doc.autoTable({
@@ -825,33 +829,29 @@
             didParseCell: function (data) {
                 if(data.section === 'body' && data.column.index === 6) {
                     if(data.cell.raw.includes('Faltan')) {
-                        data.cell.styles.textColor = [255, 59, 48]; // Rojo si falta
+                        data.cell.styles.textColor = [255, 59, 48];
                         data.cell.styles.fontStyle = 'bold';
                     } else if (data.cell.raw === 'Completo') {
-                        data.cell.styles.textColor = [52, 199, 89]; // Verde si completo
+                        data.cell.styles.textColor = [52, 199, 89];
                     }
                 }
             }
         });
 
-        // Zona de Firmas
         const finalY = doc.lastAutoTable.finalY + 80;
         doc.setLineWidth(1);
         doc.setDrawColor(200);
         
-        // Firma Almacén
         doc.line(70, finalY, 250, finalY);
         doc.setFontSize(10);
         doc.setTextColor(50);
         doc.text("ENTREGADO POR ALMACÉN", 160, finalY + 15, { align: "center" });
         doc.text(miNombre, 160, finalY + 30, { align: "center" });
 
-        // Firma Producción
         doc.line(350, finalY, 530, finalY);
         doc.text("RECIBIDO DE CONFORMIDAD", 440, finalY + 15, { align: "center" });
         doc.text("Supervisor de Producción", 440, finalY + 30, { align: "center" });
 
-        // Nota Legal/Sistema
         doc.setFontSize(8);
         doc.setTextColor(150);
         doc.text("Nota: Las cantidades surtidas detalladas en este documento han sido descontadas automáticamente del inventario (KARDEX).", 300, finalY + 70, { align: "center" });
