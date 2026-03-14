@@ -57,9 +57,10 @@
         .tag-in { background: #E5F9E7; color: #28A745; }
         .tag-out { background: #FFEBEB; color: #FF3B30; }
         .tag-loan { background: #FFF4E5; color: #FF8C00; }
+        .tag-adj { background: #E5E5EA; color: #1C1C1E; }
 
         /* =========================================
-           NUEVO: PANEL LATERAL DESLIZABLE (DRILL-DOWN)
+           PANEL LATERAL DESLIZABLE (DRILL-DOWN)
            ========================================= */
         .panel-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.5); z-index: 800; backdrop-filter: blur(4px); opacity: 0; transition: 0.3s; }
         .panel-overlay.show { display: block; opacity: 1; }
@@ -85,10 +86,7 @@
         .action-box { display: none; padding: 20px 30px; background: white; border-top: 1px solid #E5E5EA; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); animation: slideUp 0.3s forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* Modales Z-Index corregido para estar sobre el Panel */
-        .modal-overlay { z-index: 1000; }
-
-        /* Modales Normales */
+        /* Modales Z-Index corregido */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s; }
         .modal-overlay.show { display: flex; opacity: 1; }
         .modal-box { background: white; width: 90%; max-width: 650px; padding: 35px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); transform: translateY(30px); transition: 0.3s; max-height: 90vh; overflow-y: auto; }
@@ -180,10 +178,6 @@
         </div>
         <button class="btn btn-outline" style="padding: 8px 12px;" onclick="cerrarPanel()">❌</button>
     </div>
-    
-    <div style="padding: 15px 30px; background: #F9F9FB; border-bottom: 1px solid #E5E5EA;">
-        <button class="btn btn-navy" style="width: 100%; font-size: 13px;" onclick="verHistorialMaestro()">📜 Ver Historial Completo de este Modelo</button>
-    </div>
 
     <div class="slide-content" id="sp-content">
         </div>
@@ -204,7 +198,10 @@
             <button class="btn btn-orange" onclick="triggerSalida()">📤 Salida</button>
             <button class="btn btn-outline" style="border-color:#FF8C00; color:#FF8C00;" onclick="triggerPrestamo()">🤝 Prestar</button>
         </div>
-        <button class="btn btn-outline" style="width: 100%;" onclick="triggerAjuste()">⚖️ Ajuste de Discrepancia</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn btn-outline" onclick="triggerAjuste()">⚖️ Ajuste</button>
+            <button class="btn btn-navy" onclick="triggerHistorialTalla()">📜 Bitácora Talla</button>
+        </div>
     </div>
 </div>
 
@@ -275,7 +272,7 @@
     <div class="modal-box" style="max-width: 700px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin:0;">🚀 Carga Masiva (Excel/CSV)</h2>
-            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cancelarPrevisualizacion()">❌</button>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalMasivo')">❌</button>
         </div>
         
         <div id="form-masivo-inputs">
@@ -319,9 +316,9 @@
 
 <script>
     let rawKardexData = []; 
-    let kardexAgrupado = {}; // Motor del nuevo Drill-Down
+    let kardexAgrupado = {}; 
     let datosMasivosGlobales = null; 
-    let activeSelection = null; // Guarda lo que seleccionaste en el panel
+    let activeSelection = null; 
 
     function showToast(msj, tipo='success'){
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
@@ -337,7 +334,6 @@
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
     }
 
-    // Buscador adaptado a la Master Table (busca incluso en datos ocultos de tallas)
     function filtrarTablaInteligente(id, texto){
         const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
         document.querySelectorAll(`#${id} tbody tr`).forEach(r => {
@@ -348,38 +344,29 @@
     }
 
     // ==========================================
-    // LÓGICA CORE: AGRUPACIÓN KARDEX (NIVEL 1)
+    // LÓGICA CORE: AGRUPACIÓN KARDEX
     // ==========================================
     async function cargarKardex(){
         const res = await fetch('/api/kardex'); 
         rawKardexData = await res.json();
         kardexAgrupado = {};
 
-        // Agrupar por Modelo + Color
         rawKardexData.forEach(item => {
             const key = `${item.modelo}|${item.color}`;
-            if(!kardexAgrupado[key]) {
-                kardexAgrupado[key] = { modelo: item.modelo, color: item.color, total: 0, lotes: {}, tallasArray: [] };
-            }
+            if(!kardexAgrupado[key]) kardexAgrupado[key] = { modelo: item.modelo, color: item.color, total: 0, lotes: {}, tallasArray: [] };
             kardexAgrupado[key].total += item.cantidad;
             kardexAgrupado[key].tallasArray.push(item.talla);
-
-            if(!kardexAgrupado[key].lotes[item.lote]) {
-                kardexAgrupado[key].lotes[item.lote] = [];
-            }
+            if(!kardexAgrupado[key].lotes[item.lote]) kardexAgrupado[key].lotes[item.lote] = [];
             kardexAgrupado[key].lotes[item.lote].push(item);
         });
 
         const tbody = document.querySelector('#tablaKardex tbody'); 
         tbody.innerHTML = '';
 
-        // Pintar Master Table
         Object.keys(kardexAgrupado).forEach(key => {
             const data = kardexAgrupado[key];
             const cntLotes = Object.keys(data.lotes).length;
             const cntTallasUnicas = [...new Set(data.tallasArray)].length;
-            
-            // Texto oculto para que el buscador encuentre tallas aunque no se vean
             const infoOculta = data.tallasArray.join(' ') + ' ' + Object.keys(data.lotes).join(' ');
 
             tbody.innerHTML += `
@@ -388,34 +375,28 @@
                 <td><b style="color:var(--text-muted);">${data.color}</b></td>
                 <td><span style="font-size: 20px; color: var(--brand-orange); font-weight: 800;">${data.total}</span> pz</td>
                 <td><span class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E">${cntLotes} Lotes</span> <span class="tag tag-adj">${cntTallasUnicas} Tallas</span></td>
-                <td><button class="btn btn-navy" style="padding:8px 15px; font-size:12px;">👁️ Ver Lotes y Tallas</button></td>
+                <td><button class="btn btn-navy" style="padding:8px 15px; font-size:12px;">👁️ Ver Detalles</button></td>
             </tr>`;
         });
     }
 
     // ==========================================
-    // LÓGICA CORE: PANEL DESLIZABLE (NIVEL 2 y 3)
+    // LÓGICA CORE: PANEL DESLIZABLE
     // ==========================================
-    let panelCurrentKey = ""; // Saber qué modelo/color está abierto
-
     function abrirPanelDetalle(key) {
-        panelCurrentKey = key;
         const data = kardexAgrupado[key];
-        
         document.getElementById('sp-modelo').innerText = data.modelo;
         document.getElementById('sp-color').innerText = data.color;
-        document.getElementById('sp-action-box').style.display = 'none'; // Ocultar acciones al inicio
+        document.getElementById('sp-action-box').style.display = 'none'; 
 
         const content = document.getElementById('sp-content');
         content.innerHTML = '';
 
-        // Recorrer los Lotes
         Object.keys(data.lotes).forEach(loteNombre => {
             const itemsLote = data.lotes[loteNombre];
             let totalLote = itemsLote.reduce((sum, i) => sum + i.cantidad, 0);
 
             let htmlPills = '';
-            // Ordenar tallas alfabéticamente para que se vea limpio
             itemsLote.sort((a,b) => a.talla.localeCompare(b.talla)).forEach(item => {
                 const idDiv = `pill_${item.modelo}_${item.color}_${item.talla}_${item.lote}`.replace(/[^a-zA-Z0-9_]/g, '');
                 htmlPills += `
@@ -451,62 +432,26 @@
     }
 
     function seleccionarTallaPanel(idDiv, modelo, color, talla, lote, cantidad) {
-        // Quitar 'active' de todos los pills
         document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-        // Agregar 'active' al seleccionado
         document.getElementById(idDiv).classList.add('active');
-
-        // Guardar selección global
         activeSelection = { modelo, color, talla, lote, cantidad };
 
-        // Mostrar Action Box
         document.getElementById('act-talla').innerText = talla;
         document.getElementById('act-lote').innerText = lote;
         document.getElementById('sp-action-box').style.display = 'block';
     }
 
-    // Funciones que disparan los modales desde el Panel
+    // Funciones Panel
     function triggerSalida() { abrirModalSalida(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote, activeSelection.cantidad); }
     function triggerPrestamo() { abrirModalPrestamo(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote, activeSelection.cantidad); }
     function triggerAjuste() { abrirModalAjuste(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote); }
-
-    // HISTORIAL MAESTRO (Por Modelo y Color global)
-    async function verHistorialMaestro() {
-        const data = kardexAgrupado[panelCurrentKey];
-        document.getElementById('hist-item-title').innerText = `${data.modelo} - ${data.color}`;
-        const lista = document.getElementById('lista-historial-1a1'); 
-        lista.innerHTML = "Buscando en SAP Log Global...";
-        
-        const m = document.getElementById('modalHistorialItem'); 
-        m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
-        
-        try {
-            // Traemos todo el historial y filtramos en frontend para que sea más robusto
-            const res = await fetch(`/api/historial-almacen`); 
-            const histCompleto = await res.json();
-            
-            const filtrado = histCompleto.filter(d => d.modelo === data.modelo && d.color === data.color);
-
-            lista.innerHTML = ""; 
-            if(filtrado.length === 0) return lista.innerHTML = "No hay movimientos registrados para este producto.";
-            
-            filtrado.forEach(d => {
-                let colorTag = d.tipo.includes('Entrada')?'#28A745':(d.tipo.includes('Salida')?'#FF3B30':'#FF8C00');
-                lista.innerHTML += `
-                <div class="hist-item">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <b>${d.folio}</b> <span><small>${d.fecha}</small></span>
-                    </div>
-                    <div><span style="color:${colorTag}; font-weight:800">${d.tipo}</span> • <b style="font-size:16px">${d.cantidad} pz</b> | Talla: <b style="color:var(--brand-navy)">${d.talla}</b> | Lote: ${d.lote}</div>
-                    <div style="margin-top:5px; color:var(--text-muted)"><small>Ref: ${d.referencia} | Resp: ${d.responsable}</small></div>
-                </div>`;
-            });
-        } catch(e) { lista.innerHTML = "Error cargando historial."; }
+    function triggerHistorialTalla() { 
+        const llave = `${activeSelection.modelo}_${activeSelection.color}_${activeSelection.talla}`;
+        verHistorialIndividual(llave); 
     }
 
-
     // ==========================================
-    // RESTO DE FUNCIONES (Intactas)
+    // RESTO DE FUNCIONES (Intactas y Optimizadas)
     // ==========================================
     async function cargarHistorial(){
         const res = await fetch('/api/historial-almacen'); const data = await res.json();
@@ -555,13 +500,28 @@
 
     function cerrarModal(id){
         const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display = 'none', 300);
-        if(id === 'modalMasivo') cancelarPrevisualizacion();
+        if(id === 'modalMasivo') cancelarPrevisualizacion(); // Esto resetea los campos al cerrar
     }
 
     async function retornarPrestamo(idPrestamo, modelo, color, talla, lote, cantidad) {
         if(!confirm(`¿Confirmas que recibiste físicamente las ${cantidad} piezas de ${modelo}? Volverán al Lote ${lote}.`)) return;
         const data = { tipo: "Retorno de Préstamo", modelo: modelo, color: color, talla: talla, lote: lote, cantidad: cantidad, referencia: idPrestamo, responsable: localStorage.getItem('almacen_resp') || "Sistema" };
         try { const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); if(res.ok) { showToast("Préstamo retornado con éxito"); cargarKardex(); cargarPrestamos(); cargarHistorial(); } } catch(e) {}
+    }
+
+    // El Historial individual por talla original
+    async function verHistorialIndividual(llaveObj) {
+        document.getElementById('hist-item-title').innerText = llaveObj.replace(/_/g, " - ");
+        const lista = document.getElementById('lista-historial-1a1'); lista.innerHTML = "Buscando en SAP Log...";
+        const m = document.getElementById('modalHistorialItem'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+        try {
+            const res = await fetch(`/api/historial-almacen?llave=${encodeURIComponent(llaveObj)}`); const data = await res.json();
+            lista.innerHTML = ""; if(data.length === 0) return lista.innerHTML = "No hay movimientos registrados.";
+            data.forEach(d => {
+                let color = d.tipo.includes('Entrada')?'#28A745':(d.tipo.includes('Salida')?'#FF3B30':'#FF8C00');
+                lista.innerHTML += `<div class="hist-item"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><b>${d.folio}</b> <span><small>${d.fecha}</small></span></div><div><span style="color:${color}; font-weight:800">${d.tipo}</span> • <b style="font-size:15px">${d.cantidad} pz</b> del lote ${d.lote}</div><div style="margin-top:5px; color:var(--text-muted)"><small>Ref: ${d.referencia} | Resp: ${d.responsable}</small></div></div>`;
+            });
+        } catch(e) { lista.innerHTML = "Error cargando historial."; }
     }
 
     async function procesarMovimiento(){
@@ -576,7 +536,7 @@
             if(res.ok) { 
                 localStorage.setItem('almacen_resp', data.responsable); confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); showToast(`Folio: ${result.folio}`); 
                 cerrarModal('modalSAP'); 
-                cerrarPanel(); // Forzar cierre del panel para que el usuario vea el cambio maestro
+                cerrarPanel(); 
                 cargarKardex(); cargarHistorial(); cargarPrestamos(); 
             } else showToast(result.error, "danger");
         } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar Movimiento"; btn.disabled = false; }
