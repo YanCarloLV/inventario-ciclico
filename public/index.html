@@ -22,7 +22,7 @@
             --card-bg: #FFFFFF;
             --text-dark: #1C1C1E;
             --bg-canela: #FFEAD1; 
-            --bg-pedido: #E8F2FF; /* Azul clarito para diferenciar picking */
+            --bg-pedido: #E8F2FF;
         }
 
         body { 
@@ -48,7 +48,7 @@
         .skeleton { background: #E5E5EA; border-radius: 20px; animation: pulseSkeleton 1.5s infinite; border: none; box-shadow: none; pointer-events: none; }
         @keyframes pulseSkeleton { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* Header Institucional Centrado */
+        /* Header Institucional */
         header {
             background: var(--brand-navy); padding: 20px; text-align: center;
             border-bottom: 4px solid var(--brand-orange); margin-bottom: 25px;
@@ -76,12 +76,12 @@
         }
         .input-pro:focus { border-color: var(--brand-orange); background: white; box-shadow: 0 0 0 4px rgba(255,140,0,0.1); }
 
-        /* Tabs Menú Principal */
+        /* Tabs Menú */
         .tabs-op { display: flex; gap: 10px; margin-bottom: 20px; background: #E5E5EA; padding: 6px; border-radius: 20px; }
         .tab-btn { flex: 1; background: transparent; border: none; font-size: 14px; font-weight: 800; color: var(--text-muted); padding: 14px; cursor: pointer; transition: 0.3s; border-radius: 16px; font-family: inherit;}
         .tab-btn.active { background: white; color: var(--brand-navy); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 
-        /* Lista de Inventarios y Pedidos */
+        /* Listados */
         #listado-screen { padding: 0 15px; }
         .item-pend { 
             display: flex; justify-content: space-between; align-items: center; 
@@ -105,7 +105,7 @@
         .empty-state { text-align: center; padding: 50px 20px; background: white; border-radius: 20px; border: 2px dashed #D2D2D7; color: #8E8E93; margin-top: 10px; }
         .empty-state h3 { color: var(--brand-navy); margin: 15px 0 5px 0; font-size: 20px; font-weight: 800; }
 
-        /* Pantallas de Operación (Conteo y Picking) */
+        /* Pantallas Operación */
         #conteo-screen, #picking-screen { display: none; padding: 0 15px; }
         
         .sticky-panel {
@@ -150,7 +150,6 @@
         .progress-bg { background: #E5E5EA; height: 12px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--brand-orange); width: 0%; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
         
-        /* Listado de Tallas/Items Premium */
         .talla-item { 
             display: flex; justify-content: space-between; align-items: center; 
             padding: 20px 18px; margin-bottom: 12px; background: white;
@@ -159,7 +158,6 @@
         }
         .talla-item.counted { border-left-color: #34C759; background: #F9FFF9; }
         
-        /* Botones */
         .btn-action { 
             background: var(--brand-navy); color: white; border: none; padding: 12px 24px; 
             border-radius: 14px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit;
@@ -180,11 +178,9 @@
         
         .btn-back { background: transparent; color: #8E8E93; border: none; margin-top: 20px; width: 100%; font-size: 15px; font-weight: 600; cursor: pointer; }
 
-        /* Toasts */
         #toast-op { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #34C759; color: white; padding: 15px 25px; border-radius: 20px; font-weight: 700; box-shadow: 0 10px 25px rgba(52, 199, 89, 0.4); z-index: 4000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0; }
         #toast-op.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-        /* Fake Loader */
         #fake-loader-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 26, 51, 0.96); z-index: 99999; justify-content: center; align-items: center;
@@ -369,7 +365,7 @@
 
     // Variables WMS Pedidos
     let pedidoActivo = null;
-    let itemActivoIndex = null; // Índice del array items del pedido
+    let itemActivoIndex = null;
 
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
@@ -556,13 +552,16 @@
             const isUrgente = ped.prioridad === "Urgente";
             const isMine = ped.asignadoA === miNombre;
             const isBusy = ped.asignadoA && ped.asignadoA !== miNombre;
+            // Mostrar número de pedido real capturado por el supervisor si existe
+            const numPedidoVisual = ped.numeroPedido ? ped.numeroPedido : ped.folio;
+
             const div = document.createElement('div');
             div.className = `item-pend reveal ${isBusy ? 'busy' : ''}`;
             div.style.borderLeft = isUrgente ? "5px solid #FF3B30" : "5px solid #007AFF";
             div.innerHTML = `
                 <div class="talla-info">
                     ${isUrgente ? `<span class="tag-urgente">URGENTE</span><br>` : `<span class="tag-normal">Normal</span><br>`}
-                    <b>${ped.folio}</b><br>
+                    <b>${numPedidoVisual}</b><br>
                     <small style="color:#8E8E93">${ped.totalPiezas} piezas a surtir</small>
                 </div>
                 <div>
@@ -592,12 +591,14 @@
         document.getElementById('listado-screen').style.display = 'none'; 
         document.getElementById('picking-screen').style.display = 'block';
         document.body.style.backgroundColor = 'var(--bg-pedido)'; 
+        
+        const numPedidoVisual = ped.numeroPedido ? ped.numeroPedido : ped.folio;
 
         document.getElementById('pick-header').innerHTML = `
             <div>
                 <small style="opacity:0.8; font-weight:700; color: #8BE4FF;">WMS PICKING</small>
-                <h2 style="color:white; margin:0; font-size:28px;">${ped.folio}</h2>
-                <p style="margin:5px 0 0 0; opacity:0.9; font-weight:600; font-size:14px;">${ped.notas || 'Sin notas del supervisor'}</p>
+                <h2 style="color:white; margin:0; font-size:28px;">${numPedidoVisual}</h2>
+                <p style="margin:5px 0 0 0; opacity:0.9; font-weight:600; font-size:14px;">${ped.notas || 'Sin notas adicionales'}</p>
             </div>`;
         renderItemsPicking();
     }
@@ -728,7 +729,7 @@
     }
 
     // ==============================================================
-    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE) - ACTUALIZADO
+    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE) - CORREGIDO DISEÑO PDF
     // ==============================================================
     async function finalizarPedidoWMS() {
         let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
@@ -766,13 +767,13 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'letter');
         
-        // 1. Logo
+        // 1. Logo (Proporción ajustada para evitar verse apachurrado)
         const logoBase64 = await getBase64ImageFromUrl('/logo.png');
         if(logoBase64) {
-            doc.addImage(logoBase64, 'PNG', 40, 30, 140, 50);
+            doc.addImage(logoBase64, 'PNG', 40, 25, 130, 75); 
         }
 
-        // 2. Título Central
+        // 2. Título Central (Bajado para no colisionar)
         doc.setFont("helvetica", "bold");
         doc.setFontSize(20);
         doc.setTextColor(0, 26, 51);
@@ -784,25 +785,20 @@
         doc.line(40, 115, 570, 115);
 
         // 3. CABECERA DERECHA (Alineada a la derecha)
+        const numPedidoVisible = pedido.numeroPedido ? pedido.numeroPedido : pedido.folio;
+        const folioInternoSistema = pedido.folio;
+
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(100);
-        doc.text(`Folio del Sistema: ${pedido.folio}`, 570, 135, { align: "right" });
+        doc.text(`Folio Sistema: ${folioInternoSistema}`, 570, 135, { align: "right" });
         
         // Número de Pedido SAP/Externo Resaltado 
-        const numPedido = pedido.numeroPedido || pedido.notas || 'N/A';
-        // Si es corto (como "20579"), lo ponemos gigante. Si es una nota larguísima, lo ponemos más chico.
-        if(numPedido.length < 35) {
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(0, 122, 255); // Azul 
-            doc.text(`Nº DE PEDIDO: ${numPedido}`, 570, 152, { align: "right" });
-        } else {
-            doc.setFontSize(10);
-            doc.setTextColor(255, 59, 48);
-            doc.text(`REFERENCIA: Consultar Notas`, 570, 152, { align: "right" });
-        }
-
+        doc.setFontSize(15);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 122, 255); // Azul Resaltado
+        doc.text(`Nº DE PEDIDO: ${numPedidoVisible}`, 570, 152, { align: "right" });
+        
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(100);
@@ -851,7 +847,7 @@
         tableBody.push([{ content: 'TOTALES', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, totalSolicitado.toString(), totalSurtido.toString(), '']);
 
         doc.autoTable({
-            startY: 190, // <--- Empezamos más abajo para no chocar con la nueva cabecera
+            startY: 190, // Comenzamos la tabla más abajo para respetar las cabeceras
             head: [['MODELO', 'COLOR', 'TALLA', 'LOTE ORIGEN', 'PEDIDO', 'SURTIDO', 'ESTATUS']],
             body: tableBody,
             theme: 'grid',
