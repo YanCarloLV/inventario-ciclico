@@ -344,9 +344,6 @@
 </div>
 
 <script>
-    // ==============================================================
-    // FIX: CREACIÓN DEL OBJETO FAKELOADER
-    // ==============================================================
     const fakeLoader = {
         show: function(msgText, statusText) {
             this.msg.innerText = msgText || "Procesando...";
@@ -407,12 +404,10 @@
     async function iniciarApp() {
         document.getElementById('saludo-user').innerText = `👷 ${miNombre}`;
         try {
-            // Cargar Inventarios Cíclicos
             const resInv = await fetch('/api/ciclicos');
             const datosInv = await resInv.json();
             renderListaDisponibles(datosInv);
 
-            // Cargar Pedidos WMS
             const resPed = await fetch('/api/pedidos');
             if(resPed.ok) {
                 const datosPed = await resPed.json();
@@ -733,7 +728,7 @@
     }
 
     // ==============================================================
-    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE)
+    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE) - ACTUALIZADO
     // ==============================================================
     async function finalizarPedidoWMS() {
         let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
@@ -771,25 +766,66 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'letter');
         
+        // 1. Logo
         const logoBase64 = await getBase64ImageFromUrl('/logo.png');
         if(logoBase64) {
-            doc.addImage(logoBase64, 'PNG', 40, 30, 150, 60);
+            doc.addImage(logoBase64, 'PNG', 40, 30, 140, 50);
         }
 
+        // 2. Título Central
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
+        doc.setFontSize(20);
         doc.setTextColor(0, 26, 51);
-        doc.text("REMISIÓN DE SURTIDO WMS", 300, 55, { align: "center" });
+        doc.text("REMISIÓN DE SURTIDO WMS", 306, 100, { align: "center" });
 
-        doc.setFontSize(11);
-        doc.setTextColor(100);
-        doc.text(`Folio de Pedido: ${pedido.folio}`, 400, 85);
-        doc.text(`Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}`, 400, 100);
-        
+        // Línea divisoria decorativa
+        doc.setLineWidth(1);
+        doc.setDrawColor(220, 220, 220);
+        doc.line(40, 115, 570, 115);
+
+        // 3. CABECERA DERECHA (Alineada a la derecha)
+        doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(`Surtido por: ${miNombre} (Almacén Central)`, 40, 100);
-        if(pedido.notas) doc.text(`Notas del Supervisor: ${pedido.notas}`, 40, 115);
+        doc.setTextColor(100);
+        doc.text(`Folio del Sistema: ${pedido.folio}`, 570, 135, { align: "right" });
+        
+        // Número de Pedido SAP/Externo Resaltado 
+        const numPedido = pedido.numeroPedido || pedido.notas || 'N/A';
+        // Si es corto (como "20579"), lo ponemos gigante. Si es una nota larguísima, lo ponemos más chico.
+        if(numPedido.length < 35) {
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(0, 122, 255); // Azul 
+            doc.text(`Nº DE PEDIDO: ${numPedido}`, 570, 152, { align: "right" });
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(255, 59, 48);
+            doc.text(`REFERENCIA: Consultar Notas`, 570, 152, { align: "right" });
+        }
 
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100);
+        doc.text(`Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}`, 570, 167, { align: "right" });
+
+        // 4. CABECERA IZQUIERDA
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 26, 51);
+        doc.text(`Surtido por:`, 40, 135);
+        doc.setFont("helvetica", "normal");
+        doc.text(`${miNombre} (Almacén Central)`, 115, 135);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text(`Notas / Ref:`, 40, 152);
+        doc.setFont("helvetica", "normal");
+        const splitNotas = doc.splitTextToSize(pedido.notas || 'Ninguna', 250);
+        doc.text(splitNotas, 115, 152);
+
+        // Restaurar color para la tabla
+        doc.setTextColor(50);
+
+        // 5. Tabla de Productos
         const tableBody = [];
         let totalSolicitado = 0;
         let totalSurtido = 0;
@@ -815,7 +851,7 @@
         tableBody.push([{ content: 'TOTALES', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, totalSolicitado.toString(), totalSurtido.toString(), '']);
 
         doc.autoTable({
-            startY: 140,
+            startY: 190, // <--- Empezamos más abajo para no chocar con la nueva cabecera
             head: [['MODELO', 'COLOR', 'TALLA', 'LOTE ORIGEN', 'PEDIDO', 'SURTIDO', 'ESTATUS']],
             body: tableBody,
             theme: 'grid',
@@ -838,6 +874,7 @@
             }
         });
 
+        // 6. Firmas
         const finalY = doc.lastAutoTable.finalY + 80;
         doc.setLineWidth(1);
         doc.setDrawColor(200);
