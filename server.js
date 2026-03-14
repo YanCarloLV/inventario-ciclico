@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 5.0 (Ecosistema SAP + Préstamos + Historial Individual)
+// server.js - Versión 6.0 (Ecosistema SAP + Préstamos + WMS Picking)
 // ==========================================
 
 const express = require('express');
@@ -30,6 +30,7 @@ async function inicializarContadores() {
         if (!await Counter.findById('inventario_id')) await new Counter({ _id: 'inventario_id', secuencia: 0 }).save();
         if (!await Counter.findById('movimiento_id')) await new Counter({ _id: 'movimiento_id', secuencia: 0 }).save();
         if (!await Counter.findById('prestamo_id')) await new Counter({ _id: 'prestamo_id', secuencia: 0 }).save();
+        if (!await Counter.findById('pedido_wms_id')) await new Counter({ _id: 'pedido_wms_id', secuencia: 0 }).save(); // Nuevo contador WMS
     } catch (e) {}
 }
 inicializarContadores();
@@ -50,7 +51,7 @@ const CiclicoSchema = new mongoose.Schema({
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 
 // ==========================================
-// 3. MODELOS DE ALMACÉN (KARDEX, MOVIMIENTOS Y PRÉSTAMOS)
+// 3. MODELOS DE ALMACÉN Y WMS PEDIDOS (NUEVO)
 // ==========================================
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
@@ -71,6 +72,138 @@ const PrestamoSchema = new mongoose.Schema({
     fechaSalida: String, estatus: { type: String, default: "Activo" } 
 });
 const Prestamo = mongoose.model('Prestamo', PrestamoSchema);
+
+// NUEVO: Modelo para WMS Picking (Pedidos)
+const PedidoSchema = new mongoose.Schema({
+    folio: String,
+    prioridad: { type: String, default: 'Normal' }, // Normal, Urgente
+    estatus: { type: String, default: 'Pendiente' }, // Pendiente, En Proceso, Completado
+    asignadoA: { type: String, default: null },
+    totalPiezas: { type: Number, default: 0 },
+    notas: String,
+    fechaCreacion: String,
+    horaFin: String,
+    items: [{
+        modelo: String, color: String, talla: String,
+        cantidadSolicitada: Number,
+        surtido: { type: Number, default: 0 },
+        loteOrigen: { type: String, default: null }
+    }]
+});
+const Pedido = mongoose.model('Pedido', PedidoSchema);
+
+// ==========================================
+// ENDPOINTS DE WMS Y PEDIDOS (NUEVOS)
+// ==========================================
+
+// Obtener todos los pedidos
+app.get('/api/pedidos', async (req, res) => {
+    try { res.json(await Pedido.find().sort({ _id: -1 })); } 
+    catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Operador: Apartar Pedido
+app.post('/api/asignar-pedido', async (req, res) => {
+    try { 
+        await Pedido.findOneAndUpdate({ folio: req.body.folio }, { asignadoA: req.body.operador, estatus: "En Proceso" }); 
+        res.json({ success: true }); 
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Operador: Consulta Inteligente de Lotes disponibles en Kardex para una Talla
+app.get('/api/lotes-disponibles', async (req, res) => {
+    try {
+        const { modelo, color, talla } = req.query;
+        const llave = `${modelo.trim()}_${color.trim()}_${talla.trim()}`;
+        // Buscar solo lotes que tengan más de 0 piezas
+        const lotes = await Kardex.find({ llave, cantidad: { $gt: 0 } });
+        res.json(lotes.map(l => ({ lote: l.lote, cantidad: l.cantidad })));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Operador: Guardar avance parcial del surtido
+app.post('/api/actualizar-pedido', async (req, res) => {
+    try {
+        const { folio, items } = req.body;
+        await Pedido.findOneAndUpdate({ folio }, { items });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Operador: FINALIZAR PEDIDO (Descuenta Inventario y Cierra)
+app.post('/api/finalizar-pedido-wms', async (req, res) => {
+    try {
+        const { folio, items, operador } = req.body;
+        const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
+        const horaFinStr = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Monterrey', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        // 1. Marcar pedido como Completado
+        await Pedido.findOneAndUpdate({ folio }, { items, estatus: 'Completado', horaFin: horaFinStr });
+
+        // 2. Descontar del Kardex y generar la historia
+        let docTeorico = await Teorico.findById('teorico_maestro');
+        const counterMov = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
+        const baseFolioMov = 'MOV-' + counterMov.secuencia.toString().padStart(6, '0');
+
+        for (let item of items) {
+            if (item.surtido > 0 && item.loteOrigen) {
+                const llave = `${item.modelo.trim()}_${item.color.trim()}_${item.talla.trim()}`;
+                const cantSurtida = parseFloat(item.surtido);
+
+                // Descuento en KARDEX Físico
+                let kardexItem = await Kardex.findOne({ llave, lote: item.loteOrigen });
+                if (kardexItem) {
+                    kardexItem.cantidad -= cantSurtida;
+                    kardexItem.ultimaActualizacion = fechaMty;
+                    if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); 
+                    else await kardexItem.save();
+                }
+
+                // Descuento en TEÓRICO GLOBAL
+                if (docTeorico) {
+                    let actualTeorico = docTeorico.datos.get(llave) || 0;
+                    let nuevoTeorico = actualTeorico - cantSurtida;
+                    docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
+                }
+
+                // Generar MOVIMIENTO Log (Salida por Surtido)
+                await new Movimiento({
+                    folio: baseFolioMov + '-WMS',
+                    tipo: 'Salida (Surtido WMS)',
+                    llave: llave,
+                    modelo: item.modelo, color: item.color, talla: item.talla, lote: item.loteOrigen,
+                    cantidad: cantSurtida,
+                    referencia: `Surtido de Remisión ${folio}`,
+                    responsable: operador,
+                    fecha: fechaMty
+                }).save();
+            }
+        }
+        
+        if (docTeorico) await docTeorico.save();
+        res.json({ success: true });
+
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Función Auxiliar para Crear Pedidos (Útil para inyectar pedidos desde Postman o consola en el futuro)
+app.post('/api/crear-pedido', async (req, res) => {
+    try {
+        const { prioridad, notas, items } = req.body;
+        const counter = await Counter.findByIdAndUpdate('pedido_wms_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
+        const folio = 'WMS-' + counter.secuencia.toString().padStart(5, '0');
+        const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
+        
+        let totalPz = items.reduce((sum, item) => sum + parseInt(item.cantidadSolicitada || 0), 0);
+
+        const nuevoPedido = new Pedido({
+            folio, prioridad: prioridad || 'Normal', notas, totalPiezas: totalPz, items, fechaCreacion: fechaMty
+        });
+        await nuevoPedido.save();
+        res.json({ success: true, folio });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 // ==========================================
 // ENDPOINTS DE INVENTARIO CÍCLICO
@@ -176,7 +309,6 @@ app.post('/api/movimiento', async (req, res) => {
             const idPres = 'PRES-' + counterPres.secuencia.toString().padStart(5, '0');
             await new Prestamo({ idPrestamo: idPres, llave, modelo, color, talla, lote, cantidad: cantFloat, prestatario: referencia, responsable, fechaSalida: fechaMty }).save();
         } else if (tipo === 'Retorno de Préstamo') {
-            // "referencia" trae el idPrestamo en este caso
             await Prestamo.findOneAndUpdate({ idPrestamo: referencia }, { estatus: "Devuelto" });
         }
 

@@ -58,10 +58,9 @@
         .tag-out { background: #FFEBEB; color: #FF3B30; }
         .tag-loan { background: #FFF4E5; color: #FF8C00; }
         .tag-adj { background: #E5E5EA; color: #1C1C1E; }
+        .tag-info { background: #E8F2FF; color: #007AFF; }
 
-        /* =========================================
-           PANEL LATERAL DESLIZABLE (DRILL-DOWN)
-           ========================================= */
+        /* PANEL LATERAL DESLIZABLE (DRILL-DOWN) */
         .panel-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.5); z-index: 800; backdrop-filter: blur(4px); opacity: 0; transition: 0.3s; }
         .panel-overlay.show { display: block; opacity: 1; }
         
@@ -86,7 +85,7 @@
         .action-box { display: none; padding: 20px 30px; background: white; border-top: 1px solid #E5E5EA; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); animation: slideUp 0.3s forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* Modales Z-Index corregido */
+        /* Modales */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s; }
         .modal-overlay.show { display: flex; opacity: 1; }
         .modal-box { background: white; width: 90%; max-width: 650px; padding: 35px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); transform: translateY(30px); transition: 0.3s; max-height: 90vh; overflow-y: auto; }
@@ -123,6 +122,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('kardex')">📦 Stock Consolidado</button>
+                <button class="tab-btn" onclick="switchTab('pedidos')">🛒 Monitor Pedidos WMS</button>
                 <button class="tab-btn" onclick="switchTab('prestamos')">🤝 Préstamos Activos</button>
                 <button class="tab-btn" onclick="switchTab('historial')">📜 Bitácora General</button>
             </div>
@@ -141,6 +141,23 @@
         <div style="overflow-x: auto;">
             <table id="tablaKardex">
                 <thead><tr><th>Modelo Principal</th><th>Color</th><th>Stock Global</th><th>Variaciones</th><th>Acción</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="vista-pedidos" class="card reveal" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Torre de Control WMS (Surtido de Producción)</h2>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cargarPedidosWMS()">🔄 Actualizar Monitor</button>
+        </div>
+        <p style="color: var(--text-muted); font-size: 14px; margin-top: 0; margin-bottom: 20px;">
+            Monitorea en tiempo real los pedidos que ha subido el Supervisor y el avance de los operadores en piso.
+        </p>
+        <input type="text" id="buscarPedidos" class="search-box" placeholder="🔍 Buscar por Folio o Estatus..." onkeyup="filtrarTablaInteligente('tablaPedidosWMS', this.value)">
+        <div style="overflow-x: auto;">
+            <table id="tablaPedidosWMS">
+                <thead><tr><th>Folio</th><th>Prioridad</th><th>Estatus</th><th>Avance de Surtido</th><th>Operador Asignado</th><th>Fecha Creado</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -179,8 +196,7 @@
         <button class="btn btn-outline" style="padding: 8px 12px;" onclick="cerrarPanel()">❌</button>
     </div>
 
-    <div class="slide-content" id="sp-content">
-        </div>
+    <div class="slide-content" id="sp-content"></div>
 
     <div class="action-box" id="sp-action-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -330,6 +346,7 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         event.target.classList.add('active');
         document.getElementById('vista-kardex').style.display = tId==='kardex'?'block':'none';
+        document.getElementById('vista-pedidos').style.display = tId==='pedidos'?'block':'none';
         document.getElementById('vista-prestamos').style.display = tId==='prestamos'?'block':'none';
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
     }
@@ -344,7 +361,43 @@
     }
 
     // ==========================================
-    // LÓGICA CORE: AGRUPACIÓN KARDEX
+    // 1. CARGAR PEDIDOS WMS (NUEVA FUNCIÓN)
+    // ==========================================
+    async function cargarPedidosWMS() {
+        try {
+            const res = await fetch('/api/pedidos');
+            const data = await res.json();
+            const tbody = document.querySelector('#tablaPedidosWMS tbody');
+            tbody.innerHTML = '';
+            
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color:#8E8E93;">No hay pedidos registrados en el sistema.</td></tr>';
+                return;
+            }
+
+            data.forEach(p => {
+                let piezasSurtidas = p.items.reduce((acc, it) => acc + (it.surtido || 0), 0);
+                let colorPrioridad = p.prioridad === 'Urgente' ? 'var(--danger)' : 'var(--success)';
+                let colorEstatus = p.estatus === 'Completado' ? 'tag-in' : (p.estatus === 'En Proceso' ? 'tag-info' : 'tag-adj');
+                
+                tbody.innerHTML += `
+                <tr>
+                    <td><b style="font-size:16px;">${p.folio}</b></td>
+                    <td><b style="color:${colorPrioridad}">${p.prioridad}</b></td>
+                    <td><span class="tag ${colorEstatus}">${p.estatus}</span></td>
+                    <td>
+                        <span style="font-size:18px; color:var(--brand-navy); font-weight:800;">${piezasSurtidas}</span> 
+                        <span style="color:var(--text-muted); font-size:13px;">/ ${p.totalPiezas} pz</span>
+                    </td>
+                    <td><b>${p.asignadoA || '<span style="color:#8E8E93">Sin asignar</span>'}</b></td>
+                    <td><small>${p.fechaCreacion}</small></td>
+                </tr>`;
+            });
+        } catch(e) { console.error("Error cargando monitor WMS"); }
+    }
+
+    // ==========================================
+    // 2. KARDEX Y PANEL LATERAL
     // ==========================================
     async function cargarKardex(){
         const res = await fetch('/api/kardex'); 
@@ -380,9 +433,6 @@
         });
     }
 
-    // ==========================================
-    // LÓGICA CORE: PANEL DESLIZABLE
-    // ==========================================
     function abrirPanelDetalle(key) {
         const data = kardexAgrupado[key];
         document.getElementById('sp-modelo').innerText = data.modelo;
@@ -441,17 +491,13 @@
         document.getElementById('sp-action-box').style.display = 'block';
     }
 
-    // Funciones Panel
     function triggerSalida() { abrirModalSalida(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote, activeSelection.cantidad); }
     function triggerPrestamo() { abrirModalPrestamo(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote, activeSelection.cantidad); }
     function triggerAjuste() { abrirModalAjuste(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote); }
-    function triggerHistorialTalla() { 
-        const llave = `${activeSelection.modelo}_${activeSelection.color}_${activeSelection.talla}`;
-        verHistorialIndividual(llave); 
-    }
+    function triggerHistorialTalla() { verHistorialIndividual(`${activeSelection.modelo}_${activeSelection.color}_${activeSelection.talla}`); }
 
     // ==========================================
-    // RESTO DE FUNCIONES (Intactas y Optimizadas)
+    // 3. TABLAS SECUNDARIAS
     // ==========================================
     async function cargarHistorial(){
         const res = await fetch('/api/historial-almacen'); const data = await res.json();
@@ -470,6 +516,9 @@
         });
     }
 
+    // ==========================================
+    // 4. MODALES Y REGISTROS INDIVIDUALES
+    // ==========================================
     function abrirModal(tipo){
         document.getElementById('modal-title').innerText = `Registrar ${tipo}`;
         if(tipo === 'Ajuste') { document.getElementById('div-tipo-input').style.display = 'none'; document.getElementById('div-tipo-select').style.display = 'block'; } 
@@ -500,7 +549,24 @@
 
     function cerrarModal(id){
         const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display = 'none', 300);
-        if(id === 'modalMasivo') cancelarPrevisualizacion(); // Esto resetea los campos al cerrar
+        if(id === 'modalMasivo') cancelarPrevisualizacion(); 
+    }
+
+    async function procesarMovimiento(){
+        let tipoElegido = document.getElementById('md-tipo-texto').value;
+        if(document.getElementById('div-tipo-select').style.display === 'block') tipoElegido = document.getElementById('md-tipo-select').value;
+        const data = { tipo: tipoElegido, modelo: document.getElementById('md-modelo').value.toUpperCase(), color: document.getElementById('md-color').value.toUpperCase(), talla: document.getElementById('md-talla').value.toUpperCase(), lote: document.getElementById('md-lote').value.trim().toUpperCase(), cantidad: document.getElementById('md-cantidad').value, referencia: document.getElementById('md-referencia').value, responsable: document.getElementById('md-responsable').value };
+        if(!data.modelo || !data.lote || !data.cantidad || !data.referencia || !data.responsable) return showToast("Faltan datos obligatorios", "danger");
+        
+        const btn = document.getElementById('btn-save-modal'); btn.innerHTML = "Procesando..."; btn.disabled = true;
+        try {
+            const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); const result = await res.json();
+            if(res.ok) { 
+                localStorage.setItem('almacen_resp', data.responsable); confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); showToast(`Folio: ${result.folio}`); 
+                cerrarModal('modalSAP'); cerrarPanel(); 
+                cargarKardex(); cargarHistorial(); cargarPrestamos(); 
+            } else showToast(result.error, "danger");
+        } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar Movimiento"; btn.disabled = false; }
     }
 
     async function retornarPrestamo(idPrestamo, modelo, color, talla, lote, cantidad) {
@@ -509,7 +575,6 @@
         try { const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); if(res.ok) { showToast("Préstamo retornado con éxito"); cargarKardex(); cargarPrestamos(); cargarHistorial(); } } catch(e) {}
     }
 
-    // El Historial individual por talla original
     async function verHistorialIndividual(llaveObj) {
         document.getElementById('hist-item-title').innerText = llaveObj.replace(/_/g, " - ");
         const lista = document.getElementById('lista-historial-1a1'); lista.innerHTML = "Buscando en SAP Log...";
@@ -524,25 +589,9 @@
         } catch(e) { lista.innerHTML = "Error cargando historial."; }
     }
 
-    async function procesarMovimiento(){
-        let tipoElegido = document.getElementById('md-tipo-texto').value;
-        if(document.getElementById('div-tipo-select').style.display === 'block') tipoElegido = document.getElementById('md-tipo-select').value;
-        const data = { tipo: tipoElegido, modelo: document.getElementById('md-modelo').value.toUpperCase(), color: document.getElementById('md-color').value.toUpperCase(), talla: document.getElementById('md-talla').value.toUpperCase(), lote: document.getElementById('md-lote').value.trim().toUpperCase(), cantidad: document.getElementById('md-cantidad').value, referencia: document.getElementById('md-referencia').value, responsable: document.getElementById('md-responsable').value };
-        if(!data.modelo || !data.lote || !data.cantidad || !data.referencia || !data.responsable) return showToast("Faltan datos obligatorios", "danger");
-        
-        const btn = document.getElementById('btn-save-modal'); btn.innerHTML = "Procesando..."; btn.disabled = true;
-        try {
-            const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); const result = await res.json();
-            if(res.ok) { 
-                localStorage.setItem('almacen_resp', data.responsable); confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); showToast(`Folio: ${result.folio}`); 
-                cerrarModal('modalSAP'); 
-                cerrarPanel(); 
-                cargarKardex(); cargarHistorial(); cargarPrestamos(); 
-            } else showToast(result.error, "danger");
-        } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar Movimiento"; btn.disabled = false; }
-    }
-
-    // CARGA MASIVA PREVISUALIZACIÓN
+    // ==========================================
+    // 5. CARGA MASIVA EXCEL
+    // ==========================================
     function abrirModalMasivo(){
         if(localStorage.getItem('almacen_resp')) document.getElementById('mas-responsable').value = localStorage.getItem('almacen_resp');
         cancelarPrevisualizacion();
@@ -620,7 +669,9 @@
         } catch(e) { showToast("Error de conexión", "danger"); } finally { btn.innerHTML = "💾 Confirmar y Ejecutar Movimientos"; btn.disabled = false; document.getElementById('btn-cancel-masivo').disabled = false; }
     }
 
-    // AUDITORÍA
+    // ==========================================
+    // 6. AUDITORÍA INTELIGENTE
+    // ==========================================
     function abrirModalAuditoria() { const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10); }
 
     function generarMatchAuditoria() {
@@ -667,7 +718,8 @@
         XLSX.writeFile(wb, `Reporte_Stock_General_${new Date().toLocaleDateString('es-MX').replace(/\//g,'-')}.xlsx`);
     }
 
-    cargarKardex(); cargarPrestamos(); cargarHistorial();
+    // Inicializar vistas
+    cargarKardex(); cargarPedidosWMS(); cargarPrestamos(); cargarHistorial();
 </script>
 </body>
 </html>

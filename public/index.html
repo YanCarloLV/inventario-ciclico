@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sistema de Inventarios - Operador Pro</title>
-<link rel="icon" href="/logo.png" type="image/png">
-<link rel="icon" sizes="192x192" href="/logo.png">
-<link rel="apple-touch-icon" href="/logo.png">
+    <title>Sistema WMS - Operador Pro</title>
+    <link rel="icon" href="/logo.png" type="image/png">
+    <link rel="icon" sizes="192x192" href="/logo.png">
+    <link rel="apple-touch-icon" href="/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         :root {
             --brand-navy: #001A33;
@@ -17,7 +21,8 @@
             --bg-apple: #F2F2F7;
             --card-bg: #FFFFFF;
             --text-dark: #1C1C1E;
-            --bg-canela: #FFEAD1; /* Canela Fondo 2 Oscuro 10% */
+            --bg-canela: #FFEAD1; 
+            --bg-pedido: #E8F2FF; /* Azul clarito para diferenciar picking */
         }
 
         body { 
@@ -40,18 +45,14 @@
         .shimmer { position: relative; overflow: hidden; }
         .shimmer::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite ease-in-out; }
 
-        @keyframes pulseSkeleton { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .skeleton { background: #E5E5EA; border-radius: 20px; animation: pulseSkeleton 1.5s infinite; border: none; box-shadow: none; pointer-events: none; }
+        @keyframes pulseSkeleton { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         /* Header Institucional Centrado */
         header {
-            background: var(--brand-navy);
-            padding: 20px;
-            text-align: center;
-            border-bottom: 4px solid var(--brand-orange);
-            margin-bottom: 25px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            position: sticky; top: 0; z-index: 100;
+            background: var(--brand-navy); padding: 20px; text-align: center;
+            border-bottom: 4px solid var(--brand-orange); margin-bottom: 25px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100;
         }
         .logo-wrap {
             background: white; display: inline-block; padding: 12px 30px;
@@ -71,11 +72,16 @@
         .input-pro { 
             width: 100%; padding: 18px; border: 2px solid #E5E5EA; border-radius: 16px; 
             margin-bottom: 20px; font-size: 16px; box-sizing: border-box; outline: none; 
-            background: #F9F9FB; transition: 0.3s; font-family: inherit; font-weight: 600;
+            background: #F9F9FB; transition: 0.3s; font-family: inherit; font-weight: 600; color: var(--brand-navy);
         }
         .input-pro:focus { border-color: var(--brand-orange); background: white; box-shadow: 0 0 0 4px rgba(255,140,0,0.1); }
 
-        /* Lista de Inventarios */
+        /* Tabs Menú Principal */
+        .tabs-op { display: flex; gap: 10px; margin-bottom: 20px; background: #E5E5EA; padding: 6px; border-radius: 20px; }
+        .tab-btn { flex: 1; background: transparent; border: none; font-size: 14px; font-weight: 800; color: var(--text-muted); padding: 14px; cursor: pointer; transition: 0.3s; border-radius: 16px; font-family: inherit;}
+        .tab-btn.active { background: white; color: var(--brand-navy); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+        /* Lista de Inventarios y Pedidos */
         #listado-screen { padding: 0 15px; }
         .item-pend { 
             display: flex; justify-content: space-between; align-items: center; 
@@ -93,24 +99,18 @@
         .tag-busy { background: #FFEBEB; color: #FF3B30; }
         .tag-mine { background: #E8F2FF; color: #007AFF; border: 1px solid #007AFF; }
         .tag-free { background: #F2F2F7; color: #8E8E93; }
+        .tag-urgente { background: #FF3B30; color: white; margin-bottom: 5px; display: inline-block; font-size: 10px; }
+        .tag-normal { background: #34C759; color: white; margin-bottom: 5px; display: inline-block; font-size: 10px; }
 
-        /* Empty State */
         .empty-state { text-align: center; padding: 50px 20px; background: white; border-radius: 20px; border: 2px dashed #D2D2D7; color: #8E8E93; margin-top: 10px; }
         .empty-state h3 { color: var(--brand-navy); margin: 15px 0 5px 0; font-size: 20px; font-weight: 800; }
 
-        /* Pantalla de Conteo Activo (Aesthetic Premium) */
-        #conteo-screen { display: none; padding: 0 15px; }
+        /* Pantallas de Operación (Conteo y Picking) */
+        #conteo-screen, #picking-screen { display: none; padding: 0 15px; }
         
-        /* BLOQUE PEGAJOSO (FOTO + BARRA) */
-        .sticky-conteo-panel {
-            position: sticky;
-            top: 127px; /* Justo debajo del header principal sin dejar huecos */
-            z-index: 95;
-            background: var(--bg-canela);
-            margin: 0 -15px 15px -15px; /* Compensa el padding de la pantalla para tapar todo el ancho */
-            padding: 5px 15px 15px 15px;
-            box-shadow: 0 15px 20px -15px rgba(0,0,0,0.08); /* Sombra elegante que separa el panel de las tallas */
-            border-bottom: 1px solid rgba(0,0,0,0.04);
+        .sticky-panel {
+            position: sticky; top: 127px; z-index: 95; margin: 0 -15px 15px -15px; padding: 5px 15px 15px 15px;
+            box-shadow: 0 15px 20px -15px rgba(0,0,0,0.08); border-bottom: 1px solid rgba(0,0,0,0.04);
             transition: background-color 0.5s ease;
         }
 
@@ -119,36 +119,28 @@
             margin-bottom: 15px; box-shadow: 0 10px 25px rgba(0,26,51,0.2); border: 2px solid var(--brand-gold);
         }
         
-        /* ESTILO PARA LA FOTO Y EL ZOOM */
         .foto-referencia {
             width: 80px; height: 80px; object-fit: cover; border-radius: 14px;
             border: 2px solid rgba(255,255,255,0.2); background: white; cursor: zoom-in; display: none;
         }
 
-        /* Modal Zoom */
-        #modal-zoom {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; cursor: zoom-out;
-            backdrop-filter: blur(5px);
-        }
-        #modal-zoom img { max-width: 90%; max-height: 80%; border-radius: 16px; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
-
-        /* Modal Cantidad */
-        #modal-cantidad {
+        /* Modales */
+        .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,26,51,0.8); z-index: 3000; justify-content: center; align-items: center;
             backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s;
         }
-        #modal-cantidad.visible { opacity: 1; }
+        .modal-overlay.visible { opacity: 1; }
         .modal-caja {
-            background: white; padding: 30px; border-radius: 28px; width: 85%; max-width: 320px;
+            background: white; padding: 30px; border-radius: 28px; width: 85%; max-width: 340px;
             text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3); transform: translateY(100px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 4px solid var(--brand-gold);
         }
-        #modal-cantidad.visible .modal-caja { transform: translateY(0); }
+        .modal-overlay.visible .modal-caja { transform: translateY(0); }
+
         .input-num {
             width: 100%; padding: 15px; font-size: 32px; text-align: center; border: 2px solid var(--brand-navy);
-            border-radius: 16px; margin: 20px 0; box-sizing: border-box; outline: none; color: var(--brand-navy);
+            border-radius: 16px; margin: 10px 0 20px 0; box-sizing: border-box; outline: none; color: var(--brand-navy);
             font-weight: 800; background: #F9F9FB; font-family: inherit;
         }
         .input-num:focus { border-color: var(--brand-orange); box-shadow: 0 0 0 4px rgba(255,140,0,0.1); }
@@ -158,18 +150,14 @@
         .progress-bg { background: #E5E5EA; height: 12px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--brand-orange); width: 0%; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
         
-        /* Tallas Listado Premium */
+        /* Listado de Tallas/Items Premium */
         .talla-item { 
             display: flex; justify-content: space-between; align-items: center; 
             padding: 20px 18px; margin-bottom: 12px; background: white;
             border-radius: 16px; border-left: 6px solid var(--brand-navy);
             box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: 0.3s; 
         }
-        .talla-item.counted {
-            border-left-color: #34C759;
-            background: #F9FFF9;
-        }
-        .talla-info b { font-size: 18px; color: var(--brand-navy); font-weight: 800; }
+        .talla-item.counted { border-left-color: #34C759; background: #F9FFF9; }
         
         /* Botones */
         .btn-action { 
@@ -187,73 +175,45 @@
             text-transform: uppercase; letter-spacing: 1px;
         }
         .btn-finish:active { transform: scale(0.96); box-shadow: 0 5px 10px rgba(255,140,0,0.3); }
+        .btn-finish-blue { background: linear-gradient(135deg, #007AFF, #0056b3); box-shadow: 0 10px 20px rgba(0,122,255,0.3); }
+        .btn-finish-blue:active { box-shadow: 0 5px 10px rgba(0,122,255,0.3); }
         
         .btn-back { background: transparent; color: #8E8E93; border: none; margin-top: 20px; width: 100%; font-size: 15px; font-weight: 600; cursor: pointer; }
 
-        /* Notificaciones Toast Operador */
+        /* Toasts */
         #toast-op { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #34C759; color: white; padding: 15px 25px; border-radius: 20px; font-weight: 700; box-shadow: 0 10px 25px rgba(52, 199, 89, 0.4); z-index: 4000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0; }
         #toast-op.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-        /* ========================================================== */
-        /* CSS FAKE LOADER PREMIUM (CÍRCULO CON COLORES ORIGINALES) */
-        /* ========================================================== */
+        /* Fake Loader */
         #fake-loader-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 26, 51, 0.96); z-index: 99999; justify-content: center; align-items: center;
-            flex-direction: column; color: white; opacity: 0; transition: opacity 0.5s ease;
-            backdrop-filter: blur(8px);
+            flex-direction: column; color: white; opacity: 0; transition: opacity 0.5s ease; backdrop-filter: blur(8px);
         }
         #fake-loader-overlay.show { display: flex; opacity: 1; }
-
         .loader-content { text-align: center; max-width: 400px; padding: 40px; }
-
         .icon-container {
-            width: 160px; height: 160px; margin: 0 auto 30px auto;
-            position: relative; display: flex; justify-content: center; align-items: center;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.02);
-            border: 2px solid rgba(255,255,255,0.05);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-            overflow: hidden; 
+            width: 160px; height: 160px; margin: 0 auto 30px auto; position: relative; display: flex; justify-content: center; align-items: center;
+            border-radius: 50%; background: rgba(255,255,255,0.02); border: 2px solid rgba(255,255,255,0.05); box-shadow: 0 15px 35px rgba(0,0,0,0.3); overflow: hidden; 
         }
-
         .circle-liquid {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(52, 199, 89, 0.25); 
-            border-top: 2px solid rgba(52, 199, 89, 0.8); 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(52, 199, 89, 0.25); border-top: 2px solid rgba(52, 199, 89, 0.8); 
             box-shadow: 0 -15px 30px rgba(52, 199, 89, 0.4) inset, 0 -10px 20px rgba(52, 199, 89, 0.6); 
-            transform: translateY(100%);
-            transition: transform 6.5s cubic-bezier(0.25, 1, 0.5, 1);
-            z-index: 1;
+            transform: translateY(100%); transition: transform 6.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 1;
         }
-
-        #fake-loader-overlay.animating .circle-liquid {
-            transform: translateY(0%);
-        }
-
-        .icon-base {
-            width: 65%; height: 65%; object-fit: contain;
-            position: relative; z-index: 2;
-            opacity: 0.5;
-            transition: all 6.5s cubic-bezier(0.25, 1, 0.5, 1);
-            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5));
-        }
-
-        #fake-loader-overlay.animating .icon-base {
-            opacity: 1;
-            transform: scale(1.08); 
-            filter: drop-shadow(0 0 15px rgba(52, 199, 89, 0.7)); 
-        }
-
+        #fake-loader-overlay.animating .circle-liquid { transform: translateY(0%); }
+        .icon-base { width: 65%; height: 65%; object-fit: contain; position: relative; z-index: 2; opacity: 0.5; transition: all 6.5s cubic-bezier(0.25, 1, 0.5, 1); filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5)); }
+        #fake-loader-overlay.animating .icon-base { opacity: 1; transform: scale(1.08); filter: drop-shadow(0 0 15px rgba(52, 199, 89, 0.7)); }
         #fake-loader-msg { font-weight: 800; font-size: 24px; margin: 0; letter-spacing: -0.5px; }
         #fake-loader-status { color: var(--brand-gold); font-size: 14px; text-transform: uppercase; font-weight: 700; margin-top: 10px; letter-spacing: 1px; }
         #fake-loader-perc { font-weight: 800; font-size: 60px; color: var(--brand-orange); margin: 10px 0; font-feature-settings: "tnum"; }
-        
         .prog-fake-bg { background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; width: 100%; margin-top: 20px; overflow: hidden; }
         .prog-fake-fill { background: var(--brand-orange); height: 100%; width: 0%; transition: width 6.5s linear; box-shadow: 0 0 10px rgba(255, 140, 0, 0.5); }
         #fake-loader-overlay.animating .prog-fake-fill { width: 100%; }
+
+        #modal-zoom { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; cursor: zoom-out; backdrop-filter: blur(5px); }
+        #modal-zoom img { max-width: 90%; max-height: 80%; border-radius: 16px; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -262,82 +222,138 @@
     <div class="loader-content reveal">
         <div class="icon-container">
             <div class="circle-liquid"></div>
-            <img src="/7443348.png" class="icon-base" alt="Traje Base">
+            <img src="/7443348.png" class="icon-base" alt="Traje Base" onerror="this.src='/logo.png'">
         </div>
-        <p id="fake-loader-msg">Enviando reporte ciclico...</p>
+        <p id="fake-loader-msg">Procesando...</p>
         <div id="fake-loader-perc">0%</div>
-        <p id="fake-loader-status">Sincronizando con el Supervisor</p>
+        <p id="fake-loader-status">Sincronizando con el servidor</p>
         <div class="prog-fake-bg"><div class="prog-fake-fill"></div></div>
     </div>
 </div>
 
-    <header>
-        <div class="logo-wrap">
-            <img src="/logo.png" alt="Logo">
-        </div>
-    </header>
+<header>
+    <div class="logo-wrap"><img src="/logo.png" alt="Logo"></div>
+</header>
     
-    <div id="toast-op">Reporte enviado con éxito ✅</div>
+<div id="toast-op">Reporte enviado con éxito ✅</div>
 
-    <div id="modal-zoom" onclick="cerrarZoom()">
-        <img id="img-ampliada" src="">
-    </div>
+<div id="modal-zoom" onclick="cerrarZoom()"><img id="img-ampliada" src=""></div>
 
-    <div id="modal-cantidad">
-        <div class="modal-caja">
-            <h3 style="margin-top:0; color:#8E8E93; font-size: 14px; text-transform: uppercase;">Cantidad para la talla</h3>
-            <h1 id="modal-talla-label" style="margin:5px 0; color:var(--brand-navy); font-size: 42px; font-weight: 800;">--</h1>
-            <input type="number" id="input-cantidad" class="input-num" inputmode="numeric" pattern="[0-9]*" placeholder="0">
-            
-            <div style="display: flex; gap: 12px; margin-top: 20px;">
-                <button onclick="cerrarModalCantidad()" style="flex:1; padding:18px; background:#F2F2F7; color:#1C1C1E; border:none; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px; font-family:inherit;">Cancelar</button>
-                <button onclick="guardarCantidadModal()" style="flex:1; padding:18px; background:var(--brand-navy); color:white; border:none; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px; font-family:inherit;">Guardar</button>
-            </div>
+<div id="modal-cantidad" class="modal-overlay">
+    <div class="modal-caja">
+        <h3 style="margin-top:0; color:#8E8E93; font-size: 14px; text-transform: uppercase;">Cantidad para la talla</h3>
+        <h1 id="modal-talla-label" style="margin:5px 0; color:var(--brand-navy); font-size: 42px; font-weight: 800;">--</h1>
+        <input type="number" id="input-cantidad" class="input-num" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+        <div style="display: flex; gap: 12px; margin-top: 10px;">
+            <button onclick="cerrarModalCantidad()" style="flex:1; padding:18px; background:#F2F2F7; color:#1C1C1E; border:none; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px; font-family:inherit;">Cancelar</button>
+            <button onclick="guardarCantidadModal()" style="flex:1; padding:18px; background:var(--brand-navy); color:white; border:none; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px; font-family:inherit;">Guardar</button>
         </div>
     </div>
+</div>
 
-    <div id="login-screen" class="card reveal">
-        <h2>Identificación de Operador</h2>
-        <p style="color: #8E8E93; margin-bottom: 25px; font-size: 14px; font-weight: 600;">Ingrese su nombre para continuar</p>
-        <input type="text" id="nombre-input" class="input-pro" placeholder="Tu nombre completo">
-        <button class="btn-finish" style="margin-top:0;" onclick="guardarNombre()">Comenzar Jornada</button>
+<div id="modal-picking" class="modal-overlay">
+    <div class="modal-caja" style="max-width: 360px;">
+        <h3 style="margin-top:0; color:#8E8E93; font-size: 14px; text-transform: uppercase;">Surtir Producto</h3>
+        <h2 id="pick-item-label" style="margin:5px 0 15px 0; color:var(--brand-navy); font-size: 20px; font-weight: 800;">Modelo - Talla</h2>
+        
+        <div style="text-align: left; margin-bottom: 15px;">
+            <label style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">1. Lote de Origen</label>
+            <select id="pick-lote" class="input-pro" style="margin-bottom: 0; padding: 14px;">
+                <option value="" disabled selected>Cargando lotes disponibles...</option>
+            </select>
+            <small style="color:var(--brand-orange); font-size: 11px; font-weight: 700;" id="pick-lote-hint">Buscando stock en Kardex...</small>
+        </div>
+
+        <div style="text-align: left;">
+            <label style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">2. Cantidad Extraída (Requeridas: <span id="lbl-req" style="color:var(--brand-orange)">0</span>)</label>
+            <input type="number" id="pick-cant" class="input-num" inputmode="numeric" pattern="[0-9]*" placeholder="0" style="margin-bottom:0;">
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 25px;">
+            <button onclick="cerrarModalPicking()" style="flex:1; padding:18px; background:#F2F2F7; color:#1C1C1E; border:none; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px; font-family:inherit;">Cancelar</button>
+            <button onclick="guardarPickingModal()" style="flex:1; padding:18px; background:var(--brand-navy); color:white; border:none; border-radius:14px; font-weight:700; cursor:pointer; font-size:16px; font-family:inherit;">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div id="login-screen" class="card reveal">
+    <h2>Identificación de Operador</h2>
+    <p style="color: #8E8E93; margin-bottom: 25px; font-size: 14px; font-weight: 600;">Ingrese su nombre para continuar</p>
+    <input type="text" id="nombre-input" class="input-pro" placeholder="Tu nombre completo">
+    <button class="btn-finish" style="margin-top:0;" onclick="guardarNombre()">Comenzar Jornada</button>
+</div>
+
+<div id="listado-screen" class="reveal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <h2 id="saludo-user" style="margin:0; font-size: 20px;">Cargando...</h2>
+        <button onclick="localStorage.clear(); location.reload();" style="font-size:12px; font-weight:700; border:none; background:#F2F2F7; padding:8px 12px; border-radius:10px; color:#FF3B30; cursor:pointer;">Cerrar Sesión</button>
     </div>
 
-    <div id="listado-screen" class="reveal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
-            <h2 id="saludo-user" style="margin:0; font-size: 20px;">Cargando...</h2>
-            <button onclick="localStorage.clear(); location.reload();" style="font-size:12px; font-weight:700; border:none; background:#F2F2F7; padding:8px 12px; border-radius:10px; color:#FF3B30; cursor:pointer;">Cerrar Sesión</button>
-        </div>
+    <div class="tabs-op">
+        <button class="tab-btn active" id="tab-inv" onclick="switchOpTab('inv')">📋 Inventarios</button>
+        <button class="tab-btn" id="tab-ped" onclick="switchOpTab('ped')">🛒 Surtir Pedidos</button>
+    </div>
+
+    <div id="contenedor-inventarios">
         <div id="lista-pendientes">
             <div class="item-pend skeleton" style="height: 60px;"></div>
             <div class="item-pend skeleton" style="height: 60px;"></div>
         </div>
     </div>
 
-    <div id="conteo-screen" class="reveal">
-        <div class="sticky-conteo-panel">
-            <div class="header-active" id="info-header"></div>
-            <div class="progress-wrapper">
-                <div style="display:flex; justify-content:space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--brand-navy);">
-                    <b id="texto-progreso">Progreso: 0%</b>
-                    <span id="contador-tallas">0/0 Tallas</span>
-                </div>
-                <div class="progress-bg"><div id="bar-progreso" class="progress-fill shimmer"></div></div>
+    <div id="contenedor-pedidos" style="display: none;">
+        <div id="lista-pedidos">
             </div>
-        </div>
+    </div>
+</div>
 
-        <div class="card" style="margin: 0; background: transparent; box-shadow: none; padding: 0;">
-            <div id="lista-tallas-conteo"></div>
-            <button class="btn-finish" id="btn-final" onclick="finalizarInventario()">✅ Enviar Reporte Final</button>
-            <button class="btn-back" onclick="location.reload()">Regresar al menú principal</button>
+<div id="conteo-screen" class="reveal">
+    <div class="sticky-panel" id="sticky-inv" style="background: var(--bg-canela);">
+        <div class="header-active" id="info-header"></div>
+        <div class="progress-wrapper">
+            <div style="display:flex; justify-content:space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--brand-navy);">
+                <b id="texto-progreso">Progreso: 0%</b>
+                <span id="contador-tallas">0/0 Tallas</span>
+            </div>
+            <div class="progress-bg"><div id="bar-progreso" class="progress-fill shimmer"></div></div>
         </div>
     </div>
+    <div class="card" style="margin: 0; background: transparent; box-shadow: none; padding: 0;">
+        <div id="lista-tallas-conteo"></div>
+        <button class="btn-finish" id="btn-final" onclick="finalizarInventario()">✅ Enviar Reporte Final</button>
+        <button class="btn-back" onclick="location.reload()">Regresar al menú principal</button>
+    </div>
+</div>
+
+<div id="picking-screen" class="reveal">
+    <div class="sticky-panel" id="sticky-pick" style="background: var(--bg-pedido);">
+        <div class="header-active" id="pick-header" style="border-color: #007AFF;"></div>
+        <div class="progress-wrapper">
+            <div style="display:flex; justify-content:space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--brand-navy);">
+                <b id="pick-texto-progreso">Surtido: 0%</b>
+                <span id="pick-contador">0/0 Piezas</span>
+            </div>
+            <div class="progress-bg"><div id="pick-bar-progreso" class="progress-fill shimmer" style="background: #007AFF;"></div></div>
+        </div>
+    </div>
+    <div class="card" style="margin: 0; background: transparent; box-shadow: none; padding: 0;">
+        <div id="lista-items-picking"></div>
+        <button class="btn-finish btn-finish-blue" onclick="finalizarPedidoWMS()">🖨️ Finalizar y Generar Remisión PDF</button>
+        <button class="btn-back" onclick="location.reload()">Regresar al menú principal</button>
+    </div>
+</div>
 
 <script>
     let miNombre = localStorage.getItem('operador_nombre');
+    
+    // Variables Inventario
     let inventarioActivo = null;
     let resultados = [];
     let tallaActivaModal = null;
+
+    // Variables WMS Pedidos
+    let pedidoActivo = null;
+    let itemActivoIndex = null; // Índice del array items del pedido
 
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
@@ -353,28 +369,49 @@
         location.reload();
     }
 
+    function showToast(msg) {
+        const t = document.getElementById('toast-op');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    function switchOpTab(tab) {
+        document.getElementById('tab-inv').classList.remove('active');
+        document.getElementById('tab-ped').classList.remove('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        
+        document.getElementById('contenedor-inventarios').style.display = tab === 'inv' ? 'block' : 'none';
+        document.getElementById('contenedor-pedidos').style.display = tab === 'ped' ? 'block' : 'none';
+    }
+
     async function iniciarApp() {
         document.getElementById('saludo-user').innerText = `👷 ${miNombre}`;
         try {
-            const res = await fetch('/api/ciclicos');
-            const datos = await res.json();
-            renderListaDisponibles(datos);
-        } catch (e) { console.error("Error al cargar"); }
+            // Cargar Inventarios Cíclicos
+            const resInv = await fetch('/api/ciclicos');
+            const datosInv = await resInv.json();
+            renderListaDisponibles(datosInv);
+
+            // Cargar Pedidos WMS
+            const resPed = await fetch('/api/pedidos'); // Este endpoint lo crearemos en server.js
+            if(resPed.ok) {
+                const datosPed = await resPed.json();
+                renderListaPedidos(datosPed);
+            }
+        } catch (e) { console.error("Error al cargar datos", e); }
     }
 
+    // ==============================================================
+    // MODULO 1: INVENTARIOS CÍCLICOS (Intacto)
+    // ==============================================================
     function renderListaDisponibles(datos) {
         const contenedor = document.getElementById('lista-pendientes');
         contenedor.innerHTML = "";
         const disponibles = datos.filter(d => d.estatus !== "Finalizado");
 
         if (disponibles.length === 0) {
-            contenedor.innerHTML = `
-                <div class="empty-state reveal">
-                    <span style="font-size: 45px;">🚀</span>
-                    <h3>¡Todo al día!</h3>
-                    <p>Por el momento no hay inventarios asignados. Excelente trabajo.</p>
-                </div>
-            `;
+            contenedor.innerHTML = `<div class="empty-state reveal"><span style="font-size: 45px;">🚀</span><h3>¡Todo al día!</h3><p>No hay inventarios asignados.</p></div>`;
             return;
         }
 
@@ -402,17 +439,11 @@
     async function apartarInventario(inv) {
         let horaInicioParam = null;
         if (!inv.asignadoA || inv.estatus === "Pendiente") {
-            const ahora = new Date();
-            horaInicioParam = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const ahora = new Date(); horaInicioParam = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
-        const res = await fetch('/api/asignar-operador', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inv.id, operador: miNombre, horaInicio: horaInicioParam })
-        });
+        const res = await fetch('/api/asignar-operador', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: inv.id, operador: miNombre, horaInicio: horaInicioParam }) });
         if ((await res.json()).success) {
-            const res2 = await fetch('/api/ciclicos');
-            const todos = await res2.json();
+            const res2 = await fetch('/api/ciclicos'); const todos = await res2.json();
             const invAct = todos.find(i => i.id == inv.id);
             resultados = invAct.resultados || [];
             abrirConteo(invAct);
@@ -421,259 +452,423 @@
 
     function abrirConteo(inv) {
         inventarioActivo = inv;
-        document.getElementById('listado-screen').style.display = 'none';
-        document.getElementById('conteo-screen').style.display = 'block';
-        
-        // Aplicamos el color Canela al body cuando entra a la pantalla de conteo
+        document.getElementById('listado-screen').style.display = 'none'; document.getElementById('conteo-screen').style.display = 'block';
         document.body.style.backgroundColor = 'var(--bg-canela)';
-
         const rutaFoto = `/fotos/${inv.modelo}.jpg`;
-
         document.getElementById('info-header').innerHTML = `
             <div style="display:flex; gap:15px; align-items:center;">
-                <img src="${rutaFoto}" class="foto-referencia" 
-                     onclick="verZoom('${rutaFoto}')"
-                     onload="this.style.display='block'" 
-                     onerror="this.style.display='none'">
+                <img src="${rutaFoto}" class="foto-referencia" onclick="verZoom('${rutaFoto}')" onload="this.style.display='block'" onerror="this.style.display='none'">
                 <div>
                     <small style="opacity:0.8; font-weight:700; color: var(--brand-gold);">ID: #${inv.id}</small>
                     <h2 style="color:white; margin:0; font-size:28px;">${inv.modelo}</h2>
                     <p style="margin:5px 0 0 0; opacity:0.9; font-weight:600;">${inv.color}</p>
                 </div>
-            </div>
-        `;
+            </div>`;
         renderTallas();
     }
 
-    function verZoom(src) {
-        document.getElementById('img-ampliada').src = src;
-        document.getElementById('modal-zoom').style.display = 'flex';
-    }
-    function cerrarZoom() { document.getElementById('modal-zoom').style.display = 'none'; }
-
-    // ==============================================================
-    // NUEVA FUNCIÓN RENDER TALLAS (INTEGRACIÓN INVENTARIO TEÓRICO)
-    // ==============================================================
     function renderTallas() {
-        const lista = document.getElementById('lista-tallas-conteo');
-        lista.innerHTML = "";
+        const lista = document.getElementById('lista-tallas-conteo'); lista.innerHTML = "";
         inventarioActivo.tallas.forEach(objTalla => {
-            // Compatibilidad por si hay inventarios viejos guardados como string
             const nombreTalla = typeof objTalla === 'string' ? objTalla : objTalla.talla;
             const cantTeorica = typeof objTalla === 'string' ? 0 : (objTalla.teorico || 0);
-            
             const yaContada = resultados.find(r => r.talla === nombreTalla);
-            
             let advertenciaClase = '';
-            if(yaContada && yaContada.cantidad !== cantTeorica) {
-                advertenciaClase = 'color: #FF3B30; font-weight: 800;'; // Rojo si hay diferencia
-            } else if(yaContada && yaContada.cantidad === cantTeorica) {
-                advertenciaClase = 'color: #34C759; font-weight: 800;'; // Verde si cuadra exacto
-            }
+            if(yaContada && yaContada.cantidad !== cantTeorica) advertenciaClase = 'color: #FF3B30; font-weight: 800;'; 
+            else if(yaContada && yaContada.cantidad === cantTeorica) advertenciaClase = 'color: #34C759; font-weight: 800;';
 
             lista.innerHTML += `
                 <div class="talla-item ${yaContada ? 'counted' : ''}" id="fila-talla-${nombreTalla.replace(/\s+/g, '')}">
-                    <div class="talla-info">
-                        <b>${nombreTalla}</b>
-                        <div style="font-size: 12px; margin-top: 4px; color: #8E8E93;">
-                            Teórico: <span style="${advertenciaClase}">${cantTeorica} pz</span>
-                        </div>
-                    </div>
-                    ${yaContada 
-                        ? `<div><span style="color:#34C759; font-weight:800; font-size:22px; margin-right:15px;">✔ <span class="pop-in">${yaContada.cantidad}</span></span> <button onclick="borrarTalla('${nombreTalla}')" style="border:none; background:#FFEBEB; padding:8px 14px; border-radius:10px; color:#FF3B30; cursor:pointer; font-size:12px; font-weight:800;">Rehacer</button></div>`
-                        : `<button class="btn-action" onclick="abrirModalCantidad('${nombreTalla}', ${cantTeorica})">CONTAR</button>`
-                    }
-                </div>
-            `;
+                    <div class="talla-info"><b>${nombreTalla}</b><div style="font-size: 12px; margin-top: 4px; color: #8E8E93;">Teórico: <span style="${advertenciaClase}">${cantTeorica} pz</span></div></div>
+                    ${yaContada ? `<div><span style="color:#34C759; font-weight:800; font-size:22px; margin-right:15px;">✔ <span class="pop-in">${yaContada.cantidad}</span></span> <button onclick="borrarTalla('${nombreTalla}')" style="border:none; background:#FFEBEB; padding:8px 14px; border-radius:10px; color:#FF3B30; cursor:pointer; font-size:12px; font-weight:800;">Rehacer</button></div>` : `<button class="btn-action" onclick="abrirModalCantidad('${nombreTalla}', ${cantTeorica})">CONTAR</button>`}
+                </div>`;
         });
         actualizarProgresoVisual();
     }
 
     function abrirModalCantidad(talla, teorico) {
-        tallaActivaModal = talla;
-        document.getElementById('modal-talla-label').innerText = talla;
-        
-        // Mostrar el teórico en el modal para ayudar al operador
+        tallaActivaModal = talla; document.getElementById('modal-talla-label').innerText = talla;
         const subTituloModal = document.querySelector('#modal-cantidad h3');
-        if (teorico !== undefined) {
-            subTituloModal.innerHTML = `Teórico del sistema: <b style="color:var(--brand-orange); font-size:16px;">${teorico} piezas</b>`;
-        } else {
-            subTituloModal.innerHTML = `Cantidad para la talla`;
-        }
-
-        const inputNum = document.getElementById('input-cantidad');
-        inputNum.value = "";
-        
-        const modal = document.getElementById('modal-cantidad');
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('visible'), 10);
-        setTimeout(() => inputNum.focus(), 300);
+        subTituloModal.innerHTML = teorico !== undefined ? `Teórico del sistema: <b style="color:var(--brand-orange); font-size:16px;">${teorico} piezas</b>` : `Cantidad para la talla`;
+        const inputNum = document.getElementById('input-cantidad'); inputNum.value = "";
+        const modal = document.getElementById('modal-cantidad'); modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('visible'), 10); setTimeout(() => inputNum.focus(), 300);
     }
-
-    function cerrarModalCantidad() {
-        const modal = document.getElementById('modal-cantidad');
-        modal.classList.remove('visible');
-        setTimeout(() => { modal.style.display = 'none'; tallaActivaModal = null; }, 300);
-    }
+    function cerrarModalCantidad() { const modal = document.getElementById('modal-cantidad'); modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; tallaActivaModal = null; }, 300); }
 
     function guardarCantidadModal() {
         const valStr = document.getElementById('input-cantidad').value;
-        if (!valStr || valStr === "") {
-            alert("Por favor, ingresa una cantidad válida.");
-            return;
-        }
-        
-        const n = parseInt(valStr);
-        if (isNaN(n) || n < 0) return;
-
-        // Guardamos en una variable la talla que se acaba de afectar para pasarsela a la función de scroll
+        if (!valStr) return alert("Por favor, ingresa una cantidad.");
+        const n = parseInt(valStr); if (isNaN(n) || n < 0) return;
         const tallaGuardada = tallaActivaModal;
-
         resultados.push({ talla: tallaActivaModal, cantidad: n });
-        cerrarModalCantidad();
-        enviarAvance();
-        
-        renderTallas();
-        enfocarSiguienteTalla(tallaGuardada); // Mandamos decirle al sistema DÓNDE estábamos
+        cerrarModalCantidad(); enviarAvance(); renderTallas(); enfocarSiguienteTalla(tallaGuardada, '.sticky-panel');
     }
 
-    // =========================================================
-    // SCROLL CONTEXTUAL INTELIGENTE (Respeta tu progreso hacia abajo)
-    // =========================================================
-    function enfocarSiguienteTalla(tallaRecienContada) {
+    function borrarTalla(talla) { resultados = resultados.filter(r => r.talla !== talla); enviarAvance(); renderTallas(); }
+    async function enviarAvance() { const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100); fetch('/api/actualizar-progreso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados }) }); }
+    function actualizarProgresoVisual() { const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100); document.getElementById('bar-progreso').style.width = porc + "%"; document.getElementById('texto-progreso').innerText = `Progreso: ${porc}%`; document.getElementById('contador-tallas').innerText = `${resultados.length}/${inventarioActivo.totalTallas}`; }
+
+    async function finalizarInventario() {
+        if (resultados.length < inventarioActivo.totalTallas) { if (!confirm("Aún faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return; }
+        fakeLoader.show("Enviando reporte ciclico...", "Sincronizando con el Supervisor");
+        const ahora = new Date(); const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const res = await fetch('/api/actualizar-progreso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" }) });
+        await new Promise(resolve => setTimeout(resolve, 6200));
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
+        fakeLoader.msg.innerText = "¡Reporte Enviado! ✅"; fakeLoader.perc.innerText = "100%"; fakeLoader.status.innerText = "Regresando al menú principal...";
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (res.ok) { document.body.style.backgroundColor = 'var(--bg-apple)'; location.reload(); }
+    }
+
+    function verZoom(src) { document.getElementById('img-ampliada').src = src; document.getElementById('modal-zoom').style.display = 'flex'; }
+    function cerrarZoom() { document.getElementById('modal-zoom').style.display = 'none'; }
+
+
+    // ==============================================================
+    // MODULO 2: WMS PEDIDOS (Picking Inteligente)
+    // ==============================================================
+    function renderListaPedidos(datos) {
+        const contenedor = document.getElementById('lista-pedidos');
+        contenedor.innerHTML = "";
+        const disponibles = datos.filter(d => d.estatus !== "Completado");
+
+        if (disponibles.length === 0) {
+            contenedor.innerHTML = `<div class="empty-state reveal"><span style="font-size: 45px;">📦</span><h3>Sin pedidos pendientes</h3><p>El almacén está limpio.</p></div>`;
+            return;
+        }
+
+        disponibles.forEach(ped => {
+            const isUrgente = ped.prioridad === "Urgente";
+            const isMine = ped.asignadoA === miNombre;
+            const isBusy = ped.asignadoA && ped.asignadoA !== miNombre;
+            const div = document.createElement('div');
+            div.className = `item-pend reveal ${isBusy ? 'busy' : ''}`;
+            div.style.borderLeft = isUrgente ? "5px solid #FF3B30" : "5px solid #007AFF";
+            div.innerHTML = `
+                <div class="talla-info">
+                    ${isUrgente ? `<span class="tag-urgente">URGENTE</span><br>` : `<span class="tag-normal">Normal</span><br>`}
+                    <b>${ped.folio}</b><br>
+                    <small style="color:#8E8E93">${ped.totalPiezas} piezas a surtir</small>
+                </div>
+                <div>
+                    ${isBusy ? `<span class="tag-status tag-busy">🔒 Surtido por ${ped.asignadoA}</span>` : ''}
+                    ${isMine ? `<span class="tag-status tag-mine">Continuar Picking</span>` : ''}
+                    ${!ped.asignadoA ? `<button class="btn-action" style="background:#007AFF; font-size:12px; padding:10px 15px;">Iniciar Surtido</button>` : ''}
+                </div>
+            `;
+            if (!isBusy) div.onclick = () => apartarPedido(ped);
+            contenedor.appendChild(div);
+        });
+    }
+
+    async function apartarPedido(ped) {
+        // Lógica para asignar en DB
+        const res = await fetch('/api/asignar-pedido', { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ folio: ped.folio, operador: miNombre }) 
+        });
+        if(res.ok) {
+            // Refrescar info del pedido desde BD para tener items actualizados
+            const res2 = await fetch('/api/pedidos'); const todos = await res2.json();
+            pedidoActivo = todos.find(p => p.folio === ped.folio);
+            abrirPicking(pedidoActivo);
+        }
+    }
+
+    function abrirPicking(ped) {
+        document.getElementById('listado-screen').style.display = 'none'; 
+        document.getElementById('picking-screen').style.display = 'block';
+        document.body.style.backgroundColor = 'var(--bg-pedido)'; // Color temático azul clarito
+
+        document.getElementById('pick-header').innerHTML = `
+            <div>
+                <small style="opacity:0.8; font-weight:700; color: #8BE4FF;">WMS PICKING</small>
+                <h2 style="color:white; margin:0; font-size:28px;">${ped.folio}</h2>
+                <p style="margin:5px 0 0 0; opacity:0.9; font-weight:600; font-size:14px;">${ped.notas || 'Sin notas del supervisor'}</p>
+            </div>`;
+        renderItemsPicking();
+    }
+
+    function renderItemsPicking() {
+        const lista = document.getElementById('lista-items-picking'); lista.innerHTML = "";
+        let piezasSurtidasTotal = 0;
+
+        pedidoActivo.items.forEach((item, index) => {
+            const yaSurtido = item.surtido > 0;
+            const surtidoCompleto = item.surtido >= item.cantidadSolicitada;
+            piezasSurtidasTotal += item.surtido;
+            
+            let colorSt = surtidoCompleto ? '#34C759' : (yaSurtido ? '#FF8C00' : 'var(--brand-navy)');
+
+            lista.innerHTML += `
+                <div class="talla-item ${surtidoCompleto ? 'counted' : ''}" id="fila-pick-${index}" style="${yaSurtido && !surtidoCompleto ? 'border-left-color:#FF8C00; background:#FFF8F0;' : ''}">
+                    <div class="talla-info">
+                        <b style="font-size:16px;">${item.modelo}</b><br>
+                        <small style="color:var(--text-dark);">${item.color} | Talla: <b style="font-size:14px;">${item.talla}</b></small>
+                        <div style="font-size: 12px; margin-top: 4px; color: #8E8E93;">
+                            Solicitadas: <span style="font-weight:800; color:${colorSt};">${item.cantidadSolicitada} pz</span>
+                            ${item.loteOrigen ? `<br><small>Lote extraído: ${item.loteOrigen}</small>` : ''}
+                        </div>
+                    </div>
+                    ${surtidoCompleto 
+                        ? `<div><span style="color:#34C759; font-weight:800; font-size:20px; margin-right:15px;">✔ ${item.surtido}</span> <button onclick="abrirModalPicking(${index})" style="border:none; background:#F2F2F7; padding:8px 12px; border-radius:10px; color:#1C1C1E; cursor:pointer; font-size:11px; font-weight:800;">Editar</button></div>` 
+                        : `<button class="btn-action" style="background:#007AFF;" onclick="abrirModalPicking(${index})">${yaSurtido ? 'COMPLETAR' : 'SURTIR'}</button>`
+                    }
+                </div>`;
+        });
+        
+        // Actualizar UI
+        const porc = Math.round((piezasSurtidasTotal / pedidoActivo.totalPiezas) * 100);
+        document.getElementById('pick-bar-progreso').style.width = porc + "%";
+        document.getElementById('pick-texto-progreso').innerText = `Surtido: ${porc}%`;
+        document.getElementById('pick-contador').innerText = `${piezasSurtidasTotal}/${pedidoActivo.totalPiezas} Pz`;
+    }
+
+    async function abrirModalPicking(index) {
+        itemActivoIndex = index;
+        const item = pedidoActivo.items[index];
+        
+        document.getElementById('pick-item-label').innerText = `${item.modelo} - ${item.talla}`;
+        document.getElementById('lbl-req').innerText = item.cantidadSolicitada;
+        const inputCant = document.getElementById('pick-cant');
+        inputCant.value = item.surtido > 0 ? item.surtido : "";
+        
+        // Petición Inteligente de Lotes al Kardex
+        const selectLote = document.getElementById('pick-lote');
+        const hint = document.getElementById('pick-lote-hint');
+        selectLote.innerHTML = '<option value="" disabled selected>Buscando en Kardex...</option>';
+        hint.innerText = "Consultando base de datos...";
+
+        try {
+            const res = await fetch(`/api/lotes-disponibles?modelo=${encodeURIComponent(item.modelo)}&color=${encodeURIComponent(item.color)}&talla=${encodeURIComponent(item.talla)}`);
+            const lotes = await res.json();
+            
+            selectLote.innerHTML = '<option value="" disabled selected>Selecciona el lote físico...</option>';
+            if(lotes.length > 0) {
+                lotes.forEach(l => {
+                    const isSelected = item.loteOrigen === l.lote ? "selected" : "";
+                    selectLote.innerHTML += `<option value="${l.lote}" ${isSelected}>Lote: ${l.lote} (Stock disp: ${l.cantidad})</option>`;
+                });
+                hint.innerText = "Lotes reales encontrados en inventario.";
+                hint.style.color = "#34C759";
+            } else {
+                selectLote.innerHTML = '<option value="SIN-LOTE" selected>No hay stock registrado en Kardex</option>';
+                hint.innerText = "Alerta: No se encontró stock para esta prenda.";
+                hint.style.color = "#FF3B30";
+            }
+        } catch(e) {
+            selectLote.innerHTML = '<option value="MANUAL" selected>Ingreso Manual</option>';
+            hint.innerText = "No se pudo conectar con Kardex.";
+        }
+
+        const modal = document.getElementById('modal-picking');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('visible'), 10);
+        setTimeout(() => inputCant.focus(), 300);
+    }
+
+    function cerrarModalPicking() {
+        const modal = document.getElementById('modal-picking');
+        modal.classList.remove('visible');
+        setTimeout(() => { modal.style.display = 'none'; itemActivoIndex = null; }, 300);
+    }
+
+    async function guardarPickingModal() {
+        const cantStr = document.getElementById('pick-cant').value;
+        const loteVal = document.getElementById('pick-lote').value;
+        
+        if (!cantStr || cantStr === "") return alert("Ingresa cuántas piezas encontraste físicamente.");
+        if (!loteVal) return alert("Debes indicar de qué lote sacaste la mercancía.");
+        
+        const n = parseInt(cantStr); if (isNaN(n) || n < 0) return;
+
+        // Actualizar en el objeto local
+        pedidoActivo.items[itemActivoIndex].surtido = n;
+        pedidoActivo.items[itemActivoIndex].loteOrigen = loteVal;
+
+        cerrarModalPicking();
+        renderItemsPicking();
+        enfocarSiguienteTalla(`pick-${itemActivoIndex}`, '#sticky-pick');
+
+        // Guardar avance en servidor para que no se pierda si se apaga el cel
+        fetch('/api/actualizar-pedido', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items })
+        });
+    }
+
+    // Scroll Automático Compartido
+    function enfocarSiguienteTalla(idParcial, stickySelector) {
         setTimeout(() => {
-            if (!tallaRecienContada) return; // Si por alguna razón no hay talla, no hacemos nada
-
-            // 1. Encontramos la fila exacta de la talla que acabamos de capturar
-            const idFila = 'fila-talla-' + tallaRecienContada.replace(/\s+/g, '');
-            const filaActual = document.getElementById(idFila);
-
+            const filaActual = document.getElementById(`fila-${idParcial}`);
             if (filaActual) {
-                // 2. Buscamos la siguiente fila HACIA ABAJO que tenga un botón "CONTAR"
-                let filaObjetivo = null;
                 let iterador = filaActual.nextElementSibling;
-                
                 while (iterador) {
-                    if (iterador.querySelector('.btn-action')) { // Encontramos la siguiente vacía
-                        filaObjetivo = iterador;
+                    if (iterador.querySelector('.btn-action')) {
+                        const stickyPanel = document.querySelector(stickySelector);
+                        const limiteSuperior = stickyPanel ? stickyPanel.getBoundingClientRect().bottom : 200;
+                        const itemPos = iterador.getBoundingClientRect();
+                        if (itemPos.top < limiteSuperior || itemPos.bottom > window.innerHeight) {
+                            window.scrollTo({ top: window.scrollY + itemPos.top - limiteSuperior - 15, behavior: 'smooth' });
+                        }
                         break;
                     }
                     iterador = iterador.nextElementSibling;
                 }
+            }
+        }, 50);
+    }
 
-                // 3. Si encontramos la siguiente hacia abajo, calculamos si está tapada y scrolleamos
-                if (filaObjetivo) {
-                    const stickyPanel = document.querySelector('.sticky-conteo-panel');
-                    const limiteSuperior = stickyPanel ? stickyPanel.getBoundingClientRect().bottom : 280;
-                    const itemPos = filaObjetivo.getBoundingClientRect();
-                    
-                    // Solo scrollea si el item quedó tapado por el panel de arriba o fuera de la pantalla
-                    if (itemPos.top < limiteSuperior || itemPos.bottom > window.innerHeight) {
-                        const scrollDestino = window.scrollY + itemPos.top - limiteSuperior - 15;
-                        window.scrollTo({
-                            top: scrollDestino,
-                            behavior: 'smooth'
-                        });
+    // ==============================================================
+    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE)
+    // ==============================================================
+    async function finalizarPedidoWMS() {
+        // Validar si surtió todo
+        let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
+        if(piezasSurtidasTotal < pedidoActivo.totalPiezas) {
+            if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas solicitadas. Lo que falte se quedará como pendiente en la remisión. ¿Continuar y cerrar pedido?`)) return;
+        }
+
+        fakeLoader.show("Generando Remisión PDF...", "Descontando mercancía del Kardex central");
+
+        try {
+            // 1. Enviar petición final al servidor (El servidor hará la baja del Kardex)
+            const res = await fetch('/api/finalizar-pedido-wms', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items, operador: miNombre })
+            });
+
+            if(!res.ok) throw new Error("Error en servidor");
+
+            // 2. Generar el PDF corporativo
+            await generarPDFRemision(pedidoActivo);
+
+            // 3. Animación de Éxito
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
+            fakeLoader.msg.innerText = "¡Surtido Finalizado! 🖨️";
+            fakeLoader.perc.innerText = "100%";
+            fakeLoader.status.innerText = "PDF Descargado. Regresando...";
+
+            setTimeout(() => { location.reload(); }, 2000);
+
+        } catch (e) {
+            fakeLoader.hide();
+            alert("Hubo un error al procesar la salida. Por favor revisa la conexión.");
+        }
+    }
+
+    async function generarPDFRemision(pedido) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'pt', 'letter');
+        
+        // Helper Imagen
+        const logoBase64 = await getBase64ImageFromUrl('/logo.png');
+        if(logoBase64) {
+            doc.addImage(logoBase64, 'PNG', 40, 30, 150, 60);
+        }
+
+        // Título y Datos Cabecera
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(0, 26, 51); // Navy
+        doc.text("REMISIÓN DE SURTIDO WMS", 300, 55, { align: "center" });
+
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Folio de Pedido: ${pedido.folio}`, 400, 85);
+        doc.text(`Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}`, 400, 100);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`Surtido por: ${miNombre} (Almacén Central)`, 40, 100);
+        if(pedido.notas) doc.text(`Notas del Supervisor: ${pedido.notas}`, 40, 115);
+
+        // Crear la Tabla
+        const tableBody = [];
+        let totalSolicitado = 0;
+        let totalSurtido = 0;
+
+        pedido.items.forEach(item => {
+            let surtidoVal = item.surtido || 0;
+            totalSolicitado += item.cantidadSolicitada;
+            totalSurtido += surtidoVal;
+            
+            let estatus = surtidoVal >= item.cantidadSolicitada ? 'Completo' : `Faltan ${item.cantidadSolicitada - surtidoVal}`;
+            
+            tableBody.push([
+                item.modelo,
+                item.color,
+                item.talla,
+                item.loteOrigen || 'N/A',
+                item.cantidadSolicitada.toString(),
+                surtidoVal.toString(),
+                estatus
+            ]);
+        });
+
+        // Fila de Totales
+        tableBody.push([{ content: 'TOTALES', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, totalSolicitado.toString(), totalSurtido.toString(), '']);
+
+        doc.autoTable({
+            startY: 140,
+            head: [['MODELO', 'COLOR', 'TALLA', 'LOTE ORIGEN', 'PEDIDO', 'SURTIDO', 'ESTATUS']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: [0, 26, 51], textColor: 255, fontSize: 10, fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { fontSize: 10, textColor: 50 },
+            columnStyles: {
+                4: { halign: 'center', fontStyle: 'bold' },
+                5: { halign: 'center', fontStyle: 'bold', textColor: [0, 122, 255] },
+                6: { halign: 'center' }
+            },
+            didParseCell: function (data) {
+                if(data.section === 'body' && data.column.index === 6) {
+                    if(data.cell.raw.includes('Faltan')) {
+                        data.cell.styles.textColor = [255, 59, 48]; // Rojo si falta
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (data.cell.raw === 'Completo') {
+                        data.cell.styles.textColor = [52, 199, 89]; // Verde si completo
                     }
                 }
             }
-        }, 50); // Pequeña pausa para asegurar que el DOM ya pintó la palomita verde
-    }
-
-    document.getElementById('input-cantidad').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') { guardarCantidadModal(); }
-    });
-
-    function borrarTalla(talla) {
-        resultados = resultados.filter(r => r.talla !== talla);
-        enviarAvance();
-        renderTallas();
-    }
-
-    async function enviarAvance() {
-        const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
-        fetch('/api/actualizar-progreso', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inventarioActivo.id, progreso: porc, conteoActual: resultados.length, resultados: resultados })
         });
+
+        // Zona de Firmas
+        const finalY = doc.lastAutoTable.finalY + 80;
+        doc.setLineWidth(1);
+        doc.setDrawColor(200);
+        
+        // Firma Almacén
+        doc.line(70, finalY, 250, finalY);
+        doc.setFontSize(10);
+        doc.setTextColor(50);
+        doc.text("ENTREGADO POR ALMACÉN", 160, finalY + 15, { align: "center" });
+        doc.text(miNombre, 160, finalY + 30, { align: "center" });
+
+        // Firma Producción
+        doc.line(350, finalY, 530, finalY);
+        doc.text("RECIBIDO DE CONFORMIDAD", 440, finalY + 15, { align: "center" });
+        doc.text("Supervisor de Producción", 440, finalY + 30, { align: "center" });
+
+        // Nota Legal/Sistema
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text("Nota: Las cantidades surtidas detalladas en este documento han sido descontadas automáticamente del inventario (KARDEX).", 300, finalY + 70, { align: "center" });
+
+        doc.save(`Remision_WMS_${pedido.folio}.pdf`);
     }
 
-    function actualizarProgresoVisual() {
-        const porc = Math.round((resultados.length / inventarioActivo.totalTallas) * 100);
-        document.getElementById('bar-progreso').style.width = porc + "%";
-        document.getElementById('texto-progreso').innerText = `Progreso: ${porc}%`;
-        document.getElementById('contador-tallas').innerText = `${resultados.length}/${inventarioActivo.totalTallas}`;
-    }
-
-    // ==============================================================
-    // LÓGICA DE FAKE LOADER PARA OPERADOR
-    // ==============================================================
-    const fakeLoader = {
-        overlay: document.getElementById('fake-loader-overlay'),
-        msg: document.getElementById('fake-loader-msg'),
-        perc: document.getElementById('fake-loader-perc'),
-        status: document.getElementById('fake-loader-status'),
-        interval: null,
-
-        show: function(title) {
-            this.msg.innerText = title;
-            this.perc.innerText = "0%";
-            this.status.innerText = "Sincronizando con el Supervisor";
-            this.overlay.classList.add('show');
-            setTimeout(() => this.overlay.classList.add('animating'), 50);
-
-            let p = 0;
-            this.interval = setInterval(() => {
-                p++;
-                this.perc.innerText = p + "%";
-                if (p === 70) this.status.innerText = "Cerrando registro...";
-                if (p === 90) this.status.innerText = "Enviando notificación...";
-                if (p >= 100) clearInterval(this.interval);
-            }, 60); 
-        },
-
-        hide: function() {
-            this.overlay.classList.remove('animating');
-            this.overlay.classList.remove('show');
-            clearInterval(this.interval);
-        }
-    };
-
-    async function finalizarInventario() {
-        if (resultados.length < inventarioActivo.totalTallas) {
-            if (!confirm("Aún faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return;
-        }
-        
-        // 1. Mostrar la animación Premium circular
-        fakeLoader.show("Enviando reporte ciclico...");
-        
-        const ahora = new Date();
-        const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
-        // 2. Realizar la petición real al servidor en segundo plano
-        const res = await fetch('/api/actualizar-progreso', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" })
-        });
-        
-        // 3. Esperamos a que la animación termine sus ~6 segundos
-        await new Promise(resolve => setTimeout(resolve, 6200));
-        
-        // 4. Estallido de Confeti y mensaje de éxito
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
-        fakeLoader.msg.innerText = "¡Reporte Enviado! ✅";
-        fakeLoader.perc.innerText = "100%";
-        fakeLoader.status.innerText = "Regresando al menú principal...";
-
-        // 5. Esperamos 1.5s para que disfruten el éxito y recargamos
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        if (res.ok) { 
-            document.body.style.backgroundColor = 'var(--bg-apple)'; // Restaurar color original
-            location.reload(); 
-        }
+    async function getBase64ImageFromUrl(url) {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        } catch(e) { return null; }
     }
 </script>
 </body>
