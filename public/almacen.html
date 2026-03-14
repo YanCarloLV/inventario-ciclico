@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Almacén SAP - Intelligence</title>
-<link rel="icon" href="/logo.png" type="image/png">
-<link rel="icon" sizes="192x192" href="/logo.png">
-<link rel="apple-touch-icon" href="/logo.png">
+    <link rel="icon" href="/logo.png" type="image/png">
+    <link rel="icon" sizes="192x192" href="/logo.png">
+    <link rel="apple-touch-icon" href="/logo.png">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -41,24 +41,54 @@
         .btn-green { background: var(--success); }
         .btn-orange { background: var(--brand-orange); }
         .btn-navy { background: var(--brand-navy); }
-        .btn-outline { background: #F2F2F7; color: var(--text-main); border: 1px solid #E5E5EA; }
+        .btn-outline { background: #F2F2F7; color: var(--text-main); border: 1px solid #E5E5EA;}
         .btn-purple { background: #5E5CE6; }
         .btn-black { background: #1C1C1E; }
         
-        .search-box { width: 100%; padding: 16px; border: 2px solid #E5E5EA; border-radius: 14px; font-size: 15px; outline: none; background: #F9F9FB; font-weight: 600; margin-bottom: 20px; box-sizing: border-box; }
-        .search-box:focus { border-color: var(--brand-navy); background: white; }
+        .search-box { width: 100%; padding: 16px; border: 2px solid #E5E5EA; border-radius: 14px; font-size: 15px; outline: none; background: #F9F9FB; font-weight: 600; margin-bottom: 20px; box-sizing: border-box; transition: 0.3s;}
+        .search-box:focus { border-color: var(--brand-navy); background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.05);}
 
         table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; }
         th { background: white; color: var(--text-muted); text-align: left; padding: 15px; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid #E5E5EA; position: sticky; top: 0; z-index: 10;}
-        td { padding: 15px; border-bottom: 1px solid #F2F2F7; font-size: 14px; font-weight: 600; color: var(--brand-navy); }
-        tbody tr:hover td { background: #F9F9FB; }
+        td { padding: 15px; border-bottom: 1px solid #F2F2F7; font-size: 15px; font-weight: 600; color: var(--brand-navy); vertical-align: middle;}
+        tbody tr:hover td { background: #F9F9FB; cursor: pointer;}
         
         .tag { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .tag-in { background: #E5F9E7; color: #28A745; }
         .tag-out { background: #FFEBEB; color: #FF3B30; }
         .tag-loan { background: #FFF4E5; color: #FF8C00; }
 
-        /* Modales */
+        /* =========================================
+           NUEVO: PANEL LATERAL DESLIZABLE (DRILL-DOWN)
+           ========================================= */
+        .panel-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.5); z-index: 800; backdrop-filter: blur(4px); opacity: 0; transition: 0.3s; }
+        .panel-overlay.show { display: block; opacity: 1; }
+        
+        .slide-panel { position: fixed; top: 0; right: -600px; width: 100%; max-width: 500px; height: 100%; background: white; box-shadow: -10px 0 40px rgba(0,0,0,0.15); z-index: 900; transition: right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; flex-direction: column; }
+        .slide-panel.open { right: 0; }
+        
+        .slide-header { padding: 25px 30px; border-bottom: 1px solid #E5E5EA; background: #F9F9FB; display: flex; justify-content: space-between; align-items: flex-start; }
+        .slide-content { padding: 30px; overflow-y: auto; flex: 1; background: white; }
+        
+        .lote-card { background: white; border: 2px solid #E5E5EA; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.02); }
+        .lote-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #F2F2F7; padding-bottom: 12px; margin-bottom: 15px; }
+        
+        .pills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 10px; }
+        .pill { background: #F9F9FB; border: 2px solid #E5E5EA; border-radius: 12px; padding: 12px 5px; text-align: center; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .pill:hover { border-color: var(--brand-orange); transform: translateY(-2px); }
+        .pill.active { background: var(--brand-navy); border-color: var(--brand-navy); box-shadow: 0 8px 20px rgba(0,26,51,0.2); }
+        .pill-talla { font-size: 18px; font-weight: 800; color: var(--brand-navy); }
+        .pill.active .pill-talla { color: white; }
+        .pill-qty { font-size: 13px; color: var(--brand-orange); font-weight: 800; margin-top: 4px; }
+        .pill.active .pill-qty { color: var(--brand-gold); }
+
+        .action-box { display: none; padding: 20px 30px; background: white; border-top: 1px solid #E5E5EA; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); animation: slideUp 0.3s forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* Modales Z-Index corregido para estar sobre el Panel */
+        .modal-overlay { z-index: 1000; }
+
+        /* Modales Normales */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 26, 51, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s; }
         .modal-overlay.show { display: flex; opacity: 1; }
         .modal-box { background: white; width: 90%; max-width: 650px; padding: 35px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); transform: translateY(30px); transition: 0.3s; max-height: 90vh; overflow-y: auto; }
@@ -77,9 +107,9 @@
         .toast.warning { border-color: var(--brand-orange); }
         @keyframes slideInRight { from { transform: translateX(120%); } to { transform: translateX(0); } }
 
-        .historial-lista { max-height: 300px; overflow-y: auto; background: #F9F9FB; border-radius: 12px; padding: 15px; border: 1px solid #E5E5EA; }
-        .hist-item { padding: 10px; border-bottom: 1px solid #E5E5EA; font-size: 13px; }
-        .hist-item:last-child { border: none; }
+        .historial-lista { max-height: 400px; overflow-y: auto; background: #F9F9FB; border-radius: 12px; padding: 15px; border: 1px solid #E5E5EA; }
+        .hist-item { padding: 15px; border-bottom: 1px solid #E5E5EA; font-size: 14px; background: white; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+        .hist-item:last-child { margin-bottom: 0; }
     </style>
 </head>
 <body>
@@ -94,7 +124,7 @@
     <div class="card reveal" style="padding-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('kardex')">📦 Stock Activo</button>
+                <button class="tab-btn active" onclick="switchTab('kardex')">📦 Stock Consolidado</button>
                 <button class="tab-btn" onclick="switchTab('prestamos')">🤝 Préstamos Activos</button>
                 <button class="tab-btn" onclick="switchTab('historial')">📜 Bitácora General</button>
             </div>
@@ -108,11 +138,11 @@
     </div>
 
     <div id="vista-kardex" class="card reveal" style="animation-delay: 0.1s;">
-        <h2>Inventario Disponible por Lotes</h2>
-        <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar por cualquier cruce (Ej: 4040 negro 38R)..." onkeyup="filtrarTablaInteligente('tablaKardex', this.value)">
+        <h2>Catálogo Maestro de Inventario</h2>
+        <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar Modelo, Color o Talla (Ej: 4040 38R)..." onkeyup="filtrarTablaInteligente('tablaKardex', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaKardex">
-                <thead><tr><th>Modelo / Color</th><th>Talla</th><th>Lote</th><th>Stock Actual</th><th>Última Act.</th><th>Acciones de SAP</th></tr></thead>
+                <thead><tr><th>Modelo Principal</th><th>Color</th><th>Stock Global</th><th>Variaciones</th><th>Acción</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -138,6 +168,43 @@
                 <tbody></tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<div class="panel-overlay" id="panelOverlay" onclick="cerrarPanel()"></div>
+<div class="slide-panel" id="slidePanel">
+    <div class="slide-header">
+        <div>
+            <h2 id="sp-modelo" style="margin-bottom: 5px; font-size: 24px;">MODELO</h2>
+            <span id="sp-color" style="color: var(--text-muted); font-weight: 700; font-size: 14px; text-transform: uppercase;">COLOR</span>
+        </div>
+        <button class="btn btn-outline" style="padding: 8px 12px;" onclick="cerrarPanel()">❌</button>
+    </div>
+    
+    <div style="padding: 15px 30px; background: #F9F9FB; border-bottom: 1px solid #E5E5EA;">
+        <button class="btn btn-navy" style="width: 100%; font-size: 13px;" onclick="verHistorialMaestro()">📜 Ver Historial Completo de este Modelo</button>
+    </div>
+
+    <div class="slide-content" id="sp-content">
+        </div>
+
+    <div class="action-box" id="sp-action-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div>
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 800; text-transform: uppercase;">Talla Seleccionada</span><br>
+                <span id="act-talla" style="font-size: 22px; font-weight: 800; color: var(--brand-navy);">--</span>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 800; text-transform: uppercase;">Lote Activo</span><br>
+                <span id="act-lote" class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E; font-size: 12px;">--</span>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <button class="btn btn-orange" onclick="triggerSalida()">📤 Salida</button>
+            <button class="btn btn-outline" style="border-color:#FF8C00; color:#FF8C00;" onclick="triggerPrestamo()">🤝 Prestar</button>
+        </div>
+        <button class="btn btn-outline" style="width: 100%;" onclick="triggerAjuste()">⚖️ Ajuste de Discrepancia</button>
     </div>
 </div>
 
@@ -197,8 +264,8 @@
             <h2 style="margin:0;">📜 Historial Detallado del Producto</h2>
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalHistorialItem')">❌</button>
         </div>
-        <div style="background:var(--brand-navy); color:white; padding:15px; border-radius:12px; margin-bottom: 15px;">
-            <h3 id="hist-item-title" style="margin:0;">Cargando...</h3>
+        <div style="background:var(--brand-navy); color:white; padding:20px; border-radius:16px; margin-bottom: 20px;">
+            <h3 id="hist-item-title" style="margin:0; font-size: 22px;">Cargando...</h3>
         </div>
         <div class="historial-lista" id="lista-historial-1a1"></div>
     </div>
@@ -231,8 +298,7 @@
         <div id="preview-masivo-container" style="display: none;">
             <div style="background: #E8F2FF; border-left: 5px solid #007AFF; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <h4 style="margin: 0; color: #001A33; display: flex; align-items: center; gap: 10px;">
-                    👁️ Vista Previa del Excel 
-                    <span id="lbl-preview-total" style="font-size: 13px; font-weight: 600; color: #007AFF;"></span>
+                    👁️ Vista Previa del Excel <span id="lbl-preview-total" style="font-size: 13px; font-weight: 600; color: #007AFF;"></span>
                 </h4>
             </div>
             <div style="max-height: 250px; overflow-y: auto; border: 1px solid #E5E5EA; border-radius: 12px; margin-bottom: 20px;">
@@ -244,9 +310,8 @@
         </div>
 
         <button class="btn btn-purple" style="width: 100%; padding: 18px; font-size: 16px; margin-bottom: 10px;" onclick="previsualizarExcelMasivo()" id="btn-preview-masivo">👁️ Leer y Previsualizar Archivo</button>
-        
         <div style="display: flex; gap: 10px;">
-            <button class="btn btn-outline" style="flex: 1; padding: 16px; display: none;" onclick="cancelarPrevisualizacion()" id="btn-cancel-masivo">❌ Cancelar / Cambiar Archivo</button>
+            <button class="btn btn-outline" style="flex: 1; padding: 16px; display: none;" onclick="cancelarPrevisualizacion()" id="btn-cancel-masivo">❌ Cancelar / Cambiar</button>
             <button class="btn btn-green" style="flex: 2; padding: 16px; display: none;" onclick="confirmarExcelMasivo()" id="btn-save-masivo">💾 Confirmar y Ejecutar Movimientos</button>
         </div>
     </div>
@@ -254,7 +319,9 @@
 
 <script>
     let rawKardexData = []; 
-    let datosMasivosGlobales = null; // Almacenará los datos validados del Excel
+    let kardexAgrupado = {}; // Motor del nuevo Drill-Down
+    let datosMasivosGlobales = null; 
+    let activeSelection = null; // Guarda lo que seleccionaste en el panel
 
     function showToast(msj, tipo='success'){
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
@@ -270,6 +337,7 @@
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
     }
 
+    // Buscador adaptado a la Master Table (busca incluso en datos ocultos de tallas)
     function filtrarTablaInteligente(id, texto){
         const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
         document.querySelectorAll(`#${id} tbody tr`).forEach(r => {
@@ -279,28 +347,167 @@
         });
     }
 
+    // ==========================================
+    // LÓGICA CORE: AGRUPACIÓN KARDEX (NIVEL 1)
+    // ==========================================
     async function cargarKardex(){
-        const res = await fetch('/api/kardex'); rawKardexData = await res.json();
-        const tbody = document.querySelector('#tablaKardex tbody'); tbody.innerHTML = '';
-        rawKardexData.forEach(i => {
-            const llaveObj = `${i.modelo}_${i.color}_${i.talla}`;
+        const res = await fetch('/api/kardex'); 
+        rawKardexData = await res.json();
+        kardexAgrupado = {};
+
+        // Agrupar por Modelo + Color
+        rawKardexData.forEach(item => {
+            const key = `${item.modelo}|${item.color}`;
+            if(!kardexAgrupado[key]) {
+                kardexAgrupado[key] = { modelo: item.modelo, color: item.color, total: 0, lotes: {}, tallasArray: [] };
+            }
+            kardexAgrupado[key].total += item.cantidad;
+            kardexAgrupado[key].tallasArray.push(item.talla);
+
+            if(!kardexAgrupado[key].lotes[item.lote]) {
+                kardexAgrupado[key].lotes[item.lote] = [];
+            }
+            kardexAgrupado[key].lotes[item.lote].push(item);
+        });
+
+        const tbody = document.querySelector('#tablaKardex tbody'); 
+        tbody.innerHTML = '';
+
+        // Pintar Master Table
+        Object.keys(kardexAgrupado).forEach(key => {
+            const data = kardexAgrupado[key];
+            const cntLotes = Object.keys(data.lotes).length;
+            const cntTallasUnicas = [...new Set(data.tallasArray)].length;
+            
+            // Texto oculto para que el buscador encuentre tallas aunque no se vean
+            const infoOculta = data.tallasArray.join(' ') + ' ' + Object.keys(data.lotes).join(' ');
+
             tbody.innerHTML += `
-            <tr>
-                <td><b>${i.modelo}</b><br><small style="color:var(--text-muted);">${i.color}</small></td>
-                <td><b style="color:var(--brand-navy); font-size: 16px;">${i.talla}</b></td>
-                <td><span class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E">${i.lote}</span></td>
-                <td><span style="font-size: 18px; color: var(--brand-orange); font-weight: 800;">${i.cantidad}</span> pz</td>
-                <td><small>${i.ultimaActualizacion||'---'}</small></td>
-                <td>
-                    <button class="btn btn-orange" style="padding:6px 10px; font-size:10px;" onclick="abrirModalSalida('${i.modelo}','${i.color}','${i.talla}','${i.lote}',${i.cantidad})">📤 Salida</button> 
-                    <button class="btn btn-outline" style="padding:6px 10px; font-size:10px; color:#FF8C00; border: 1px solid #FF8C00" onclick="abrirModalPrestamo('${i.modelo}','${i.color}','${i.talla}','${i.lote}',${i.cantidad})">🤝 Prestar</button>
-                    <button class="btn btn-outline" style="padding:6px 10px; font-size:10px;" onclick="abrirModalAjuste('${i.modelo}','${i.color}','${i.talla}','${i.lote}')">⚖️ Ajuste</button>
-                    <button class="btn btn-navy" style="padding:6px 10px; font-size:10px;" onclick="verHistorialIndividual('${llaveObj}')">📜 Bitácora</button>
-                </td>
+            <tr onclick="abrirPanelDetalle('${key}')">
+                <td><b>${data.modelo}</b> <span style="display:none;">${infoOculta}</span></td>
+                <td><b style="color:var(--text-muted);">${data.color}</b></td>
+                <td><span style="font-size: 20px; color: var(--brand-orange); font-weight: 800;">${data.total}</span> pz</td>
+                <td><span class="tag tag-in" style="background:#F2F2F7; color:#1C1C1E">${cntLotes} Lotes</span> <span class="tag tag-adj">${cntTallasUnicas} Tallas</span></td>
+                <td><button class="btn btn-navy" style="padding:8px 15px; font-size:12px;">👁️ Ver Lotes y Tallas</button></td>
             </tr>`;
         });
     }
 
+    // ==========================================
+    // LÓGICA CORE: PANEL DESLIZABLE (NIVEL 2 y 3)
+    // ==========================================
+    let panelCurrentKey = ""; // Saber qué modelo/color está abierto
+
+    function abrirPanelDetalle(key) {
+        panelCurrentKey = key;
+        const data = kardexAgrupado[key];
+        
+        document.getElementById('sp-modelo').innerText = data.modelo;
+        document.getElementById('sp-color').innerText = data.color;
+        document.getElementById('sp-action-box').style.display = 'none'; // Ocultar acciones al inicio
+
+        const content = document.getElementById('sp-content');
+        content.innerHTML = '';
+
+        // Recorrer los Lotes
+        Object.keys(data.lotes).forEach(loteNombre => {
+            const itemsLote = data.lotes[loteNombre];
+            let totalLote = itemsLote.reduce((sum, i) => sum + i.cantidad, 0);
+
+            let htmlPills = '';
+            // Ordenar tallas alfabéticamente para que se vea limpio
+            itemsLote.sort((a,b) => a.talla.localeCompare(b.talla)).forEach(item => {
+                const idDiv = `pill_${item.modelo}_${item.color}_${item.talla}_${item.lote}`.replace(/[^a-zA-Z0-9_]/g, '');
+                htmlPills += `
+                <div class="pill" id="${idDiv}" onclick="seleccionarTallaPanel('${idDiv}', '${item.modelo}', '${item.color}', '${item.talla}', '${item.lote}', ${item.cantidad})">
+                    <span class="pill-talla">${item.talla}</span>
+                    <span class="pill-qty">${item.cantidad} pz</span>
+                </div>`;
+            });
+
+            content.innerHTML += `
+            <div class="lote-card">
+                <div class="lote-card-header">
+                    <div>
+                        <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Lote Físico</span><br>
+                        <b style="font-size: 16px; color: var(--brand-navy);">${loteNombre}</b>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 14px; font-weight: 800; color: var(--brand-orange);">${totalLote} pz</span>
+                    </div>
+                </div>
+                <div class="pills-grid">${htmlPills}</div>
+            </div>`;
+        });
+
+        document.getElementById('panelOverlay').classList.add('show');
+        document.getElementById('slidePanel').classList.add('open');
+    }
+
+    function cerrarPanel() {
+        document.getElementById('panelOverlay').classList.remove('show');
+        document.getElementById('slidePanel').classList.remove('open');
+        activeSelection = null;
+    }
+
+    function seleccionarTallaPanel(idDiv, modelo, color, talla, lote, cantidad) {
+        // Quitar 'active' de todos los pills
+        document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        // Agregar 'active' al seleccionado
+        document.getElementById(idDiv).classList.add('active');
+
+        // Guardar selección global
+        activeSelection = { modelo, color, talla, lote, cantidad };
+
+        // Mostrar Action Box
+        document.getElementById('act-talla').innerText = talla;
+        document.getElementById('act-lote').innerText = lote;
+        document.getElementById('sp-action-box').style.display = 'block';
+    }
+
+    // Funciones que disparan los modales desde el Panel
+    function triggerSalida() { abrirModalSalida(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote, activeSelection.cantidad); }
+    function triggerPrestamo() { abrirModalPrestamo(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote, activeSelection.cantidad); }
+    function triggerAjuste() { abrirModalAjuste(activeSelection.modelo, activeSelection.color, activeSelection.talla, activeSelection.lote); }
+
+    // HISTORIAL MAESTRO (Por Modelo y Color global)
+    async function verHistorialMaestro() {
+        const data = kardexAgrupado[panelCurrentKey];
+        document.getElementById('hist-item-title').innerText = `${data.modelo} - ${data.color}`;
+        const lista = document.getElementById('lista-historial-1a1'); 
+        lista.innerHTML = "Buscando en SAP Log Global...";
+        
+        const m = document.getElementById('modalHistorialItem'); 
+        m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+        
+        try {
+            // Traemos todo el historial y filtramos en frontend para que sea más robusto
+            const res = await fetch(`/api/historial-almacen`); 
+            const histCompleto = await res.json();
+            
+            const filtrado = histCompleto.filter(d => d.modelo === data.modelo && d.color === data.color);
+
+            lista.innerHTML = ""; 
+            if(filtrado.length === 0) return lista.innerHTML = "No hay movimientos registrados para este producto.";
+            
+            filtrado.forEach(d => {
+                let colorTag = d.tipo.includes('Entrada')?'#28A745':(d.tipo.includes('Salida')?'#FF3B30':'#FF8C00');
+                lista.innerHTML += `
+                <div class="hist-item">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <b>${d.folio}</b> <span><small>${d.fecha}</small></span>
+                    </div>
+                    <div><span style="color:${colorTag}; font-weight:800">${d.tipo}</span> • <b style="font-size:16px">${d.cantidad} pz</b> | Talla: <b style="color:var(--brand-navy)">${d.talla}</b> | Lote: ${d.lote}</div>
+                    <div style="margin-top:5px; color:var(--text-muted)"><small>Ref: ${d.referencia} | Resp: ${d.responsable}</small></div>
+                </div>`;
+            });
+        } catch(e) { lista.innerHTML = "Error cargando historial."; }
+    }
+
+
+    // ==========================================
+    // RESTO DE FUNCIONES (Intactas)
+    // ==========================================
     async function cargarHistorial(){
         const res = await fetch('/api/historial-almacen'); const data = await res.json();
         const tbody = document.querySelector('#tablaHistorial tbody'); tbody.innerHTML = '';
@@ -348,7 +555,7 @@
 
     function cerrarModal(id){
         const m = document.getElementById(id); m.classList.remove('show'); setTimeout(()=>m.style.display = 'none', 300);
-        if(id === 'modalMasivo') cancelarPrevisualizacion(); // Resetear UI al cerrar
+        if(id === 'modalMasivo') cancelarPrevisualizacion();
     }
 
     async function retornarPrestamo(idPrestamo, modelo, color, talla, lote, cantidad) {
@@ -357,39 +564,28 @@
         try { const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); if(res.ok) { showToast("Préstamo retornado con éxito"); cargarKardex(); cargarPrestamos(); cargarHistorial(); } } catch(e) {}
     }
 
-    async function verHistorialIndividual(llaveObj) {
-        document.getElementById('hist-item-title').innerText = llaveObj.replace(/_/g, " - ");
-        const lista = document.getElementById('lista-historial-1a1'); lista.innerHTML = "Buscando en SAP Log...";
-        const m = document.getElementById('modalHistorialItem'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
-        try {
-            const res = await fetch(`/api/historial-almacen?llave=${encodeURIComponent(llaveObj)}`); const data = await res.json();
-            lista.innerHTML = ""; if(data.length === 0) return lista.innerHTML = "No hay movimientos registrados.";
-            data.forEach(d => {
-                let color = d.tipo.includes('Entrada')?'#28A745':(d.tipo.includes('Salida')?'#FF3B30':'#FF8C00');
-                lista.innerHTML += `<div class="hist-item"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><b>${d.folio}</b> <span><small>${d.fecha}</small></span></div><div><span style="color:${color}; font-weight:800">${d.tipo}</span> • <b style="font-size:15px">${d.cantidad} pz</b> del lote ${d.lote}</div><div style="margin-top:5px; color:var(--text-muted)"><small>Ref: ${d.referencia} | Resp: ${d.responsable}</small></div></div>`;
-            });
-        } catch(e) { lista.innerHTML = "Error cargando historial."; }
-    }
-
     async function procesarMovimiento(){
         let tipoElegido = document.getElementById('md-tipo-texto').value;
         if(document.getElementById('div-tipo-select').style.display === 'block') tipoElegido = document.getElementById('md-tipo-select').value;
         const data = { tipo: tipoElegido, modelo: document.getElementById('md-modelo').value.toUpperCase(), color: document.getElementById('md-color').value.toUpperCase(), talla: document.getElementById('md-talla').value.toUpperCase(), lote: document.getElementById('md-lote').value.trim().toUpperCase(), cantidad: document.getElementById('md-cantidad').value, referencia: document.getElementById('md-referencia').value, responsable: document.getElementById('md-responsable').value };
         if(!data.modelo || !data.lote || !data.cantidad || !data.referencia || !data.responsable) return showToast("Faltan datos obligatorios", "danger");
+        
         const btn = document.getElementById('btn-save-modal'); btn.innerHTML = "Procesando..."; btn.disabled = true;
         try {
             const res = await fetch('/api/movimiento', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); const result = await res.json();
-            if(res.ok) { localStorage.setItem('almacen_resp', data.responsable); confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); showToast(`Folio: ${result.folio}`); cerrarModal('modalSAP'); cargarKardex(); cargarHistorial(); cargarPrestamos(); } else showToast(result.error, "danger");
-        } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar"; btn.disabled = false; }
+            if(res.ok) { 
+                localStorage.setItem('almacen_resp', data.responsable); confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); showToast(`Folio: ${result.folio}`); 
+                cerrarModal('modalSAP'); 
+                cerrarPanel(); // Forzar cierre del panel para que el usuario vea el cambio maestro
+                cargarKardex(); cargarHistorial(); cargarPrestamos(); 
+            } else showToast(result.error, "danger");
+        } catch(e) { showToast("Error de red", "danger"); } finally { btn.innerHTML = "💾 Confirmar Movimiento"; btn.disabled = false; }
     }
 
-
-    // ==========================================
-    // LÓGICA DE PREVISUALIZACIÓN MASIVA
-    // ==========================================
+    // CARGA MASIVA PREVISUALIZACIÓN
     function abrirModalMasivo(){
         if(localStorage.getItem('almacen_resp')) document.getElementById('mas-responsable').value = localStorage.getItem('almacen_resp');
-        cancelarPrevisualizacion(); // Resetear siempre al abrir
+        cancelarPrevisualizacion();
         const m = document.getElementById('modalMasivo'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
@@ -422,189 +618,91 @@
                 const workbook = XLSX.read(data, { type: 'array' }); 
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                let items = []; 
-                let totalPiezas = 0;
+                let items = []; let totalPiezas = 0;
 
                 rows.forEach(r => { 
-                    let modRaw = r.MODELO || r.Modelo;
-                    let colRaw = r.COLOR || r.Color;
-                    let talRaw = r.TALLA || r.Talla;
-                    let cantRaw = r.CANTIDAD || r.Cantidad;
-                    let tipoRaw = r.TIPO || r.Tipo || r.tipo;
-
+                    let modRaw = r.MODELO || r.Modelo; let colRaw = r.COLOR || r.Color; let talRaw = r.TALLA || r.Talla; let cantRaw = r.CANTIDAD || r.Cantidad; let tipoRaw = r.TIPO || r.Tipo || r.tipo;
                     if(modRaw && colRaw && talRaw && cantRaw) {
                         let modeloFinal = String(modRaw).trim().toUpperCase();
                         let tipoVal = tipoRaw ? String(tipoRaw).trim().toUpperCase() : "";
-                        
-                        // Lógica inteligente: Si es BLAZER o diferente a TRAJE, se pega al modelo
-                        if(tipoVal && tipoVal !== "TRAJE" && tipoVal !== "TRAJES") {
-                            modeloFinal = modeloFinal + " " + tipoVal;
-                        }
-
-                        // Lógica: Quitar espacios en tallas
+                        if(tipoVal && tipoVal !== "TRAJE" && tipoVal !== "TRAJES") modeloFinal = modeloFinal + " " + tipoVal;
                         let tallaFinal = String(talRaw).replace(/\s+/g, '').toUpperCase();
                         let cantidad = parseFloat(cantRaw);
-
-                        if(!isNaN(cantidad) && cantidad > 0) {
-                            items.push({ modelo: modeloFinal, color: String(colRaw).trim().toUpperCase(), talla: tallaFinal, cantidad: cantidad });
-                            totalPiezas += cantidad;
-                        }
+                        if(!isNaN(cantidad) && cantidad > 0) { items.push({ modelo: modeloFinal, color: String(colRaw).trim().toUpperCase(), talla: tallaFinal, cantidad: cantidad }); totalPiezas += cantidad; }
                     } 
                 });
 
-                if(items.length === 0) {
-                    btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
-                    return showToast("El Excel no tiene las columnas requeridas (MODELO, COLOR, TALLA, CANTIDAD)", "danger");
-                }
+                if(items.length === 0) { btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false; return showToast("Excel no válido (Sin columnas MODELO, COLOR, TALLA, CANTIDAD)", "danger"); }
 
-                // Guardar los datos en la variable global para cuando le den confirmar
                 datosMasivosGlobales = { tipo, loteGlobal, referenciaGlobal, responsable, items };
-
-                // Pintar la tabla de previsualización
-                const tbody = document.querySelector('#tabla-preview-masivo tbody');
-                tbody.innerHTML = '';
-                items.forEach(item => {
-                    tbody.innerHTML += `<tr><td><b>${item.modelo}</b></td><td><small>${item.color}</small></td><td><b>${item.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${item.cantidad}</span></td></tr>`;
-                });
-
+                const tbody = document.querySelector('#tabla-preview-masivo tbody'); tbody.innerHTML = '';
+                items.forEach(item => { tbody.innerHTML += `<tr><td><b>${item.modelo}</b></td><td><small>${item.color}</small></td><td><b>${item.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${item.cantidad}</span></td></tr>`; });
                 document.getElementById('lbl-preview-total').innerText = `(${items.length} Filas | ${totalPiezas} Piezas Total)`;
 
-                // Ocultar formulario, mostrar tabla y botones nuevos
-                document.getElementById('form-masivo-inputs').style.display = 'none';
-                document.getElementById('btn-preview-masivo').style.display = 'none';
-                document.getElementById('preview-masivo-container').style.display = 'block';
-                document.getElementById('btn-save-masivo').style.display = 'block';
-                document.getElementById('btn-cancel-masivo').style.display = 'block';
-
-            } catch(error) {
-                showToast("Error al leer el archivo Excel.", "danger");
-            } finally {
-                btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
-            }
+                document.getElementById('form-masivo-inputs').style.display = 'none'; document.getElementById('btn-preview-masivo').style.display = 'none';
+                document.getElementById('preview-masivo-container').style.display = 'block'; document.getElementById('btn-save-masivo').style.display = 'block'; document.getElementById('btn-cancel-masivo').style.display = 'block';
+            } catch(error) { showToast("Error al leer el archivo Excel.", "danger"); } finally { btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false; }
         }; 
         reader.readAsArrayBuffer(file);
     }
 
     async function confirmarExcelMasivo() {
         if(!datosMasivosGlobales) return showToast("No hay datos cargados.", "danger");
-
-        const btn = document.getElementById('btn-save-masivo'); 
-        btn.innerHTML = "⚡ Procesando y Guardando..."; btn.disabled = true;
-        document.getElementById('btn-cancel-masivo').disabled = true;
+        const btn = document.getElementById('btn-save-masivo'); btn.innerHTML = "⚡ Procesando..."; btn.disabled = true; document.getElementById('btn-cancel-masivo').disabled = true;
 
         try {
-            const res = await fetch('/api/movimiento-masivo', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify(datosMasivosGlobales) 
-            }); 
-            const result = await res.json();
-            
+            const res = await fetch('/api/movimiento-masivo', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(datosMasivosGlobales) }); const result = await res.json();
             if(res.ok) { 
-                localStorage.setItem('almacen_resp', datosMasivosGlobales.responsable); 
-                confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } }); 
-                showToast(`¡Movimiento Exitoso! Folio: ${result.folio}. Registros procesados: ${result.procesados}.`); 
-                if(result.errores && result.errores.length > 0) alert("Algunos registros fallaron (Sin Stock):\n" + result.errores.join("\n"));
-                cerrarModal('modalMasivo'); 
-                cargarKardex(); cargarHistorial(); 
-            } else {
-                showToast(result.error || "Error al procesar", "danger");
-            }
-        } catch(e) { 
-            showToast("Error de conexión con el servidor", "danger"); 
-        } finally { 
-            btn.innerHTML = "💾 Confirmar y Ejecutar Movimientos"; btn.disabled = false; 
-            document.getElementById('btn-cancel-masivo').disabled = false;
-        }
+                localStorage.setItem('almacen_resp', datosMasivosGlobales.responsable); confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } }); showToast(`¡Éxito! Folio: ${result.folio}. Registros procesados: ${result.procesados}.`); 
+                if(result.errores && result.errores.length > 0) alert("Algunos fallaron (Sin Stock):\n" + result.errores.join("\n"));
+                cerrarModal('modalMasivo'); cargarKardex(); cargarHistorial(); 
+            } else showToast(result.error, "danger");
+        } catch(e) { showToast("Error de conexión", "danger"); } finally { btn.innerHTML = "💾 Confirmar y Ejecutar Movimientos"; btn.disabled = false; document.getElementById('btn-cancel-masivo').disabled = false; }
     }
 
-
-    // === LÓGICA DE AUDITORÍA (MATCH FÍSICO VS SISTEMA) ===
-    function abrirModalAuditoria() {
-        const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
-    }
+    // AUDITORÍA
+    function abrirModalAuditoria() { const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10); }
 
     function generarMatchAuditoria() {
         const fileInput = document.getElementById('file-auditoria');
         if(!fileInput.files[0]) return showToast("Debes subir tu archivo físico", "warning");
 
-        const btn = document.getElementById('btn-run-match');
-        btn.innerHTML = "⌛ Analizando Discrepancias..."; btn.disabled = true;
+        const btn = document.getElementById('btn-run-match'); btn.innerHTML = "⌛ Analizando Discrepancias..."; btn.disabled = true;
 
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-
+                const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 let fisicoMap = {};
                 rows.forEach(r => {
-                    let mod = String(r.MODELO || '').trim().toUpperCase();
-                    let col = String(r.COLOR || '').trim().toUpperCase();
-                    let tal = String(r.TALLA || '').trim().toUpperCase();
-                    let qty = parseFloat(r.CANTIDAD) || 0;
-                    if(mod && col && tal) {
-                        let key = `${mod}_${col}_${tal}`;
-                        fisicoMap[key] = (fisicoMap[key] || 0) + qty;
-                    }
+                    let mod = String(r.MODELO || '').trim().toUpperCase(); let col = String(r.COLOR || '').trim().toUpperCase(); let tal = String(r.TALLA || '').trim().toUpperCase(); let qty = parseFloat(r.CANTIDAD) || 0;
+                    if(mod && col && tal) { let key = `${mod}_${col}_${tal}`; fisicoMap[key] = (fisicoMap[key] || 0) + qty; }
                 });
 
                 let teoricoMap = {};
-                rawKardexData.forEach(item => {
-                    let key = `${String(item.modelo).trim().toUpperCase()}_${String(item.color).trim().toUpperCase()}_${String(item.talla).trim().toUpperCase()}`;
-                    teoricoMap[key] = (teoricoMap[key] || 0) + parseFloat(item.cantidad);
-                });
+                rawKardexData.forEach(item => { let key = `${String(item.modelo).trim().toUpperCase()}_${String(item.color).trim().toUpperCase()}_${String(item.talla).trim().toUpperCase()}`; teoricoMap[key] = (teoricoMap[key] || 0) + parseFloat(item.cantidad); });
 
-                let keys = new Set([...Object.keys(fisicoMap), ...Object.keys(teoricoMap)]);
-                let reporte = [];
+                let keys = new Set([...Object.keys(fisicoMap), ...Object.keys(teoricoMap)]); let reporte = [];
 
                 keys.forEach(k => {
-                    let partes = k.split('_');
-                    let cantFisico = fisicoMap[k] || 0;
-                    let cantTeorico = teoricoMap[k] || 0;
-                    let dif = cantFisico - cantTeorico;
-                    
-                    let estatus = '✅ Cuadrado Perfecto';
-                    if (dif > 0) estatus = '⚠️ Sobrante Físico (Hay más piezas físicas)';
-                    if (dif < 0) estatus = '❗ Faltante Físico (Faltan piezas físicas)';
-
-                    reporte.push({
-                        'Modelo': partes[0],
-                        'Color': partes[1],
-                        'Talla': partes[2],
-                        'Stock Físico (Tu Excel)': cantFisico,
-                        'Stock Teórico (Sistema)': cantTeorico,
-                        'Diferencia': dif,
-                        'Estatus': estatus
-                    });
+                    let partes = k.split('_'); let cantFisico = fisicoMap[k] || 0; let cantTeorico = teoricoMap[k] || 0; let dif = cantFisico - cantTeorico;
+                    let estatus = '✅ Cuadrado Perfecto'; if (dif > 0) estatus = '⚠️ Sobrante Físico (Hay más piezas físicas)'; if (dif < 0) estatus = '❗ Faltante Físico (Faltan piezas físicas)';
+                    reporte.push({ 'Modelo': partes[0], 'Color': partes[1], 'Talla': partes[2], 'Stock Físico (Tu Excel)': cantFisico, 'Stock Teórico (Sistema)': cantTeorico, 'Diferencia': dif, 'Estatus': estatus });
                 });
-
                 reporte.sort((a, b) => Math.abs(b.Diferencia) - Math.abs(a.Diferencia));
 
-                const ws = XLSX.utils.json_to_sheet(reporte);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Auditoria Match");
+                const ws = XLSX.utils.json_to_sheet(reporte); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Auditoria Match");
                 XLSX.writeFile(wb, `Reporte_Auditoria_Match_${new Date().toLocaleDateString('es-MX').replace(/\//g,'-')}.xlsx`);
 
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
-                showToast("¡Reporte de Auditoría Generado!");
-                cerrarModal('modalAuditoria');
-            } catch (err) {
-                showToast("Error procesando el Excel. Revisa tus columnas.", "danger");
-            } finally {
-                btn.innerHTML = "⚡ Ejecutar Cruce y Descargar Reporte"; btn.disabled = false;
-                fileInput.value = '';
-            }
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } }); showToast("¡Reporte de Auditoría Generado!"); cerrarModal('modalAuditoria');
+            } catch (err) { showToast("Error procesando el Excel. Revisa tus columnas.", "danger"); } finally { btn.innerHTML = "⚡ Ejecutar Cruce y Descargar Reporte"; btn.disabled = false; fileInput.value = ''; }
         };
         reader.readAsArrayBuffer(fileInput.files[0]);
     }
 
     function descargarStockExcel() {
         if(rawKardexData.length === 0) return showToast("No hay datos para exportar", "warning");
-        const exportData = rawKardexData.map(i => ({
-            'Modelo': i.modelo, 'Color': i.color, 'Talla': i.talla, 'Lote': i.lote, 'Piezas en Stock': i.cantidad, 'Último Movimiento': i.ultimaActualizacion
-        }));
+        const exportData = rawKardexData.map(i => ({ 'Modelo': i.modelo, 'Color': i.color, 'Talla': i.talla, 'Lote': i.lote, 'Piezas en Stock': i.cantidad, 'Último Movimiento': i.ultimaActualizacion }));
         const ws = XLSX.utils.json_to_sheet(exportData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Kardex Activo");
         XLSX.writeFile(wb, `Reporte_Stock_General_${new Date().toLocaleDateString('es-MX').replace(/\//g,'-')}.xlsx`);
     }
