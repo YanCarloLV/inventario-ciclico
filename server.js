@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.0 (Ecosistema SAP + Préstamos + WMS Picking)
+// server.js - Versión 6.1 (Ecosistema SAP + Préstamos + WMS Picking Pro)
 // ==========================================
 
 const express = require('express');
@@ -51,7 +51,7 @@ const CiclicoSchema = new mongoose.Schema({
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 
 // ==========================================
-// 3. MODELOS DE ALMACÉN Y WMS PEDIDOS (NUEVO)
+// 3. MODELOS DE ALMACÉN Y WMS PEDIDOS
 // ==========================================
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
@@ -73,9 +73,10 @@ const PrestamoSchema = new mongoose.Schema({
 });
 const Prestamo = mongoose.model('Prestamo', PrestamoSchema);
 
-// NUEVO: Modelo para WMS Picking (Pedidos)
+// Modelo para WMS Picking (Pedidos) - ACTUALIZADO CON numeroPedido
 const PedidoSchema = new mongoose.Schema({
-    folio: String,
+    folio: String, // Folio interno del sistema (Ej. WMS-00001)
+    numeroPedido: String, // Folio real capturado por el supervisor (Ej. PEDIDO-101015)
     prioridad: { type: String, default: 'Normal' }, // Normal, Urgente
     estatus: { type: String, default: 'Pendiente' }, // Pendiente, En Proceso, Completado
     asignadoA: { type: String, default: null },
@@ -87,14 +88,39 @@ const PedidoSchema = new mongoose.Schema({
         modelo: String, color: String, talla: String,
         cantidadSolicitada: Number,
         surtido: { type: Number, default: 0 },
-        loteOrigen: { type: String, default: null }
+        loteOrigen: { type: String, default: null },
+        sku: { type: String, default: null } // Guardado silencioso del SKU
     }]
 });
 const Pedido = mongoose.model('Pedido', PedidoSchema);
 
 // ==========================================
-// ENDPOINTS DE WMS Y PEDIDOS (NUEVOS)
+// ENDPOINTS DE WMS Y PEDIDOS
 // ==========================================
+
+// NUEVO: Semáforo Inteligente - Consulta global de stock agrupado por modelo/color/talla
+app.get('/api/stock-general', async (req, res) => {
+    try {
+        const stock = await Kardex.aggregate([
+            {
+                $group: {
+                    _id: { modelo: "$modelo", color: "$color", talla: "$talla" },
+                    cantidad: { $sum: "$cantidad" }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    modelo: "$_id.modelo",
+                    color: "$_id.color",
+                    talla: "$_id.talla",
+                    cantidad: 1
+                }
+            }
+        ]);
+        res.json(stock);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Obtener todos los pedidos
 app.get('/api/pedidos', async (req, res) => {
@@ -186,10 +212,10 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Función Auxiliar para Crear Pedidos (Útil para inyectar pedidos desde Postman o consola en el futuro)
+// Crear Pedido desde Supervisor - ACTUALIZADO para recibir numeroPedido
 app.post('/api/crear-pedido', async (req, res) => {
     try {
-        const { prioridad, notas, items } = req.body;
+        const { numeroPedido, prioridad, notas, items } = req.body;
         const counter = await Counter.findByIdAndUpdate('pedido_wms_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
         const folio = 'WMS-' + counter.secuencia.toString().padStart(5, '0');
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
@@ -197,7 +223,7 @@ app.post('/api/crear-pedido', async (req, res) => {
         let totalPz = items.reduce((sum, item) => sum + parseInt(item.cantidadSolicitada || 0), 0);
 
         const nuevoPedido = new Pedido({
-            folio, prioridad: prioridad || 'Normal', notas, totalPiezas: totalPz, items, fechaCreacion: fechaMty
+            folio, numeroPedido, prioridad: prioridad || 'Normal', notas, totalPiezas: totalPz, items, fechaCreacion: fechaMty
         });
         await nuevoPedido.save();
         res.json({ success: true, folio });

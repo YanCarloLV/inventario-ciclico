@@ -370,23 +370,23 @@
         <div class="card reveal">
             <h2>Generar Pedido para Almacén (WMS)</h2>
             <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 30px; font-weight: 500;">
-                Sube el archivo Excel de la cotización/pedido. El sistema filtrará automáticamente zapatos y corbatas, enviando a almacén únicamente las solicitudes de Trajes, Blazers y Pantalones.
+                Sube el archivo Excel de la cotización/pedido. El sistema filtrará automáticamente zapatos y corbatas, enviando a almacén únicamente las solicitudes de Trajes, Blazers y Pantalones. Evalúa el stock disponible en tiempo real.
             </p>
 
             <div id="step-1-upload">
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Número de Pedido / Folio *</label>
-                        <input type="text" id="ped-folio" class="input-sap" placeholder="Ej: PED-1024 o COT-8890" required>
+                        <input type="text" id="ped-folio" class="input-sap" placeholder="Ej: PED-101015" required>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="margin-top: 20px;">
                         <label>Prioridad de Surtido</label>
                         <select id="ped-prioridad">
                             <option value="Normal">🟢 Normal (Surtido estándar)</option>
                             <option value="Urgente">🔴 Urgente (Cliente en espera/Envío hoy)</option>
                         </select>
                     </div>
-                    <div class="form-group" style="grid-column: span 2;">
+                    <div class="form-group" style="grid-column: span 2; margin-top: 20px;">
                         <label>Observaciones para Almacén (Opcional)</label>
                         <input type="text" id="ped-notas" class="input-sap" placeholder="Ej: Favor de revisar que los ganchos vayan completos...">
                     </div>
@@ -394,17 +394,17 @@
 
                 <div class="file-drop-area" onclick="document.getElementById('file-pedido').click()">
                     <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
-                    <div class="file-msg" id="file-msg-text">Haz clic aquí para seleccionar tu Excel/CSV</div>
+                    <div class="file-msg" id="file-msg-text">Haz clic aquí para seleccionar tu Excel/CSV (Formato Producción)</div>
                     <input type="file" id="file-pedido" accept=".xlsx, .csv" onchange="actualizarNombreArchivo(this)">
                 </div>
 
-                <button class="btn btn-navy" style="width: 100%; margin-top: 25px; padding: 18px; font-size: 16px;" onclick="previsualizarPedido()" id="btn-leer">👁️ Analizar y Previsualizar Pedido</button>
+                <button class="btn btn-navy" style="background: var(--brand-navy); color: white; width: 100%; margin-top: 25px; padding: 18px; font-size: 16px;" onclick="previsualizarPedido()" id="btn-leer">👁️ Analizar y Validar Stock en Pedido</button>
             </div>
 
             <div id="step-2-preview" style="display: none; animation: fadeIn 0.5s;">
                 <div class="summary-box">
                     <div class="summary-stat">
-                        <span>Folio</span>
+                        <span>Folio / Pedido</span>
                         <b id="lbl-sum-folio">---</b>
                     </div>
                     <div class="summary-stat">
@@ -419,7 +419,7 @@
 
                 <div style="max-height: 350px; overflow-y: auto; border: 1px solid #E5E5EA; border-radius: 14px; margin-bottom: 25px;">
                     <table id="tabla-preview-pedido">
-                        <thead><tr><th>Modelo (Depurado)</th><th>Color</th><th>Talla</th><th>Cantidad Pedida</th></tr></thead>
+                        <thead><tr><th>Modelo y SKU</th><th>Color</th><th>Talla</th><th>Cant. y Disp. (Kardex)</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -459,7 +459,7 @@
     }
 
     // ==========================================
-    // LÓGICA WMS - PEDIDOS
+    // LÓGICA WMS - SÚPER LECTOR Y PEDIDOS
     // ==========================================
     let pedidoProcesado = null;
 
@@ -474,22 +474,95 @@
         document.getElementById('step-2-preview').style.display = 'none';
         document.getElementById('step-1-upload').style.display = 'block';
         document.getElementById('file-pedido').value = '';
-        document.getElementById('file-msg-text').innerText = 'Haz clic aquí para seleccionar tu Excel/CSV';
+        document.getElementById('file-msg-text').innerText = 'Haz clic aquí para seleccionar tu Excel/CSV (Formato Producción)';
         document.getElementById('file-msg-text').style.color = 'var(--brand-navy)';
         pedidoProcesado = null;
     }
 
-    function previsualizarPedido() {
+    // Algoritmo de extracción Inteligente (Súper Lector)
+    function SúperLector(descripcion) {
+        let str = String(descripcion).toUpperCase();
+        let result = { tipo: 'TRAJE', talla: '', modelo: '', color: '' };
+
+        // 1. Extraer Talla (ej. 38R, 40C, 42L)
+        let tallaMatch = str.match(/\b(\d{2}[CRL])\b/);
+        if(tallaMatch) {
+            result.talla = tallaMatch[1];
+            str = str.replace(tallaMatch[0], '').trim();
+        }
+
+        // 2. Extraer Tipo de Prenda
+        if(str.includes('BLAZER')) { result.tipo = 'BLAZER'; str = str.replace('BLAZER', ''); }
+        else if(str.includes('SACO')) { result.tipo = 'SACO'; str = str.replace('SACO', ''); }
+        else if(str.includes('PANTALON') || str.includes('PANTALÓN')) { result.tipo = 'PANTALON'; str = str.replace(/PANTALÓ?N/, ''); }
+        else if(str.includes('TRAJE')) { result.tipo = 'TRAJE'; str = str.replace('TRAJE', ''); }
+
+        // 3. Traductor Automático de Colores (Inglés a Español)
+        const dictColores = {
+            'BLACK':'NEGRO', 'GREY':'GRIS', 'LIGHT GREY':'GRIS CLARO', 'BLUE':'AZUL REY', 
+            'NAVY':'MARINO', 'WHITE':'BLANCO', 'BROWN':'CAFE', 'PINK':'ROSA', 'GREEN':'VERDE', 
+            'DARK GREY':'OXFORD', 'HUNTER':'HUNTER'
+        };
+        for(let eng in dictColores) {
+            let regex = new RegExp("\\b" + eng + "\\b", "g");
+            str = str.replace(regex, dictColores[eng]);
+        }
+
+        // 4. Extraer Modelo Principal (Soporta códigos como 67901-20 o G47815-11)
+        let modMatch = str.match(/\b([A-Z0-9]*\d{3,}[A-Z0-9]*-\d+[A-Z]?)\b/);
+        if(modMatch) {
+            result.modelo = modMatch[1];
+            str = str.replace(modMatch[0], '').trim();
+        } else {
+            // Fallback para modelos sin guion (ej. 10439 o 306598)
+            let modMatch2 = str.match(/\b([A-Z0-9]{5,})\b/);
+            if(modMatch2) {
+                result.modelo = modMatch2[1];
+                str = str.replace(modMatch2[0], '').trim();
+            }
+        }
+
+        // 5. Limpieza de conectores
+        str = str.replace(/CON|DE|PARA|CABALLERO/g, '').trim();
+
+        // 6. El sobrante es el Color
+        let sobrante = str.replace(/[^A-ZÑ ]/g, '').replace(/\s+/g, ' ').trim();
+        if(sobrante.length > 2) {
+            result.color = sobrante;
+        } else {
+            result.color = "NO ESPECIFICADO";
+        }
+
+        // 7. Formateo Final
+        if(result.tipo !== 'TRAJE' && result.modelo) {
+            result.modelo = result.modelo + " " + result.tipo;
+        }
+
+        return result;
+    }
+
+    async function previsualizarPedido() {
         const folio = document.getElementById('ped-folio').value.trim().toUpperCase();
         const prioridad = document.getElementById('ped-prioridad').value;
         const notas = document.getElementById('ped-notas').value.trim();
         const file = document.getElementById('file-pedido').files[0];
 
-        if(!folio) return showToast("Debes ingresar un número de folio para el pedido.", "warning");
+        if(!folio) return showToast("Debes ingresar el número de pedido real.", "warning");
         if(!file) return showToast("Debes subir el archivo Excel del pedido.", "warning");
 
         const btn = document.getElementById('btn-leer');
-        btn.innerHTML = "⌛ Leyendo y Filtrando Archivo..."; btn.disabled = true;
+        btn.innerHTML = "⌛ Analizando y Consultando Kardex..."; btn.disabled = true;
+
+        // Intentar obtener el inventario global (Semáforo de Stock)
+        let inventarioKardex = {};
+        try {
+            // Asumiremos que este endpoint se creará en el próximo paso
+            const resStock = await fetch('/api/stock-general');
+            if(resStock.ok) {
+                const arrStock = await resStock.json();
+                arrStock.forEach(s => { inventarioKardex[`${s.modelo}_${s.color}_${s.talla}`] = s.cantidad; });
+            }
+        } catch(e) { console.warn("Modo offline: Kardex no disponible."); }
 
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -501,49 +574,64 @@
                 let itemsValidos = []; 
                 let totalPiezas = 0;
                 let accesoriosIgnorados = 0;
+                let hayErrorStock = false;
 
                 rows.forEach(r => { 
-                    let modRaw = r.MODELO || r.Modelo || r.modelo || r.CODIGO || r.Codigo;
-                    let colRaw = r.COLOR || r.Color || r.color;
-                    let talRaw = r.TALLA || r.Talla || r.talla;
-                    let cantRaw = r.CANTIDAD || r.Cantidad || r.cantidad || r.CANT || r.Cant;
-                    let tipoRaw = r.TIPO || r.Tipo || r.tipo || r.DESCRIPCION || r.Descripcion;
+                    // Normalizar llaves para leer cualquier variante de Excel
+                    let rNorm = {};
+                    for(let key in r) { rNorm[key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim()] = r[key]; }
 
-                    if(modRaw && colRaw && talRaw && cantRaw) {
-                        let tipoVal = tipoRaw ? String(tipoRaw).trim().toUpperCase() : "";
-                        
-                        if(tipoVal.includes("CORBATA") || tipoVal.includes("ZAPATO") || tipoVal.includes("CINTURON") || tipoVal.includes("CINTURÓN") || tipoVal.includes("MOÑO") || tipoVal.includes("CALCETIN")) {
-                            accesoriosIgnorados += parseFloat(cantRaw) || 1;
+                    // Localizar columnas
+                    let desc = rNorm['DESCRIPCION DEL ARTICULO'] || rNorm['DESCRIPCION'] || rNorm['TIPO'] || "";
+                    let sku = rNorm['CODIGO DE ARTICULO'] || rNorm['CODIGO'] || rNorm['SKU'] || "";
+                    let cantStr = rNorm['CANTIDAD'] || rNorm['CANTIDAD ENTREGADA'] || rNorm['CANT'];
+                    let cantidad = parseFloat(cantStr) || 0;
+
+                    // Si no trae descripción consolidada, intentar formato viejo
+                    let modeloF, colorF, tallaF;
+                    if(!desc && rNorm['MODELO']) {
+                        modeloF = rNorm['MODELO']; colorF = rNorm['COLOR']; tallaF = rNorm['TALLA'];
+                    } else if (desc) {
+                        // Pasar por el Súper Lector
+                        let procesado = SúperLector(desc);
+                        modeloF = procesado.modelo; colorF = procesado.color; tallaF = procesado.talla;
+                    }
+
+                    if(modeloF && tallaF && cantidad > 0) {
+                        let strAnalisis = String(desc || modeloF).toUpperCase();
+                        if(strAnalisis.includes("CORBATA") || strAnalisis.includes("ZAPATO") || strAnalisis.includes("CINTURON") || strAnalisis.includes("CINTURÓN") || strAnalisis.includes("MOÑO") || strAnalisis.includes("CALCETIN")) {
+                            accesoriosIgnorados += cantidad;
                             return; 
                         }
 
-                        let modeloFinal = String(modRaw).trim().toUpperCase();
-                        if(tipoVal && tipoVal !== "TRAJE" && tipoVal !== "TRAJES" && !tipoVal.includes("TRAJE")) {
-                            if(tipoVal.includes("BLAZER")) modeloFinal += " BLAZER";
-                            else if(tipoVal.includes("SACO")) modeloFinal += " SACO";
-                            else if(tipoVal.includes("PANTALON") || tipoVal.includes("PANTALÓN")) modeloFinal += " PANTALON";
+                        // Validación contra Kardex
+                        let keyBusqueda = `${modeloF}_${colorF}_${tallaF}`;
+                        let stockDisp = inventarioKardex[keyBusqueda];
+                        let errorDeFalta = false;
+
+                        if(stockDisp !== undefined && cantidad > stockDisp) {
+                            errorDeFalta = true;
+                            hayErrorStock = true;
                         }
 
-                        let tallaFinal = String(talRaw).replace(/\s+/g, '').toUpperCase();
-                        let cantidad = parseFloat(cantRaw);
-
-                        if(!isNaN(cantidad) && cantidad > 0) { 
-                            itemsValidos.push({ 
-                                modelo: modeloFinal, color: String(colRaw).trim().toUpperCase(), 
-                                talla: tallaFinal, cantidadSolicitada: cantidad, surtido: 0 
-                            }); 
-                            totalPiezas += cantidad; 
-                        }
+                        itemsValidos.push({ 
+                            modelo: modeloF, color: colorF, talla: tallaF, 
+                            cantidadSolicitada: cantidad, surtido: 0, sku: sku,
+                            stockDisp: stockDisp !== undefined ? stockDisp : '?', // Si es ? es que no validó
+                            error: errorDeFalta
+                        }); 
+                        totalPiezas += cantidad; 
                     } 
                 });
 
                 if(itemsValidos.length === 0) { 
-                    btn.innerHTML = "👁️ Analizar y Previsualizar Pedido"; btn.disabled = false; 
+                    btn.innerHTML = "👁️ Analizar y Validar Stock en Pedido"; btn.disabled = false; 
                     return showToast("No se encontraron prendas válidas o el formato es incorrecto.", "danger"); 
                 }
 
                 pedidoProcesado = {
-                    folio: folio, prioridad: prioridad, notas: notas,
+                    numeroPedido: folio, // GUARDAMOS TU FOLIO REAL AQUÍ PARA EL BACKEND
+                    prioridad: prioridad, notas: notas,
                     fechaCreacion: new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' }),
                     estatus: "Pendiente", totalPiezas: totalPiezas, items: itemsValidos
                 };
@@ -554,16 +642,44 @@
 
                 const tbody = document.querySelector('#tabla-preview-pedido tbody'); 
                 tbody.innerHTML = '';
+                
                 itemsValidos.forEach(item => { 
-                    tbody.innerHTML += `<tr><td><b>${item.modelo}</b></td><td>${item.color}</td><td><b style="color:var(--brand-navy)">${item.talla}</b></td><td><span style="font-size:16px; color:var(--brand-orange); font-weight:800;">${item.cantidadSolicitada}</span></td></tr>`; 
+                    let rowStyle = item.error ? "background: #FFEBEB; border-left: 4px solid #FF3B30;" : "";
+                    let cantText = `<span style="font-size:16px; font-weight:800; color:var(--brand-orange)">${item.cantidadSolicitada}</span>`;
+                    
+                    if(item.error) {
+                        cantText += `<br><small style="color:#FF3B30; font-weight:800;">🚫 ¡Sin Stock! (Disp: ${item.stockDisp})</small>`;
+                    } else if (item.stockDisp !== '?') {
+                        cantText += `<br><small style="color:#34C759; font-weight:600;">Disp: ${item.stockDisp}</small>`;
+                    }
+
+                    tbody.innerHTML += `
+                        <tr style="${rowStyle}">
+                            <td><b>${item.modelo}</b>${item.sku ? `<br><small style="color:var(--text-muted)">SKU: ${item.sku}</small>` : ''}</td>
+                            <td>${item.color}</td>
+                            <td><b style="color:var(--brand-navy)">${item.talla}</b></td>
+                            <td>${cantText}</td>
+                        </tr>`; 
                 });
 
                 document.getElementById('step-1-upload').style.display = 'none';
                 document.getElementById('step-2-preview').style.display = 'block';
-                if(accesoriosIgnorados > 0) showToast(`Se ignoraron ${accesoriosIgnorados} accesorios que no aplican para almacén.`, "info");
+
+                const btnFinal = document.getElementById('btn-enviar');
+                if(hayErrorStock) {
+                    btnFinal.disabled = true;
+                    btnFinal.style.background = "#D2D2D7";
+                    btnFinal.innerHTML = "🚫 Corrige las filas en rojo en el Excel";
+                    showToast("Atención: Hay prendas sin stock suficiente en Almacén. Verifica el rojo.", "danger");
+                } else {
+                    btnFinal.disabled = false;
+                    btnFinal.style.background = "var(--success)";
+                    btnFinal.innerHTML = "🚀 Enviar Pedido a Almacén (WMS)";
+                    if(accesoriosIgnorados > 0) showToast(`Se ignoraron ${accesoriosIgnorados} accesorios que no aplican para almacén.`, "info");
+                }
 
             } catch(error) { showToast("Error al leer el archivo Excel.", "danger"); } 
-            finally { btn.innerHTML = "👁️ Analizar y Previsualizar Pedido"; btn.disabled = false; }
+            finally { btn.innerHTML = "👁️ Analizar y Validar Stock en Pedido"; btn.disabled = false; }
         }; 
         reader.readAsArrayBuffer(file);
     }
@@ -580,7 +696,7 @@
             
             if(res.ok) { 
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } }); 
-                showToast(`¡Pedido ${pedidoProcesado.folio} enviado exitosamente al almacén!`); 
+                showToast(`¡Pedido ${pedidoProcesado.numeroPedido} enviado exitosamente al almacén!`); 
                 setTimeout(() => { location.reload(); }, 2500); 
             } else {
                 const err = await res.json();

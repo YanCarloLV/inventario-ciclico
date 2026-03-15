@@ -773,36 +773,30 @@
             doc.addImage(logoBase64, 'PNG', 40, 25, 130, 75); 
         }
 
-        // 2. Título Central (Bajado para no colisionar)
+        // 2. Título Central (Recorrido a la derecha para no colisionar)
         doc.setFont("helvetica", "bold");
         doc.setFontSize(20);
         doc.setTextColor(0, 26, 51);
-        doc.text("REMISIÓN DE SURTIDO WMS", 306, 100, { align: "center" });
+        doc.text("REMISIÓN DE SURTIDO WMS", 360, 100, { align: "center" }); // X cambió a 360
 
         // Línea divisoria decorativa
         doc.setLineWidth(1);
         doc.setDrawColor(220, 220, 220);
         doc.line(40, 115, 570, 115);
 
-        // 3. CABECERA DERECHA (Alineada a la derecha)
+        // 3. CABECERA DERECHA (Alineada a la derecha, Eliminado el Folio WMS)
         const numPedidoVisible = pedido.numeroPedido ? pedido.numeroPedido : pedido.folio;
-        const folioInternoSistema = pedido.folio;
 
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100);
-        doc.text(`Folio Sistema: ${folioInternoSistema}`, 570, 135, { align: "right" });
-        
-        // Número de Pedido SAP/Externo Resaltado 
+        // Número de Pedido Real Resaltado en Grande
         doc.setFontSize(15);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(0, 122, 255); // Azul Resaltado
-        doc.text(`Nº DE PEDIDO: ${numPedidoVisible}`, 570, 152, { align: "right" });
+        doc.text(`PEDIDO: ${numPedidoVisible}`, 570, 135, { align: "right" });
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(100);
-        doc.text(`Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}`, 570, 167, { align: "right" });
+        doc.text(`Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}`, 570, 152, { align: "right" });
 
         // 4. CABECERA IZQUIERDA
         doc.setFontSize(11);
@@ -889,7 +883,9 @@
         doc.setTextColor(150);
         doc.text("Nota: Las cantidades surtidas detalladas en este documento han sido descontadas automáticamente del inventario (KARDEX).", 300, finalY + 70, { align: "center" });
 
-        doc.save(`Remision_WMS_${pedido.folio}.pdf`);
+        // Descarga utilizando el Folio Real (Limpiado para que sea un nombre de archivo válido)
+        const nombreArchivoLimpio = numPedidoVisible.replace(/[^a-zA-Z0-9_-]/g, '');
+        doc.save(`Remision_${nombreArchivoLimpio}.pdf`);
     }
 
     async function getBase64ImageFromUrl(url) {
