@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.1 (Ecosistema SAP + Préstamos + WMS Picking Pro)
+// server.js - Versión 6.2 (Bitácora con Folio SAP Real)
 // ==========================================
 
 const express = require('express');
@@ -163,6 +163,10 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
         const horaFinStr = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Monterrey', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+        // NUEVO: Obtener el pedido original para sacar el Folio SAP (numeroPedido)
+        const pedidoOriginal = await Pedido.findOne({ folio });
+        const folioRealSAP = (pedidoOriginal && pedidoOriginal.numeroPedido) ? pedidoOriginal.numeroPedido : folio;
+
         // 1. Marcar pedido como Completado
         await Pedido.findOneAndUpdate({ folio }, { items, estatus: 'Completado', horaFin: horaFinStr });
 
@@ -192,14 +196,14 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
                     docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
                 }
 
-                // Generar MOVIMIENTO Log (Salida por Surtido)
+                // Generar MOVIMIENTO Log (Salida por Surtido) - AHORA CON REFERENCIA REAL
                 await new Movimiento({
                     folio: baseFolioMov + '-WMS',
                     tipo: 'Salida (Surtido WMS)',
                     llave: llave,
                     modelo: item.modelo, color: item.color, talla: item.talla, lote: item.loteOrigen,
                     cantidad: cantSurtida,
-                    referencia: `Surtido de Remisión ${folio}`,
+                    referencia: `Surtido de Pedido ${folioRealSAP}`, // <--- AQUÍ ESTÁ EL CAMBIO
                     responsable: operador,
                     fecha: fechaMty
                 }).save();
