@@ -157,15 +157,69 @@
         @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
 
-        /* ESTILOS WMS PEDIDOS */
-        .file-drop-area { border: 2px dashed #C5A059; background: #FFFBF2; border-radius: 16px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.3s; margin-top: 25px; }
-        .file-drop-area:hover { background: #FFF4E5; border-color: var(--brand-orange); }
-        .file-drop-area input[type="file"] { display: none; }
-        .file-msg { font-size: 16px; font-weight: 700; color: var(--brand-navy); margin-top: 10px; }
-        .summary-box { background: var(--brand-navy); color: white; padding: 20px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
-        .summary-stat { text-align: center; }
-        .summary-stat span { display: block; font-size: 12px; text-transform: uppercase; color: var(--brand-gold); font-weight: 800; margin-bottom: 5px;}
-        .summary-stat b { font-size: 28px; }
+        /* ==========================================
+           ESTILOS MÓDULO WMS E-COMMERCE
+           ========================================== */
+        .layout-grid {
+            display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px;
+            height: calc(100vh - 180px); min-height: 600px;
+        }
+        @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; height: auto; } }
+
+        .panel {
+            background: var(--card-bg); border-radius: 24px; padding: 25px;
+            box-shadow: var(--card-shadow); display: flex; flex-direction: column;
+            overflow: hidden; border: 1px solid rgba(0,0,0,0.03);
+        }
+
+        /* Catálogo */
+        .search-bar {
+            width: 100%; padding: 16px 20px; border: 2px solid #E5E5EA; border-radius: 16px; 
+            font-size: 16px; font-weight: 600; outline: none; margin-bottom: 20px;
+            box-sizing: border-box; font-family: inherit; transition: 0.3s;
+            background: #F9F9FB; color: var(--brand-navy);
+        }
+        .search-bar:focus { border-color: var(--brand-navy); background: white; }
+
+        .catalogo-grid {
+            flex-grow: 1; overflow-y: auto; padding-right: 10px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;
+            align-content: flex-start;
+        }
+        .producto-card {
+            border: 1px solid #E5E5EA; border-radius: 16px; padding: 15px;
+            transition: 0.2s; background: #fff; display: flex; flex-direction: column;
+        }
+        .producto-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: var(--brand-gold); }
+        .p-modelo { font-size: 15px; font-weight: 800; color: var(--brand-navy); margin: 0 0 5px 0; }
+        .p-detalles { font-size: 13px; color: var(--text-muted); font-weight: 600; margin: 0 0 10px 0; }
+        .p-stock { font-size: 12px; font-weight: 800; display: inline-block; padding: 5px 10px; border-radius: 8px; margin-bottom: 12px; text-align: center; }
+        .stock-ok { background: #E8F5E9; color: var(--success); }
+        .stock-bajo { background: #FFF3E0; color: var(--brand-orange); }
+        .stock-cero { background: #FFEBEE; color: var(--danger); }
+        
+        .btn-add-cart {
+            width: 100%; padding: 10px; background: #F2F2F7; border: none; border-radius: 10px;
+            font-weight: 800; color: var(--brand-navy); cursor: pointer; transition: 0.2s; margin-top: auto;
+        }
+        .btn-add-cart:hover:not(:disabled) { background: var(--brand-navy); color: white; }
+        .btn-add-cart:disabled { background: #F2F2F7; color: #D2D2D7; cursor: not-allowed; }
+
+        /* Carrito */
+        .cart-list { flex-grow: 1; overflow-y: auto; margin-bottom: 20px; padding-right: 10px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E5E5EA; padding: 15px 0; }
+        .cart-item:last-child { border-bottom: none; }
+        .cart-info { flex-grow: 1; }
+        .cart-info b { font-size: 14px; color: var(--brand-navy); }
+        .cart-info div { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
+        .cart-controls { display: flex; align-items: center; gap: 10px; }
+        .cart-input { width: 50px; text-align: center; padding: 8px; border: 2px solid #E5E5EA; border-radius: 8px; font-weight: 800; outline: none; font-family: inherit; color: var(--brand-navy); }
+        .btn-remove { background: #FFEBEB; color: var(--danger); border: none; border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-remove:hover { background: var(--danger); color: white; }
+
+        .checkout-area { background: #F9F9FB; padding: 20px; border-radius: 16px; border: 1px solid #E5E5EA; }
+        .checkout-area label { font-size: 11px; margin-bottom: 5px; }
+        .checkout-area .input-sap { margin-bottom: 12px; padding: 12px; font-size: 14px; }
 
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -367,69 +421,49 @@
     </div>
 
     <div id="vista-pedidos" style="display: none;">
-        <div class="card reveal">
-            <h2>Generar Pedido para Almacén (WMS)</h2>
-            <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 30px; font-weight: 500;">
-                Sube el archivo Excel de la cotización/pedido. El sistema filtrará automáticamente zapatos y corbatas, enviando a almacén únicamente las solicitudes de Trajes, Blazers y Pantalones. Evalúa el stock disponible en tiempo real.
-            </p>
-
-            <div id="step-1-upload">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Número de Pedido / Folio *</label>
-                        <input type="text" id="ped-folio" class="input-sap" placeholder="Ej: PED-101015" required>
-                    </div>
-                    <div class="form-group" style="margin-top: 20px;">
-                        <label>Prioridad de Surtido</label>
-                        <select id="ped-prioridad">
-                            <option value="Normal">🟢 Normal (Surtido estándar)</option>
-                            <option value="Urgente">🔴 Urgente (Cliente en espera/Envío hoy)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="grid-column: span 2; margin-top: 20px;">
-                        <label>Observaciones para Almacén (Opcional)</label>
-                        <input type="text" id="ped-notas" class="input-sap" placeholder="Ej: Favor de revisar que los ganchos vayan completos...">
-                    </div>
+        <div class="layout-grid">
+            <div class="panel">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>📦 Catálogo de Almacén</h2>
+                    <button class="btn btn-refresh" style="padding: 10px 15px;" onclick="cargarStockKardex()">🔄 Act. Stock</button>
                 </div>
-
-                <div class="file-drop-area" onclick="document.getElementById('file-pedido').click()">
-                    <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
-                    <div class="file-msg" id="file-msg-text">Haz clic aquí para seleccionar tu Excel/CSV (Formato Producción)</div>
-                    <input type="file" id="file-pedido" accept=".xlsx, .csv" onchange="actualizarNombreArchivo(this)">
-                </div>
-
-                <button class="btn btn-navy" style="background: var(--brand-navy); color: white; width: 100%; margin-top: 25px; padding: 18px; font-size: 16px;" onclick="previsualizarPedido()" id="btn-leer">👁️ Analizar y Validar Stock en Pedido</button>
+                <input type="text" id="buscador-catalogo" class="search-bar" placeholder="🔍 Buscar modelo, color o talla..." oninput="filtrarCatalogo()">
+                <div id="catalogo-grid" class="catalogo-grid">
+                    </div>
             </div>
 
-            <div id="step-2-preview" style="display: none; animation: fadeIn 0.5s;">
-                <div class="summary-box">
-                    <div class="summary-stat">
-                        <span>Folio / Pedido</span>
-                        <b id="lbl-sum-folio">---</b>
-                    </div>
-                    <div class="summary-stat">
-                        <span>Prendas Válidas a Surtir</span>
-                        <b id="lbl-sum-piezas" style="color: var(--success);">0</b>
-                    </div>
-                    <div class="summary-stat">
-                        <span>Accesorios Ignorados</span>
-                        <b id="lbl-sum-ignorados" style="color: var(--text-muted);">0</b>
-                    </div>
+            <div class="panel">
+                <h2>🛒 Carrito de Pedido</h2>
+                
+                <div id="carrito-vacio" style="text-align:center; padding: 40px 20px; color: var(--text-muted);">
+                    <div style="font-size: 40px; margin-bottom: 10px;">🛍️</div>
+                    <p style="font-weight: 600;">El pedido está vacío.<br>Agrega productos desde el catálogo.</p>
                 </div>
+                
+                <div id="cart-list" class="cart-list" style="display:none;">
+                    </div>
+                
+                <div class="checkout-area">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 15px; font-weight: 800; color: var(--brand-navy); font-size: 16px;">
+                        <span>Total de prendas:</span>
+                        <span id="cart-total" style="color: var(--brand-orange); font-size: 20px;">0</span>
+                    </div>
+                    
+                    <label>Número de Pedido SAP/Folio *</label>
+                    <input type="text" id="cart-folio" class="input-sap" placeholder="Ej. PED-10439" required>
+                    
+                    <label>Prioridad de Surtido</label>
+                    <select id="cart-urgencia" class="input-sap">
+                        <option value="Normal">🟢 Normal</option>
+                        <option value="Urgente">🔴 Urgente (Cliente esperando)</option>
+                    </select>
+                    
+                    <label>Observaciones (Opcional)</label>
+                    <input type="text" id="cart-notas" class="input-sap" placeholder="Ej. Revisar costuras">
 
-                <div style="max-height: 350px; overflow-y: auto; border: 1px solid #E5E5EA; border-radius: 14px; margin-bottom: 25px;">
-                    <table id="tabla-preview-pedido">
-                        <thead><tr><th>Modelo y SKU</th><th>Color</th><th>Talla</th><th>Cant. y Disp. (Kardex)</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-
-                <div style="display: flex; gap: 15px;">
-                    <button class="btn btn-outline" style="flex: 1;" onclick="cancelarPedido()">❌ Cancelar / Cambiar</button>
-                    <button class="btn btn-green" style="flex: 2; font-size: 16px;" onclick="enviarPedidoAlmacen()" id="btn-enviar">🚀 Enviar Pedido a Almacén (WMS)</button>
+                    <button class="btn btn-green" id="btn-lanzar-pedido" style="width: 100%; justify-content: center; padding: 18px; font-size: 16px; margin-top: 10px;" onclick="lanzarPedidoCart()">🚀 ENVIAR A WMS</button>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -443,6 +477,11 @@
         event.target.classList.add('active');
         document.getElementById('vista-inventarios').style.display = tabId === 'inventarios' ? 'block' : 'none';
         document.getElementById('vista-pedidos').style.display = tabId === 'pedidos' ? 'block' : 'none';
+        
+        // Cargar stock fresco cada vez que se abre la pestaña de pedidos
+        if(tabId === 'pedidos') {
+            cargarStockKardex();
+        }
     }
 
     // ==========================================
@@ -459,253 +498,213 @@
     }
 
     // ==========================================
-    // LÓGICA WMS - SÚPER LECTOR Y PEDIDOS
+    // MÓDULO WMS: CATÁLOGO Y CARRITO E-COMMERCE
     // ==========================================
-    let pedidoProcesado = null;
+    let stockGlobal = [];
+    let carritoPedidos = [];
 
-    function actualizarNombreArchivo(input) {
-        if(input.files && input.files[0]) {
-            document.getElementById('file-msg-text').innerText = input.files[0].name;
-            document.getElementById('file-msg-text').style.color = 'var(--success)';
-        }
-    }
-
-    function cancelarPedido() {
-        document.getElementById('step-2-preview').style.display = 'none';
-        document.getElementById('step-1-upload').style.display = 'block';
-        document.getElementById('file-pedido').value = '';
-        document.getElementById('file-msg-text').innerText = 'Haz clic aquí para seleccionar tu Excel/CSV (Formato Producción)';
-        document.getElementById('file-msg-text').style.color = 'var(--brand-navy)';
-        pedidoProcesado = null;
-    }
-
-    // Algoritmo de extracción Inteligente (Súper Lector)
-    function SúperLector(descripcion) {
-        let str = String(descripcion).toUpperCase();
-        let result = { tipo: 'TRAJE', talla: '', modelo: '', color: '' };
-
-        // 1. Extraer Talla (ej. 38R, 40C, 42L)
-        let tallaMatch = str.match(/\b(\d{2}[CRL])\b/);
-        if(tallaMatch) {
-            result.talla = tallaMatch[1];
-            str = str.replace(tallaMatch[0], '').trim();
-        }
-
-        // 2. Extraer Tipo de Prenda
-        if(str.includes('BLAZER')) { result.tipo = 'BLAZER'; str = str.replace('BLAZER', ''); }
-        else if(str.includes('SACO')) { result.tipo = 'SACO'; str = str.replace('SACO', ''); }
-        else if(str.includes('PANTALON') || str.includes('PANTALÓN')) { result.tipo = 'PANTALON'; str = str.replace(/PANTALÓ?N/, ''); }
-        else if(str.includes('TRAJE')) { result.tipo = 'TRAJE'; str = str.replace('TRAJE', ''); }
-
-        // 3. Traductor Automático de Colores (Inglés a Español)
-        const dictColores = {
-            'BLACK':'NEGRO', 'GREY':'GRIS', 'LIGHT GREY':'GRIS CLARO', 'BLUE':'AZUL REY', 
-            'NAVY':'MARINO', 'WHITE':'BLANCO', 'BROWN':'CAFE', 'PINK':'ROSA', 'GREEN':'VERDE', 
-            'DARK GREY':'OXFORD', 'HUNTER':'HUNTER'
-        };
-        for(let eng in dictColores) {
-            let regex = new RegExp("\\b" + eng + "\\b", "g");
-            str = str.replace(regex, dictColores[eng]);
-        }
-
-        // 4. Extraer Modelo Principal (Soporta códigos como 67901-20 o G47815-11)
-        let modMatch = str.match(/\b([A-Z0-9]*\d{3,}[A-Z0-9]*-\d+[A-Z]?)\b/);
-        if(modMatch) {
-            result.modelo = modMatch[1];
-            str = str.replace(modMatch[0], '').trim();
-        } else {
-            // Fallback para modelos sin guion (ej. 10439 o 306598)
-            let modMatch2 = str.match(/\b([A-Z0-9]{5,})\b/);
-            if(modMatch2) {
-                result.modelo = modMatch2[1];
-                str = str.replace(modMatch2[0], '').trim();
-            }
-        }
-
-        // 5. Limpieza de conectores
-        str = str.replace(/CON|DE|PARA|CABALLERO/g, '').trim();
-
-        // 6. El sobrante es el Color
-        let sobrante = str.replace(/[^A-ZÑ ]/g, '').replace(/\s+/g, ' ').trim();
-        if(sobrante.length > 2) {
-            result.color = sobrante;
-        } else {
-            result.color = "NO ESPECIFICADO";
-        }
-
-        // 7. Formateo Final
-        if(result.tipo !== 'TRAJE' && result.modelo) {
-            result.modelo = result.modelo + " " + result.tipo;
-        }
-
-        return result;
-    }
-
-    async function previsualizarPedido() {
-        const folio = document.getElementById('ped-folio').value.trim().toUpperCase();
-        const prioridad = document.getElementById('ped-prioridad').value;
-        const notas = document.getElementById('ped-notas').value.trim();
-        const file = document.getElementById('file-pedido').files[0];
-
-        if(!folio) return showToast("Debes ingresar el número de pedido real.", "warning");
-        if(!file) return showToast("Debes subir el archivo Excel del pedido.", "warning");
-
-        const btn = document.getElementById('btn-leer');
-        btn.innerHTML = "⌛ Analizando y Consultando Kardex..."; btn.disabled = true;
-
-        // Intentar obtener el inventario global (Semáforo de Stock)
-        let inventarioKardex = {};
+    // Cargar stock desde el Semáforo Inteligente del Backend
+    async function cargarStockKardex() {
+        const grid = document.getElementById('catalogo-grid');
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; color:var(--text-muted); font-weight:bold;">Sincronizando con Almacén...</div>';
+        
         try {
-            // Asumiremos que este endpoint se creará en el próximo paso
-            const resStock = await fetch('/api/stock-general');
-            if(resStock.ok) {
-                const arrStock = await resStock.json();
-                arrStock.forEach(s => { inventarioKardex[`${s.modelo}_${s.color}_${s.talla}`] = s.cantidad; });
+            const res = await fetch('/api/stock-general');
+            if(res.ok) {
+                stockGlobal = await res.json();
+                // Ordenar por modelo alfabéticamente
+                stockGlobal.sort((a, b) => a.modelo.localeCompare(b.modelo));
+                renderCatalogo();
+            } else {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#FF3B30;">Error al conectar con el servidor.</div>';
             }
-        } catch(e) { console.warn("Modo offline: Kardex no disponible."); }
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = new Uint8Array(e.target.result); 
-                const workbook = XLSX.read(data, { type: 'array' }); 
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                
-                let itemsValidos = []; 
-                let totalPiezas = 0;
-                let accesoriosIgnorados = 0;
-                let hayErrorStock = false;
-
-                rows.forEach(r => { 
-                    // Normalizar llaves para leer cualquier variante de Excel
-                    let rNorm = {};
-                    for(let key in r) { rNorm[key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim()] = r[key]; }
-
-                    // Localizar columnas
-                    let desc = rNorm['DESCRIPCION DEL ARTICULO'] || rNorm['DESCRIPCION'] || rNorm['TIPO'] || "";
-                    let sku = rNorm['CODIGO DE ARTICULO'] || rNorm['CODIGO'] || rNorm['SKU'] || "";
-                    let cantStr = rNorm['CANTIDAD'] || rNorm['CANTIDAD ENTREGADA'] || rNorm['CANT'];
-                    let cantidad = parseFloat(cantStr) || 0;
-
-                    // Si no trae descripción consolidada, intentar formato viejo
-                    let modeloF, colorF, tallaF;
-                    if(!desc && rNorm['MODELO']) {
-                        modeloF = rNorm['MODELO']; colorF = rNorm['COLOR']; tallaF = rNorm['TALLA'];
-                    } else if (desc) {
-                        // Pasar por el Súper Lector
-                        let procesado = SúperLector(desc);
-                        modeloF = procesado.modelo; colorF = procesado.color; tallaF = procesado.talla;
-                    }
-
-                    if(modeloF && tallaF && cantidad > 0) {
-                        let strAnalisis = String(desc || modeloF).toUpperCase();
-                        if(strAnalisis.includes("CORBATA") || strAnalisis.includes("ZAPATO") || strAnalisis.includes("CINTURON") || strAnalisis.includes("CINTURÓN") || strAnalisis.includes("MOÑO") || strAnalisis.includes("CALCETIN")) {
-                            accesoriosIgnorados += cantidad;
-                            return; 
-                        }
-
-                        // Validación contra Kardex
-                        let keyBusqueda = `${modeloF}_${colorF}_${tallaF}`;
-                        let stockDisp = inventarioKardex[keyBusqueda];
-                        let errorDeFalta = false;
-
-                        if(stockDisp !== undefined && cantidad > stockDisp) {
-                            errorDeFalta = true;
-                            hayErrorStock = true;
-                        }
-
-                        itemsValidos.push({ 
-                            modelo: modeloF, color: colorF, talla: tallaF, 
-                            cantidadSolicitada: cantidad, surtido: 0, sku: sku,
-                            stockDisp: stockDisp !== undefined ? stockDisp : '?', // Si es ? es que no validó
-                            error: errorDeFalta
-                        }); 
-                        totalPiezas += cantidad; 
-                    } 
-                });
-
-                if(itemsValidos.length === 0) { 
-                    btn.innerHTML = "👁️ Analizar y Validar Stock en Pedido"; btn.disabled = false; 
-                    return showToast("No se encontraron prendas válidas o el formato es incorrecto.", "danger"); 
-                }
-
-                pedidoProcesado = {
-                    numeroPedido: folio, // GUARDAMOS TU FOLIO REAL AQUÍ PARA EL BACKEND
-                    prioridad: prioridad, notas: notas,
-                    fechaCreacion: new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' }),
-                    estatus: "Pendiente", totalPiezas: totalPiezas, items: itemsValidos
-                };
-
-                document.getElementById('lbl-sum-folio').innerText = folio;
-                document.getElementById('lbl-sum-piezas').innerText = totalPiezas;
-                document.getElementById('lbl-sum-ignorados').innerText = accesoriosIgnorados;
-
-                const tbody = document.querySelector('#tabla-preview-pedido tbody'); 
-                tbody.innerHTML = '';
-                
-                itemsValidos.forEach(item => { 
-                    let rowStyle = item.error ? "background: #FFEBEB; border-left: 4px solid #FF3B30;" : "";
-                    let cantText = `<span style="font-size:16px; font-weight:800; color:var(--brand-orange)">${item.cantidadSolicitada}</span>`;
-                    
-                    if(item.error) {
-                        cantText += `<br><small style="color:#FF3B30; font-weight:800;">🚫 ¡Sin Stock! (Disp: ${item.stockDisp})</small>`;
-                    } else if (item.stockDisp !== '?') {
-                        cantText += `<br><small style="color:#34C759; font-weight:600;">Disp: ${item.stockDisp}</small>`;
-                    }
-
-                    tbody.innerHTML += `
-                        <tr style="${rowStyle}">
-                            <td><b>${item.modelo}</b>${item.sku ? `<br><small style="color:var(--text-muted)">SKU: ${item.sku}</small>` : ''}</td>
-                            <td>${item.color}</td>
-                            <td><b style="color:var(--brand-navy)">${item.talla}</b></td>
-                            <td>${cantText}</td>
-                        </tr>`; 
-                });
-
-                document.getElementById('step-1-upload').style.display = 'none';
-                document.getElementById('step-2-preview').style.display = 'block';
-
-                const btnFinal = document.getElementById('btn-enviar');
-                if(hayErrorStock) {
-                    btnFinal.disabled = true;
-                    btnFinal.style.background = "#D2D2D7";
-                    btnFinal.innerHTML = "🚫 Corrige las filas en rojo en el Excel";
-                    showToast("Atención: Hay prendas sin stock suficiente en Almacén. Verifica el rojo.", "danger");
-                } else {
-                    btnFinal.disabled = false;
-                    btnFinal.style.background = "var(--success)";
-                    btnFinal.innerHTML = "🚀 Enviar Pedido a Almacén (WMS)";
-                    if(accesoriosIgnorados > 0) showToast(`Se ignoraron ${accesoriosIgnorados} accesorios que no aplican para almacén.`, "info");
-                }
-
-            } catch(error) { showToast("Error al leer el archivo Excel.", "danger"); } 
-            finally { btn.innerHTML = "👁️ Analizar y Validar Stock en Pedido"; btn.disabled = false; }
-        }; 
-        reader.readAsArrayBuffer(file);
+        } catch(e) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#FF3B30;">Error de red.</div>';
+        }
     }
 
-    async function enviarPedidoAlmacen() {
-        if(!pedidoProcesado) return;
-        const btn = document.getElementById('btn-enviar'); 
-        btn.innerHTML = "🚀 Enviando al Almacén..."; btn.disabled = true;
+    // Renderizar tarjetas en la cuadrícula
+    function renderCatalogo(filtro = '') {
+        const grid = document.getElementById('catalogo-grid');
+        grid.innerHTML = '';
+        filtro = filtro.toLowerCase().trim();
+
+        const filtrados = stockGlobal.filter(p => {
+            const strBusqueda = `${p.modelo} ${p.color} ${p.talla}`.toLowerCase();
+            return strBusqueda.includes(filtro);
+        });
+
+        if(filtrados.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--text-muted);">No se encontraron productos.</div>';
+            return;
+        }
+
+        filtrados.forEach(p => {
+            let claseStock = 'stock-ok';
+            let textoStock = `${p.cantidad} Disp.`;
+            let disableBtn = '';
+
+            if(p.cantidad <= 0) {
+                claseStock = 'stock-cero'; textoStock = 'Agotado'; disableBtn = 'disabled';
+            } else if(p.cantidad <= 5) {
+                claseStock = 'stock-bajo'; textoStock = `¡Solo ${p.cantidad}!`;
+            }
+
+            // Validar si ya está en el carrito para deshabilitar botón temporalmente o cambiar texto
+            const enCarrito = carritoPedidos.find(c => c.modelo === p.modelo && c.color === p.color && c.talla === p.talla);
+            let btnTexto = "➕ Agregar";
+            if(enCarrito) {
+                if(enCarrito.cant >= p.cantidad) disableBtn = 'disabled';
+                btnTexto = "✔ En Carrito";
+            }
+
+            const card = document.createElement('div');
+            card.className = 'producto-card';
+            card.innerHTML = `
+                <div>
+                    <h3 class="p-modelo">${p.modelo}</h3>
+                    <p class="p-detalles">${p.color} | Talla: <b style="color:var(--brand-navy); font-size:14px;">${p.talla}</b></p>
+                    <div class="p-stock ${claseStock}">${textoStock}</div>
+                </div>
+                <button class="btn-add-cart" ${disableBtn} onclick="agregarAlCarrito('${p.modelo}', '${p.color}', '${p.talla}', ${p.cantidad})">${btnTexto}</button>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function filtrarCatalogo() {
+        const texto = document.getElementById('buscador-catalogo').value;
+        renderCatalogo(texto);
+    }
+
+    // Lógica del Carrito
+    function agregarAlCarrito(modelo, color, talla, maxStock) {
+        const index = carritoPedidos.findIndex(c => c.modelo === modelo && c.color === color && c.talla === talla);
+        
+        if(index > -1) {
+            if(carritoPedidos[index].cant < maxStock) {
+                carritoPedidos[index].cant++;
+            } else {
+                showToast(`No hay más stock disponible de ${modelo} - ${talla}`, "warning");
+            }
+        } else {
+            carritoPedidos.push({ modelo, color, talla, cant: 1, maxStock });
+        }
+        
+        renderCarrito();
+        renderCatalogo(document.getElementById('buscador-catalogo').value); // Actualiza estado de botones
+    }
+
+    function eliminarDelCarrito(index) {
+        carritoPedidos.splice(index, 1);
+        renderCarrito();
+        renderCatalogo(document.getElementById('buscador-catalogo').value);
+    }
+
+    function actualizarCantCart(index, nuevaCantStr) {
+        let val = parseInt(nuevaCantStr);
+        if(isNaN(val) || val < 1) val = 1;
+        
+        const item = carritoPedidos[index];
+        if(val > item.maxStock) {
+            val = item.maxStock;
+            showToast(`Máximo disponible: ${item.maxStock}`, "warning");
+        }
+        
+        carritoPedidos[index].cant = val;
+        renderCarrito();
+        renderCatalogo(document.getElementById('buscador-catalogo').value);
+    }
+
+    function renderCarrito() {
+        const cartList = document.getElementById('cart-list');
+        const emptyState = document.getElementById('carrito-vacio');
+        const totalLbl = document.getElementById('cart-total');
+        
+        cartList.innerHTML = '';
+        let totalPz = 0;
+
+        if(carritoPedidos.length === 0) {
+            cartList.style.display = 'none';
+            emptyState.style.display = 'block';
+            totalLbl.innerText = "0";
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        cartList.style.display = 'block';
+
+        carritoPedidos.forEach((item, index) => {
+            totalPz += item.cant;
+            cartList.innerHTML += `
+                <div class="cart-item">
+                    <div class="cart-info">
+                        <b>${item.modelo}</b>
+                        <div>${item.color} | Talla: <span style="color:var(--brand-orange)">${item.talla}</span></div>
+                    </div>
+                    <div class="cart-controls">
+                        <input type="number" class="cart-input" value="${item.cant}" min="1" max="${item.maxStock}" onchange="actualizarCantCart(${index}, this.value)">
+                        <button class="btn-remove" onclick="eliminarDelCarrito(${index})">X</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        totalLbl.innerText = totalPz;
+    }
+
+    async function lanzarPedidoCart() {
+        if(carritoPedidos.length === 0) return showToast("El carrito está vacío.", "warning");
+        
+        const folio = document.getElementById('cart-folio').value.trim().toUpperCase();
+        const prioridad = document.getElementById('cart-urgencia').value;
+        const notas = document.getElementById('cart-notas').value.trim();
+
+        if(!folio) return showToast("Debes ingresar el número de pedido.", "warning");
+
+        const btn = document.getElementById('btn-lanzar-pedido');
+        btn.innerHTML = "⌛ Enviando..."; btn.disabled = true;
+
+        // Formatear items para el backend
+        const itemsParaWMS = carritoPedidos.map(c => ({
+            modelo: c.modelo,
+            color: c.color,
+            talla: c.talla,
+            cantidadSolicitada: c.cant,
+            surtido: 0,
+            sku: ""
+        }));
+
+        const payload = {
+            numeroPedido: folio,
+            prioridad: prioridad,
+            notas: notas,
+            items: itemsParaWMS
+        };
 
         try {
             const res = await fetch('/api/crear-pedido', { 
-                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(pedidoProcesado) 
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) 
             }); 
             
             if(res.ok) { 
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } }); 
-                showToast(`¡Pedido ${pedidoProcesado.numeroPedido} enviado exitosamente al almacén!`); 
-                setTimeout(() => { location.reload(); }, 2500); 
+                showToast(`¡Pedido ${folio} enviado a los operadores!`); 
+                // Limpiar todo
+                carritoPedidos = [];
+                document.getElementById('cart-folio').value = '';
+                document.getElementById('cart-notas').value = '';
+                renderCarrito();
+                cargarStockKardex();
+                btn.innerHTML = "🚀 ENVIAR A WMS"; btn.disabled = false;
             } else {
                 const err = await res.json();
                 showToast(err.error || "Error al enviar el pedido", "danger");
-                btn.innerHTML = "🚀 Enviar Pedido a Almacén (WMS)"; btn.disabled = false;
+                btn.innerHTML = "🚀 ENVIAR A WMS"; btn.disabled = false;
             }
         } catch(e) { 
             showToast("Error de conexión con el servidor.", "danger"); 
-            btn.innerHTML = "🚀 Enviar Pedido a Almacén (WMS)"; btn.disabled = false;
+            btn.innerHTML = "🚀 ENVIAR A WMS"; btn.disabled = false;
         }
     }
 

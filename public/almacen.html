@@ -361,7 +361,7 @@
     }
 
     // ==========================================
-    // 1. CARGAR PEDIDOS WMS (NUEVA FUNCIÓN)
+    // 1. CARGAR PEDIDOS WMS (ACTUALIZADA)
     // ==========================================
     async function cargarPedidosWMS() {
         try {
@@ -380,9 +380,12 @@
                 let colorPrioridad = p.prioridad === 'Urgente' ? 'var(--danger)' : 'var(--success)';
                 let colorEstatus = p.estatus === 'Completado' ? 'tag-in' : (p.estatus === 'En Proceso' ? 'tag-info' : 'tag-adj');
                 
+                // Mostrar Folio Real SAP en lugar del interno WMS
+                let numPedidoVisual = p.numeroPedido ? p.numeroPedido : p.folio;
+                
                 tbody.innerHTML += `
                 <tr>
-                    <td><b style="font-size:16px;">${p.folio}</b></td>
+                    <td><b style="font-size:16px;">${numPedidoVisual}</b></td>
                     <td><b style="color:${colorPrioridad}">${p.prioridad}</b></td>
                     <td><span class="tag ${colorEstatus}">${p.estatus}</span></td>
                     <td>
