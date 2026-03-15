@@ -224,53 +224,9 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #D2D2D7; border-radius: 10px; }
-
-        /* FAKE LOADER PREMIUM */
-        #fake-loader-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 26, 51, 0.96); z-index: 99999; justify-content: center; align-items: center;
-            flex-direction: column; color: white; opacity: 0; transition: opacity 0.5s ease;
-            backdrop-filter: blur(8px);
-        }
-        #fake-loader-overlay.show { display: flex; opacity: 1; }
-        .loader-content { text-align: center; max-width: 400px; padding: 40px; }
-        .icon-container {
-            width: 160px; height: 160px; margin: 0 auto 30px auto;
-            position: relative; display: flex; justify-content: center; align-items: center;
-            border-radius: 50%; background: rgba(255,255,255,0.02); border: 2px solid rgba(255,255,255,0.05);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3); overflow: hidden; 
-        }
-        .circle-liquid {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(52, 199, 89, 0.25); border-top: 2px solid rgba(52, 199, 89, 0.8); 
-            box-shadow: 0 -15px 30px rgba(52, 199, 89, 0.4) inset, 0 -10px 20px rgba(52, 199, 89, 0.6); 
-            transform: translateY(100%); transition: transform 6.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 1;
-        }
-        #fake-loader-overlay.animating .circle-liquid { transform: translateY(0%); }
-        .icon-base { width: 65%; height: 65%; object-fit: contain; position: relative; z-index: 2; opacity: 0.5; transition: all 6.5s cubic-bezier(0.25, 1, 0.5, 1); filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5)); }
-        #fake-loader-overlay.animating .icon-base { opacity: 1; transform: scale(1.08); filter: drop-shadow(0 0 15px rgba(52, 199, 89, 0.7)); }
-        #fake-loader-msg { font-weight: 800; font-size: 24px; margin: 0; letter-spacing: -0.5px; }
-        #fake-loader-status { color: var(--brand-gold); font-size: 14px; text-transform: uppercase; font-weight: 700; margin-top: 10px; letter-spacing: 1px; }
-        #fake-loader-perc { font-weight: 800; font-size: 60px; color: var(--brand-orange); margin: 10px 0; font-feature-settings: "tnum"; }
-        .prog-fake-bg { background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; width: 100%; margin-top: 20px; overflow: hidden; }
-        .prog-fake-fill { background: var(--brand-orange); height: 100%; width: 0%; transition: width 6.5s linear; box-shadow: 0 0 10px rgba(255, 140, 0, 0.5); }
-        #fake-loader-overlay.animating .prog-fake-fill { width: 100%; }
     </style>
 </head>
 <body>
-
-<div id="fake-loader-overlay">
-    <div class="loader-content reveal">
-        <div class="icon-container">
-            <div class="circle-liquid"></div>
-            <img src="/7443348.png" class="icon-base" alt="Traje Base" onerror="this.src='/logo.png'">
-        </div>
-        <p id="fake-loader-msg">Generando Reporte Pro...</p>
-        <div id="fake-loader-perc">0%</div>
-        <p id="fake-loader-status">Procesando matemáticas y diseño premium</p>
-        <div class="prog-fake-bg"><div class="prog-fake-fill"></div></div>
-    </div>
-</div>
 
 <div id="toast-container"></div>
 
@@ -387,8 +343,8 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
                 <h2 style="color: var(--text-muted); margin: 0;">Historial de Inventarios Finalizados</h2>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-dl-excel" onclick="interceptDownload('master', descargarPlantilla)">📊 Generar Plantilla de Inventario</button>
-                    <button class="btn btn-dl-consol" onclick="interceptDownload('consolidadoExcel', descargarConsolidadoExcel)">📦 Descargar Inventario Consolidado</button>
+                    <button class="btn btn-dl-excel" onclick="descargarPlantilla()">📊 Generar Plantilla de Inventario</button>
+                    <button class="btn btn-dl-consol" onclick="descargarConsolidadoExcel()">📦 Descargar Inventario Consolidado</button>
                     <button class="btn btn-danger" onclick="eliminarTodoElHistorial()">⚠️ Borrar Historial</button>
                 </div>
             </div>
@@ -492,6 +448,7 @@
         const toast = document.createElement('div');
         toast.className = `toast ${tipo}`;
         let icono = tipo === 'success' ? '✅' : (tipo === 'info' ? 'ℹ️' : '⚠️');
+        if(tipo === 'danger') icono = '❌';
         toast.innerHTML = `${icono} ${mensaje}`;
         container.appendChild(toast);
         setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 400); }, 3500);
@@ -896,7 +853,7 @@
                                 <td><b>${c.asignadoA}</b></td>
                                 <td><b style="color:var(--brand-orange);">${tTotal}</b></td>
                                 <td>
-                                    <button class="btn btn-dl" style="padding:8px 14px; font-size:12px;" onclick="interceptIndividual('${c.id}')">📥 Indiv.</button>
+                                    <button class="btn btn-dl" style="padding:8px 14px; font-size:12px;" onclick="descargarIndividualExcel('${c.id}')">📥 Indiv.</button>
                                     <button class="btn btn-delete-hist" onclick="eliminarFila('${c.id}')">🗑️</button>
                                 </td>
                             </tr>`;
@@ -908,68 +865,6 @@
 
     function toggleAllHistorial(isChecked) {
         document.querySelectorAll('.chk-historial-row').forEach(cb => cb.checked = isChecked);
-    }
-
-    // FAKE LOADER PREMIUM
-    const fakeLoader = {
-        overlay: document.getElementById('fake-loader-overlay'),
-        msg: document.getElementById('fake-loader-msg'),
-        perc: document.getElementById('fake-loader-perc'),
-        status: document.getElementById('fake-loader-status'),
-        interval: null,
-
-        show: function(title) {
-            this.msg.innerText = title;
-            this.perc.innerText = "0%";
-            this.status.innerText = "Preparando matemáticas y diseño premium";
-            this.overlay.classList.add('show');
-            setTimeout(() => this.overlay.classList.add('animating'), 50);
-
-            let p = 0;
-            this.interval = setInterval(() => {
-                p++;
-                this.perc.innerText = p + "%";
-                if (p === 80) this.status.innerText = "Dibujando cuadrículas y aplicando bordes";
-                if (p === 95) this.status.innerText = "Consolidando modelos y colores a color";
-                if (p >= 100) clearInterval(this.interval);
-            }, 60); 
-        },
-
-        hide: function() {
-            this.overlay.classList.remove('animating');
-            this.overlay.classList.remove('show');
-            clearInterval(this.interval);
-        }
-    };
-
-    async function showFakeLoader(type, functionToCallAfter) {
-        let title = "Generando Reporte Pro...";
-        if (type === 'master') title = "Generando Inventario Maestro...";
-        if (type === 'consolidadoExcel') title = "Generando Reporte Plano Excel...";
-        if (type === 'individualExcel') title = "Generando Reporte Individual...";
-
-        fakeLoader.show(title);
-        await new Promise(resolve => setTimeout(resolve, 6500));
-        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
-        fakeLoader.msg.innerText = "¡Reporte Listo! ✅";
-        fakeLoader.perc.innerText = "100%";
-        fakeLoader.status.innerText = "Iniciando descarga...";
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await functionToCallAfter();
-        fakeLoader.hide();
-    }
-
-    async function interceptDownload(type, functionToCallAfter) {
-        const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0 && (type === 'master' || type === 'consolidadoExcel')) {
-             return showToast("Por favor selecciona al menos un registro.", "warning");
-        }
-        await showFakeLoader(type, functionToCallAfter);
-    }
-
-    async function interceptIndividual(folioId) {
-        const finalDownloadFunction = () => { descargarIndividualExcel(folioId); };
-        await showFakeLoader("individualExcel", finalDownloadFunction);
     }
 
     async function getBase64ImageFromUrl(url) {
@@ -1032,6 +927,7 @@
     async function descargarIndividualExcel(folioId) {
         const item = window.datosGlobales.find(i => i.id === folioId);
         if (!item) return showToast("No se encontraron datos.", "danger");
+        showToast("Generando Excel individual...", "info");
         try {
             const logoBase64 = await getBase64ImageFromUrl('/logo.png');
             const flatData = prepararDatosPlanosExcel(item);
@@ -1043,7 +939,9 @@
 
     async function descargarConsolidadoExcel() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0) return; 
+        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un registro.", "warning"); 
+        
+        showToast("Generando Excel consolidado...", "info");
 
         try {
             const logoBase64 = await getBase64ImageFromUrl('/logo.png');
@@ -1069,6 +967,10 @@
 
     async function descargarPlantilla() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-historial-row:checked')).map(cb => cb.value);
+        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un registro.", "warning");
+        
+        showToast("Generando Plantilla de Inventario...", "info");
+
         const matriz = {};
         seleccionados.forEach(folio => {
             const item = window.datosGlobales.find(i => i.id === folio);

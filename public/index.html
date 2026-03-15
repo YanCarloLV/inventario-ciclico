@@ -173,6 +173,7 @@
             text-transform: uppercase; letter-spacing: 1px;
         }
         .btn-finish:active { transform: scale(0.96); box-shadow: 0 5px 10px rgba(255,140,0,0.3); }
+        .btn-finish:disabled { background: #D2D2D7; box-shadow: none; cursor: not-allowed; transform: none; }
         .btn-finish-blue { background: linear-gradient(135deg, #007AFF, #0056b3); box-shadow: 0 10px 20px rgba(0,122,255,0.3); }
         .btn-finish-blue:active { box-shadow: 0 5px 10px rgba(0,122,255,0.3); }
         
@@ -181,51 +182,11 @@
         #toast-op { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #34C759; color: white; padding: 15px 25px; border-radius: 20px; font-weight: 700; box-shadow: 0 10px 25px rgba(52, 199, 89, 0.4); z-index: 4000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0; }
         #toast-op.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-        #fake-loader-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 26, 51, 0.96); z-index: 99999; justify-content: center; align-items: center;
-            flex-direction: column; color: white; opacity: 0; transition: opacity 0.5s ease; backdrop-filter: blur(8px);
-        }
-        #fake-loader-overlay.show { display: flex; opacity: 1; }
-        .loader-content { text-align: center; max-width: 400px; padding: 40px; }
-        .icon-container {
-            width: 160px; height: 160px; margin: 0 auto 30px auto; position: relative; display: flex; justify-content: center; align-items: center;
-            border-radius: 50%; background: rgba(255,255,255,0.02); border: 2px solid rgba(255,255,255,0.05); box-shadow: 0 15px 35px rgba(0,0,0,0.3); overflow: hidden; 
-        }
-        .circle-liquid {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(52, 199, 89, 0.25); border-top: 2px solid rgba(52, 199, 89, 0.8); 
-            box-shadow: 0 -15px 30px rgba(52, 199, 89, 0.4) inset, 0 -10px 20px rgba(52, 199, 89, 0.6); 
-            transform: translateY(100%); transition: transform 6.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 1;
-        }
-        #fake-loader-overlay.animating .circle-liquid { transform: translateY(0%); }
-        .icon-base { width: 65%; height: 65%; object-fit: contain; position: relative; z-index: 2; opacity: 0.5; transition: all 6.5s cubic-bezier(0.25, 1, 0.5, 1); filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5)); }
-        #fake-loader-overlay.animating .icon-base { opacity: 1; transform: scale(1.08); filter: drop-shadow(0 0 15px rgba(52, 199, 89, 0.7)); }
-        #fake-loader-msg { font-weight: 800; font-size: 24px; margin: 0; letter-spacing: -0.5px; }
-        #fake-loader-status { color: var(--brand-gold); font-size: 14px; text-transform: uppercase; font-weight: 700; margin-top: 10px; letter-spacing: 1px; }
-        #fake-loader-perc { font-weight: 800; font-size: 60px; color: var(--brand-orange); margin: 10px 0; font-feature-settings: "tnum"; }
-        .prog-fake-bg { background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; width: 100%; margin-top: 20px; overflow: hidden; }
-        .prog-fake-fill { background: var(--brand-orange); height: 100%; width: 0%; transition: width 6.5s linear; box-shadow: 0 0 10px rgba(255, 140, 0, 0.5); }
-        #fake-loader-overlay.animating .prog-fake-fill { width: 100%; }
-
         #modal-zoom { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; cursor: zoom-out; backdrop-filter: blur(5px); }
         #modal-zoom img { max-width: 90%; max-height: 80%; border-radius: 16px; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-
-<div id="fake-loader-overlay">
-    <div class="loader-content reveal">
-        <div class="icon-container">
-            <div class="circle-liquid"></div>
-            <img src="/7443348.png" class="icon-base" alt="Traje Base" onerror="this.src='/logo.png'">
-        </div>
-        <p id="fake-loader-msg">Procesando...</p>
-        <div id="fake-loader-perc">0%</div>
-        <p id="fake-loader-status">Sincronizando con el servidor</p>
-        <div class="prog-fake-bg"><div class="prog-fake-fill"></div></div>
-    </div>
-</div>
 
 <header>
     <div class="logo-wrap"><img src="/logo.png" alt="Logo"></div>
@@ -334,28 +295,12 @@
     </div>
     <div class="card" style="margin: 0; background: transparent; box-shadow: none; padding: 0;">
         <div id="lista-items-picking"></div>
-        <button class="btn-finish btn-finish-blue" onclick="finalizarPedidoWMS()">🖨️ Finalizar y Generar Remisión PDF</button>
+        <button class="btn-finish btn-finish-blue" id="btn-final-pick" onclick="finalizarPedidoWMS()">🖨️ Finalizar y Generar Remisión PDF</button>
         <button class="btn-back" onclick="location.reload()">Regresar al menú principal</button>
     </div>
 </div>
 
 <script>
-    const fakeLoader = {
-        show: function(msgText, statusText) {
-            this.msg.innerText = msgText || "Procesando...";
-            this.status.innerText = statusText || "Sincronizando...";
-            this.perc.innerText = "0%";
-            document.getElementById('fake-loader-overlay').classList.add('show');
-            setTimeout(() => document.getElementById('fake-loader-overlay').classList.add('animating'), 20);
-        },
-        hide: function() {
-            document.getElementById('fake-loader-overlay').classList.remove('show', 'animating');
-        },
-        get msg() { return document.getElementById('fake-loader-msg'); },
-        get perc() { return document.getElementById('fake-loader-perc'); },
-        get status() { return document.getElementById('fake-loader-status'); }
-    };
-
     let miNombre = localStorage.getItem('operador_nombre');
     
     // Variables Inventario
@@ -521,14 +466,24 @@
 
     async function finalizarInventario() {
         if (resultados.length < inventarioActivo.totalTallas) { if (!confirm("Aún faltan tallas por contar. ¿Estás seguro de enviar el reporte incompleto?")) return; }
-        fakeLoader.show("Enviando reporte ciclico...", "Sincronizando con el Supervisor");
+        
+        const btnFinal = document.getElementById('btn-final');
+        btnFinal.innerHTML = "Enviando... ⌛"; 
+        btnFinal.disabled = true;
+
         const ahora = new Date(); const horaFinStr = ahora.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const res = await fetch('/api/actualizar-progreso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: inventarioActivo.id, progreso: 100, conteoActual: resultados.length, resultados: resultados, horaFin: horaFinStr, estatus: "Finalizado" }) });
-        await new Promise(resolve => setTimeout(resolve, 6200));
+        
         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FF8C00', '#001A33', '#C5A059'] });
-        fakeLoader.msg.innerText = "¡Reporte Enviado! ✅"; fakeLoader.perc.innerText = "100%"; fakeLoader.status.innerText = "Regresando al menú principal...";
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        if (res.ok) { document.body.style.backgroundColor = 'var(--bg-apple)'; location.reload(); }
+        showToast("¡Reporte Enviado con Éxito!");
+        
+        if (res.ok) { 
+            document.body.style.backgroundColor = 'var(--bg-apple)'; 
+            setTimeout(() => location.reload(), 1500); 
+        } else {
+            btnFinal.innerHTML = "✅ Enviar Reporte Final"; 
+            btnFinal.disabled = false;
+        }
     }
 
     function verZoom(src) { document.getElementById('img-ampliada').src = src; document.getElementById('modal-zoom').style.display = 'flex'; }
@@ -737,7 +692,9 @@
             if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas solicitadas. Lo que falte se quedará como pendiente en la remisión. ¿Continuar y cerrar pedido?`)) return;
         }
 
-        fakeLoader.show("Generando Remisión PDF...", "Descontando mercancía del Kardex central");
+        const btnPick = document.getElementById('btn-final-pick');
+        btnPick.innerHTML = "Generando PDF... 🖨️"; 
+        btnPick.disabled = true;
 
         try {
             const res = await fetch('/api/finalizar-pedido-wms', {
@@ -749,17 +706,15 @@
 
             await generarPDFRemision(pedidoActivo);
 
-            await new Promise(resolve => setTimeout(resolve, 3000));
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
-            fakeLoader.msg.innerText = "¡Surtido Finalizado! 🖨️";
-            fakeLoader.perc.innerText = "100%";
-            fakeLoader.status.innerText = "PDF Descargado. Regresando...";
+            showToast("¡Surtido Finalizado! PDF Descargado.");
 
-            setTimeout(() => { location.reload(); }, 2000);
+            setTimeout(() => { location.reload(); }, 1500);
 
         } catch (e) {
-            fakeLoader.hide();
             alert("Hubo un error al procesar la salida. Por favor revisa la conexión.");
+            btnPick.innerHTML = "🖨️ Finalizar y Generar Remisión PDF"; 
+            btnPick.disabled = false;
         }
     }
 
