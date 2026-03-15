@@ -35,7 +35,7 @@
             justify-content: space-between;
         }
         .header-col {
-            flex: 1; /* Divide el header en 3 partes iguales para centrar el logo perfecto */
+            flex: 1; 
         }
         .header-center {
             display: flex;
@@ -158,6 +158,9 @@
         .historial-lista { max-height: 400px; overflow-y: auto; background: #F9F9FB; border-radius: 12px; padding: 15px; border: 1px solid #E5E5EA; }
         .hist-item { padding: 15px; border-bottom: 1px solid #E5E5EA; font-size: 14px; background: white; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
         .hist-item:last-child { margin-bottom: 0; }
+        
+        /* Paginación UI */
+        .btn-page { padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -255,15 +258,16 @@
     <div id="vista-kardexTotal" class="card reveal" style="display: none;">
         <h2>Trazabilidad de Productos (Kardex Total)</h2>
         <p style="color: var(--text-muted); font-size: 14px; margin-top: 0; margin-bottom: 20px;">
-            Registro histórico de <b>todos los productos</b> que han ingresado al sistema, incluyendo los que actualmente están agotados (0 stock).
+            Registro histórico de <b>todos los productos</b> que han ingresado al sistema, incluyendo los que actualmente están agotados.
         </p>
-        <input type="text" id="buscarKardexTotal" class="search-box" placeholder="🔍 Buscar por Modelo, Color o Talla..." onkeyup="filtrarTablaInteligente('tablaKardexTotal', this.value)">
+        <input type="text" id="buscarKardexTotal" class="search-box" placeholder="🔍 Buscar por Modelo, Color o Talla..." onkeyup="filtrarKardexTotalMemoria(this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaKardexTotal">
                 <thead><tr><th>Modelo Principal</th><th>Color</th><th>Talla</th><th>Estado Actual</th><th>Acciones</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
+        <div id="paginacionKardexTotal" style="display: flex; justify-content: center; gap: 8px; margin-top: 25px; flex-wrap: wrap; align-items: center;"></div>
     </div>
 </div>
 
@@ -416,7 +420,14 @@
     let kardexAgrupado = {}; 
     let datosMasivosGlobales = null; 
     let activeSelection = null; 
-    let rawHistorialData = []; // NUEVA VARIABLE GLOBAL PARA TRAZABILIDAD
+    let rawHistorialData = []; 
+
+    // VARIABLES PARA OPTIMIZACIÓN KARDEX TOTAL
+    let trazabilidadList = []; 
+    let trazabilidadFiltrada = []; 
+    let ktCurrentPage = 1;
+    const ktItemsPerPage = 50;
+    let kardexTotalGenerado = false; 
 
     function showToast(msj, tipo='success'){
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
@@ -431,7 +442,12 @@
         document.getElementById('vista-pedidos').style.display = tId==='pedidos'?'block':'none';
         document.getElementById('vista-prestamos').style.display = tId==='prestamos'?'block':'none';
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
-        document.getElementById('vista-kardexTotal').style.display = tId==='kardexTotal'?'block':'none'; // NUEVA PESTAÑA
+        document.getElementById('vista-kardexTotal').style.display = tId==='kardexTotal'?'block':'none';
+
+        // LAZY LOAD: Solo genera la trazabilidad masiva si entran a la pestaña y si hay cambios pendientes
+        if(tId === 'kardexTotal' && !kardexTotalGenerado) {
+            construirKardexTotalMemoria();
+        }
     }
 
     function filtrarTablaInteligente(id, texto){
@@ -444,7 +460,7 @@
     }
 
     // ==========================================
-    // 1. CARGAR PEDIDOS WMS (ACTUALIZADA)
+    // 1. CARGAR PEDIDOS WMS
     // ==========================================
     async function cargarPedidosWMS() {
         try {
@@ -462,8 +478,6 @@
                 let piezasSurtidas = p.items.reduce((acc, it) => acc + (it.surtido || 0), 0);
                 let colorPrioridad = p.prioridad === 'Urgente' ? 'var(--danger)' : 'var(--success)';
                 let colorEstatus = p.estatus === 'Completado' ? 'tag-in' : (p.estatus === 'En Proceso' ? 'tag-info' : 'tag-adj');
-                
-                // Mostrar Folio Real SAP en lugar del interno WMS
                 let numPedidoVisual = p.numeroPedido ? p.numeroPedido : p.folio;
                 
                 tbody.innerHTML += `
@@ -518,8 +532,9 @@
             </tr>`;
         });
         
-        // Refrescar Kardex Total (Trazabilidad) una vez que tenemos Kardex Activo
-        construirKardexTotal();
+        // Marcar Kardex Total como sucio para que se re-genere si entran a la pestaña
+        kardexTotalGenerado = false;
+        if(document.getElementById('vista-kardexTotal').style.display === 'block') construirKardexTotalMemoria();
     }
 
     function abrirPanelDetalle(key) {
@@ -599,8 +614,9 @@
             tbody.innerHTML += `<tr><td><b>${m.folio}</b></td><td><small>${m.fecha}</small></td><td><span class="tag ${color}">${m.tipo}</span></td><td><b>${m.modelo}</b> (${m.talla})<br><small style="color:var(--text-muted);">Lote: ${m.lote}</small></td><td><b>${m.cantidad}</b></td><td><small>${m.referencia}</small></td><td>${m.responsable}</td></tr>`;
         });
 
-        // Llamamos la función para armar el Kardex Total (Trazabilidad)
-        construirKardexTotal();
+        // Marcar Kardex Total como sucio para que se re-genere si entran a la pestaña
+        kardexTotalGenerado = false;
+        if(document.getElementById('vista-kardexTotal').style.display === 'block') construirKardexTotalMemoria();
     }
 
     async function cargarPrestamos(){
@@ -612,45 +628,57 @@
     }
 
     // ==========================================
-    // NUEVA FUNCIÓN: CONSTRUIR KARDEX TOTAL
+    // OPTIMIZACIÓN KARDEX TOTAL: MEMORIA Y PAGINACIÓN
     // ==========================================
-    function construirKardexTotal() {
+    function construirKardexTotalMemoria() {
         let trazabilidadMap = {};
         
-        // 1. Agregar todo lo que haya existido en el historial maestro (SAP Log)
+        // 1. Agregar historial
         rawHistorialData.forEach(m => {
             const key = `${m.modelo}_${m.color}_${m.talla}`;
-            if(!trazabilidadMap[key]) {
-                trazabilidadMap[key] = { modelo: m.modelo, color: m.color, talla: m.talla };
-            }
+            if(!trazabilidadMap[key]) trazabilidadMap[key] = { modelo: m.modelo, color: m.color, talla: m.talla };
         });
 
-        // 2. Agregar lo del Kardex Activo por si acaso hay un alta directa sin historial previo
+        // 2. Pre-calcular todo el stock actual en memoria O(N)
+        let stockMap = {};
         rawKardexData.forEach(k => {
             const key = `${k.modelo}_${k.color}_${k.talla}`;
-            if(!trazabilidadMap[key]) {
-                trazabilidadMap[key] = { modelo: k.modelo, color: k.color, talla: k.talla };
-            }
+            if(!trazabilidadMap[key]) trazabilidadMap[key] = { modelo: k.modelo, color: k.color, talla: k.talla };
+            stockMap[key] = (stockMap[key] || 0) + k.cantidad;
         });
 
+        // 3. Crear arreglo maestro de trazabilidad
+        trazabilidadList = Object.keys(trazabilidadMap).sort().map(key => {
+            let item = trazabilidadMap[key];
+            item.stock = stockMap[key] || 0;
+            item.key = key;
+            return item;
+        });
+
+        trazabilidadFiltrada = [...trazabilidadList];
+        ktCurrentPage = 1;
+        kardexTotalGenerado = true;
+        
+        renderKardexTotalPaginado();
+    }
+
+    function renderKardexTotalPaginado() {
         const tbody = document.querySelector('#tablaKardexTotal tbody');
         tbody.innerHTML = '';
+        
+        const start = (ktCurrentPage - 1) * ktItemsPerPage;
+        const end = start + ktItemsPerPage;
+        const itemsToShow = trazabilidadFiltrada.slice(start, end);
 
-        // Ordenamos alfabéticamente para que se vea estético
-        Object.keys(trazabilidadMap).sort().forEach(key => {
-            const item = trazabilidadMap[key];
-            
-            // Calculamos el stock cruzando con el Kardex Vivo
-            let stockActual = 0;
-            rawKardexData.forEach(k => {
-                if(k.modelo === item.modelo && k.color === item.color && k.talla === item.talla) {
-                    stockActual += k.cantidad;
-                }
-            });
+        if(itemsToShow.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#8E8E93;">No hay registros que coincidan con la búsqueda.</td></tr>';
+            document.getElementById('paginacionKardexTotal').innerHTML = '';
+            return;
+        }
 
-            // Etiqueta dinámica dependiendo si hay stock o si se agotó la mercancía
-            let statusTag = stockActual > 0 
-                ? `<span class="tag tag-in">🟢 Activo (${stockActual} pz)</span>` 
+        itemsToShow.forEach(item => {
+            let statusTag = item.stock > 0 
+                ? `<span class="tag tag-in">🟢 Activo (${item.stock} pz)</span>` 
                 : `<span class="tag tag-out">🔴 Agotado (0 pz)</span>`;
 
             tbody.innerHTML += `
@@ -660,12 +688,72 @@
                     <td><b style="font-size: 16px;">${item.talla}</b></td>
                     <td>${statusTag}</td>
                     <td>
-                        <button class="btn btn-navy" style="padding:6px 12px; font-size:11px;" onclick="verHistorialIndividual('${key}')">📜 Ver Historial</button>
-                        <button class="btn btn-orange" style="padding:6px 12px; font-size:11px;" onclick="descargarTrazabilidadExcel('${key}')">📊 Descargar Excel</button>
+                        <button class="btn btn-navy" style="padding:6px 12px; font-size:11px;" onclick="verHistorialIndividual('${item.key}')">📜 Ver Historial</button>
+                        <button class="btn btn-orange" style="padding:6px 12px; font-size:11px;" onclick="descargarTrazabilidadExcel('${item.key}')">📊 Descargar Excel</button>
                     </td>
                 </tr>
             `;
         });
+
+        renderPaginacionKardexTotal();
+    }
+
+    function renderPaginacionKardexTotal() {
+        const container = document.getElementById('paginacionKardexTotal');
+        container.innerHTML = '';
+        const totalPages = Math.ceil(trazabilidadFiltrada.length / ktItemsPerPage);
+        
+        if (totalPages <= 1) return; // No mostrar botones si solo hay una página
+
+        let html = '';
+        
+        // Mostrar total de resultados
+        html += `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 13px; font-weight: 600; margin-bottom: 10px;">Mostrando ${trazabilidadFiltrada.length} resultados</div>`;
+
+        // Botón Anterior
+        if (ktCurrentPage > 1) {
+            html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaKT(${ktCurrentPage - 1})">◀ Ant</button>`;
+        }
+
+        // Rango de botones
+        let startPage = Math.max(1, ktCurrentPage - 2);
+        let endPage = Math.min(totalPages, ktCurrentPage + 2);
+
+        if (startPage > 1) html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaKT(1)">1</button>${startPage > 2 ? '<span style="color:var(--text-muted); padding:0 5px;">...</span>' : ''}`;
+
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === ktCurrentPage) {
+                html += `<button class="btn btn-navy btn-page">${i}</button>`;
+            } else {
+                html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaKT(${i})">${i}</button>`;
+            }
+        }
+
+        if (endPage < totalPages) html += `${endPage < totalPages - 1 ? '<span style="color:var(--text-muted); padding:0 5px;">...</span>' : ''}<button class="btn btn-outline btn-page" onclick="cambiarPaginaKT(${totalPages})">${totalPages}</button>`;
+
+        // Botón Siguiente
+        if (ktCurrentPage < totalPages) {
+            html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaKT(${ktCurrentPage + 1})">Sig ▶</button>`;
+        }
+
+        container.innerHTML = html;
+    }
+
+    function cambiarPaginaKT(page) {
+        ktCurrentPage = page;
+        renderKardexTotalPaginado();
+    }
+
+    function filtrarKardexTotalMemoria(texto) {
+        const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+        
+        trazabilidadFiltrada = trazabilidadList.filter(item => {
+            const rowText = `${item.modelo} ${item.color} ${item.talla}`.toLowerCase();
+            return terminos.every(term => rowText.includes(term));
+        });
+        
+        ktCurrentPage = 1; // Regresar a la primera página al buscar
+        renderKardexTotalPaginado();
     }
 
     async function descargarTrazabilidadExcel(llaveObj) {
@@ -675,7 +763,6 @@
             const data = await res.json();
             if(data.length === 0) return showToast("No hay registros históricos para este producto.", "warning");
 
-            // Preparar data plana para exportar
             const exportData = data.map(d => ({
                 'Folio': d.folio,
                 'Fecha': d.fecha,
@@ -693,11 +780,8 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Trazabilidad Historica");
             XLSX.writeFile(wb, `Trazabilidad_${llaveObj}_${new Date().toLocaleDateString('es-MX').replace(/\//g,'-')}.xlsx`);
-        } catch(e) {
-            showToast("Error al exportar trazabilidad.", "danger");
-        }
+        } catch(e) { showToast("Error al exportar trazabilidad.", "danger"); }
     }
-
 
     // ==========================================
     // 4. MODALES Y REGISTROS INDIVIDUALES
