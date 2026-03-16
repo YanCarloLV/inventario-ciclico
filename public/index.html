@@ -426,6 +426,7 @@
             const datosInv = await resInv.json();
             renderListaDisponibles(datosInv);
 
+
             const resPed = await fetch('/api/pedidos');
             if(resPed.ok) {
                 const datosPed = await resPed.json();
@@ -686,7 +687,7 @@
         try {
             const res = await fetch(`/api/lotes-disponibles?modelo=${encodeURIComponent(item.modelo)}&color=${encodeURIComponent(item.color)}&talla=${encodeURIComponent(item.talla)}`);
             const lotes = await res.json();
-            
+            window.lotesCache = lotes;
             selectLote.innerHTML = '<option value="" disabled selected>Selecciona el lote físico...</option>';
             if(lotes.length > 0) {
                 lotes.forEach(l => {
@@ -717,27 +718,41 @@
         setTimeout(() => { modal.style.display = 'none'; itemActivoIndex = null; }, 300);
     }
 
-    async function guardarPickingModal() {
-        const cantStr = document.getElementById('pick-cant').value;
-        const loteVal = document.getElementById('pick-lote').value;
-        
-        if (!cantStr || cantStr === "") return alert("Ingresa cuántas piezas encontraste físicamente.");
-        if (!loteVal) return alert("Debes indicar de qué lote sacaste la mercancía.");
-        
-        const n = parseInt(cantStr); if (isNaN(n) || n < 0) return;
+async function guardarPickingModal() {
+    const cantStr = document.getElementById('pick-cant').value;
+    const loteVal = document.getElementById('pick-lote').value;
+    const item = pedidoActivo.items[itemActivoIndex];
+    
+    if (!cantStr || cantStr === "") return alert("Ingresa cuántas piezas encontraste físicamente.");
+    if (!loteVal) return alert("Debes indicar de qué lote sacaste la mercancía.");
+    
+    const n = parseInt(cantStr); if (isNaN(n) || n < 0) return;
 
-        pedidoActivo.items[itemActivoIndex].surtido = n;
-        pedidoActivo.items[itemActivoIndex].loteOrigen = loteVal;
-
-        cerrarModalPicking();
-        renderItemsPicking();
-        enfocarSiguienteTalla(`pick-${itemActivoIndex}`, '#sticky-pick');
-
-        fetch('/api/actualizar-pedido', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items })
-        });
+    // --- CANDADO A: No surtir más de lo pedido ---
+    if (n > item.cantidadSolicitada) {
+        return alert(`🚫 Error: No puedes surtir más de lo que el cliente pidió (${item.cantidadSolicitada} pz).`);
     }
+
+    // --- CANDADO B: No surtir más de lo que hay en el lote ---
+    if (window.lotesCache && loteVal !== "SIN-LOTE" && loteVal !== "MANUAL") {
+        const loteInfo = window.lotesCache.find(l => l.lote === loteVal);
+        if (loteInfo && n > loteInfo.cantidad) {
+            return alert(`🚫 Error: Solo hay ${loteInfo.cantidad} piezas disponibles en el lote ${loteVal}.`);
+        }
+    }
+
+    item.surtido = n;
+    item.loteOrigen = loteVal;
+    cerrarModalPicking(); 
+    renderItemsPicking(); 
+    enfocarSiguienteTalla(`pick-${itemActivoIndex}`, '#sticky-pick');
+
+    fetch('/api/actualizar-pedido', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items }) 
+    });
+}
 
     function enfocarSiguienteTalla(idParcial, stickySelector) {
         setTimeout(() => {
@@ -764,36 +779,38 @@
     // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE) - CORREGIDO DISEÑO PDF
     // ==============================================================
     async function finalizarPedidoWMS() {
-        let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
-        if(piezasSurtidasTotal < pedidoActivo.totalPiezas) {
-            if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas solicitadas. Lo que falte se quedará como pendiente en la remisión. ¿Continuar y cerrar pedido?`)) return;
-        }
-
-        const btnPick = document.getElementById('btn-final-pick');
-        btnPick.innerHTML = "Generando PDF... 🖨️"; 
-        btnPick.disabled = true;
-
-        try {
-            const res = await fetch('/api/finalizar-pedido-wms', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items, operador: miNombre })
-            });
-
-            if(!res.ok) throw new Error("Error en servidor");
-
-            await generarPDFRemision(pedidoActivo);
-
-            confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
-            showToast("¡Surtido Finalizado! PDF Descargado.");
-
-            setTimeout(() => { location.reload(); }, 1500);
-
-        } catch (e) {
-            alert("Hubo un error al procesar la salida. Por favor revisa la conexión.");
-            btnPick.innerHTML = "🖨️ Finalizar y Generar Remisión PDF"; 
-            btnPick.disabled = false;
-        }
+    let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
+    if(piezasSurtidasTotal < pedidoActivo.totalPiezas) { 
+        if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas. ¿Continuar?`)) return; 
     }
+
+    const btnPick = document.getElementById('btn-final-pick'); 
+    btnPick.innerHTML = "Generando PDF... 🖨️"; 
+    btnPick.disabled = true;
+
+    try {
+        const res = await fetch('/api/finalizar-pedido-wms', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items, operador: miNombre }) 
+        });
+
+        if(!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Error en servidor");
+        }
+
+        await generarPDFRemision(pedidoActivo);
+        confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
+        showToast("¡Surtido Finalizado! PDF Descargado.");
+        setTimeout(() => { location.reload(); }, 1500);
+
+    } catch (e) {
+        alert(`❌ Operación Rechazada: ${e.message}`);
+        btnPick.innerHTML = "🖨️ Finalizar y Generar Remisión PDF"; 
+        btnPick.disabled = false;
+    }
+}
 
     async function generarPDFRemision(pedido) {
         const { jsPDF } = window.jspdf;

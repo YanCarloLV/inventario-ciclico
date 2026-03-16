@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.3 (Integración WMS con Web Push Notifications)
+// server.js - Versión 6.4 (Integración WMS con Web Push y Seguridad de Picking)
 // ==========================================
 
 const express = require('express');
@@ -14,7 +14,6 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 🔔 CONFIGURACIÓN DE NOTIFICACIONES PUSH (VAPID KEYS) ---
-// Estas claves actúan como un "pasaporte" para que Google/Apple confíen en tu servidor.
 const publicVapidKey = process.env.PUBLIC_VAPID_KEY || 'Reemplaza_Esto_Con_Tu_Clave_Publica';
 const privateVapidKey = process.env.PRIVATE_VAPID_KEY || 'Reemplaza_Esto_Con_Tu_Clave_Privada';
 
@@ -71,7 +70,6 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // 3. MODELOS DE ALMACÉN, WMS PEDIDOS Y PUSH
 // ==========================================
 
-// 🔔 NUEVO: Modelo para guardar a los operadores suscritos a las notificaciones
 const SuscripcionPushSchema = new mongoose.Schema({
     operador: String,
     suscripcion: Object,
@@ -125,11 +123,9 @@ const Pedido = mongoose.model('Pedido', PedidoSchema);
 // 🔔 NUEVOS ENDPOINTS PARA NOTIFICACIONES PUSH
 // ==========================================
 
-// Guardar la suscripción de un celular (viene de index.html)
 app.post('/api/suscribir-push', async (req, res) => {
     try {
         const { operador, suscripcion } = req.body;
-        // Buscamos si el operador ya existe, lo actualizamos. Si no, lo creamos.
         await SuscripcionPush.findOneAndUpdate(
             { operador: operador },
             { suscripcion: suscripcion, fechaSuscripcion: new Date() },
@@ -141,20 +137,16 @@ app.post('/api/suscribir-push', async (req, res) => {
     }
 });
 
-// Enviar Notificación Masiva a todos los operadores (viene de supervisor.html)
 app.post('/api/enviar-notificacion', async (req, res) => {
     try {
         const { titulo, mensaje, urlAccion } = req.body;
         const payload = JSON.stringify({ titulo, mensaje, urlAccion });
 
-        // Obtener todos los teléfonos registrados
         const suscripciones = await SuscripcionPush.find();
         
-        // Disparar las notificaciones a todos en paralelo
         const promesas = suscripciones.map(sub => 
             webpush.sendNotification(sub.suscripcion, payload).catch(err => {
                 console.error(`Error enviando notificación a ${sub.operador}:`, err.message);
-                // Si el error indica que el celular bloqueó las notificaciones o la suscripción expiró, lo borramos de BD
                 if (err.statusCode === 410 || err.statusCode === 404) {
                     return SuscripcionPush.findByIdAndDelete(sub._id);
                 }
@@ -225,11 +217,38 @@ app.post('/api/actualizar-pedido', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🛡️ CANDADO DE SEGURIDAD IMPLEMENTADO AQUÍ 🛡️
 app.post('/api/finalizar-pedido-wms', async (req, res) => {
     try {
         const { folio, items, operador } = req.body;
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
         const horaFinStr = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Monterrey', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        // --- FASE 1: VALIDACIÓN DE SEGURIDAD (CANDADO) ---
+        // Antes de descontar nada, verificamos que las cantidades sean válidas
+        for (let item of items) {
+            if (item.surtido > 0 && item.loteOrigen) {
+                const cantSurtida = parseFloat(item.surtido);
+                
+                // Validación A: ¿Intenta surtir más de lo solicitado?
+                if (cantSurtida > item.cantidadSolicitada) {
+                    return res.status(400).json({ 
+                        error: `Validación fallida: El artículo ${item.modelo} talla ${item.talla} excede la cantidad solicitada (Surtido: ${cantSurtida}, Pedido: ${item.cantidadSolicitada}).` 
+                    });
+                }
+
+                // Validación B: ¿El lote tiene suficiente stock real para cubrir este surtido?
+                const llave = `${item.modelo.trim()}_${item.color.trim()}_${item.talla.trim()}`;
+                const kardexItemValidacion = await Kardex.findOne({ llave, lote: item.loteOrigen });
+                
+                if (!kardexItemValidacion || kardexItemValidacion.cantidad < cantSurtida) {
+                    return res.status(400).json({ 
+                        error: `Stock insuficiente: El lote ${item.loteOrigen} no tiene suficientes piezas para el artículo ${item.modelo} talla ${item.talla}.` 
+                    });
+                }
+            }
+        }
+        // --- FIN DE LA FASE DE VALIDACIÓN ---
 
         const pedidoOriginal = await Pedido.findOne({ folio });
         const folioRealSAP = (pedidoOriginal && pedidoOriginal.numeroPedido) ? pedidoOriginal.numeroPedido : folio;
