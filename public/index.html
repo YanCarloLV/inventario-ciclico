@@ -312,6 +312,9 @@
     let pedidoActivo = null;
     let itemActivoIndex = null;
 
+    // 🔔 CONFIGURACIÓN WEB PUSH (Esta clave pública la generaremos en tu backend)
+    const PUBLIC_VAPID_KEY = 'BP3LLahPkHu1OIxZwPCNbTqi5gfGfKzgSP_MeE7VlBEKfM2lIJZUUwB0fmB2m5WH3raRLEdv5cBYrVGWnL-weRY';
+
     if (!miNombre) {
         document.getElementById('login-screen').style.display = 'block';
         document.getElementById('listado-screen').style.display = 'none';
@@ -342,8 +345,64 @@
         document.getElementById('contenedor-pedidos').style.display = tab === 'ped' ? 'block' : 'none';
     }
 
+    // 🔔 FUNCIÓN AUXILIAR PARA WEB PUSH
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    // 🔔 INICIALIZADOR DE NOTIFICACIONES PUSH
+    async function inicializarNotificacionesPush() {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            try {
+                // 1. Registramos el "Vigilante" (Service Worker)
+                const swReg = await navigator.serviceWorker.register('/sw.js');
+                console.log('🔔 Service Worker registrado:', swReg);
+
+                // 2. Pedimos permiso al Operador
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    console.log('🔕 Permiso de notificaciones denegado por el usuario.');
+                    return;
+                }
+
+                // 3. Generamos la suscripción vinculada a este teléfono
+                const subscription = await swReg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+                });
+
+                // 4. Mandamos esa suscripción a la base de datos para que el supervisor pueda "hablarle" a este equipo
+                await fetch('/api/suscribir-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        operador: miNombre,
+                        suscripcion: subscription
+                    })
+                });
+                console.log('✅ Suscripción Push enlazada al servidor con éxito.');
+
+            } catch (error) {
+                console.error('❌ Error al inicializar Web Push:', error);
+            }
+        } else {
+            console.warn('⚠️ Las notificaciones Push no son soportadas en este navegador.');
+        }
+    }
+
     async function iniciarApp() {
         document.getElementById('saludo-user').innerText = `👷 ${miNombre}`;
+        
+        // 🔔 Arrancamos la suscripción a notificaciones en cuanto la app carga
+        await inicializarNotificacionesPush();
+
         try {
             const resInv = await fetch('/api/ciclicos');
             const datosInv = await resInv.json();

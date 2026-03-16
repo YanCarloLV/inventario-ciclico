@@ -660,6 +660,7 @@
         totalLbl.innerText = totalPz;
     }
 
+    // 🔔 LÓGICA DE WEB PUSH INTEGRADA AQUÍ
     async function lanzarPedidoCart() {
         if(carritoPedidos.length === 0) return showToast("El carrito está vacío.", "warning");
         
@@ -697,6 +698,26 @@
             if(res.ok) { 
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } }); 
                 showToast(`¡Pedido ${folio} enviado a los operadores!`); 
+
+                // 🔔 AQUI SE DISPARA LA NOTIFICACIÓN PUSH AL SERVIDOR
+                try {
+                    let tituloNotif = prioridad === 'Urgente' ? '🔴 PEDIDO URGENTE WMS' : '🟢 NUEVO PEDIDO WMS';
+                    let cuerpoNotif = `Folio: ${folio}. Se requieren ${itemsParaWMS.length} prendas. ¡A surtir!`;
+                    
+                    await fetch('/api/enviar-notificacion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            titulo: tituloNotif,
+                            mensaje: cuerpoNotif,
+                            urlAccion: '/' // Para que abra la app al tocar la notificación
+                        })
+                    });
+                    console.log("Alerta Push enviada a los dispositivos");
+                } catch (pushErr) {
+                    console.error("El pedido se creó, pero la notificación push falló:", pushErr);
+                }
+                
                 // Limpiar todo
                 carritoPedidos = [];
                 document.getElementById('cart-folio').value = '';
