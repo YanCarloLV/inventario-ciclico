@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sistema WMS - Operador Pro</title>
+    <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="/logo.png" type="image/png">
     <link rel="icon" sizes="192x192" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -246,6 +247,8 @@
         <button onclick="localStorage.clear(); location.reload();" style="font-size:12px; font-weight:700; border:none; background:#F2F2F7; padding:8px 12px; border-radius:10px; color:#FF3B30; cursor:pointer;">Cerrar Sesión</button>
     </div>
 
+    <button id="btn-activar-push" onclick="pedirPermisoApple()" style="display:none; width: 100%; background: #007AFF; color: white; border: none; padding: 15px; border-radius: 16px; font-weight: 800; font-size: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,122,255,0.3); font-family: inherit; cursor: pointer;">🔔 Activar Alertas de Pedidos</button>
+
     <div class="tabs-op">
         <button class="tab-btn active" id="tab-inv" onclick="switchOpTab('inv')">📋 Inventarios</button>
         <button class="tab-btn" id="tab-ped" onclick="switchOpTab('ped')">🛒 Surtir Pedidos</button>
@@ -357,6 +360,15 @@
         return outputArray;
     }
 
+    // 🍎 NUEVA FUNCIÓN ESPECIAL PARA EL BOTÓN DE APPLE
+    async function pedirPermisoApple() {
+        await inicializarNotificacionesPush();
+        if (Notification.permission === 'granted') {
+            document.getElementById('btn-activar-push').style.display = 'none';
+            alert("¡Excelente! Ya recibirás notificaciones de los pedidos.");
+        }
+    }
+
     // 🔔 INICIALIZADOR DE NOTIFICACIONES PUSH
     async function inicializarNotificacionesPush() {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -400,8 +412,14 @@
     async function iniciarApp() {
         document.getElementById('saludo-user').innerText = `👷 ${miNombre}`;
         
-        // 🔔 Arrancamos la suscripción a notificaciones en cuanto la app carga
-        await inicializarNotificacionesPush();
+        // 🍎 REGLA DE APPLE: Si no hay permiso, mostramos el botón. Si ya lo dio, arrancamos silencioso.
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                document.getElementById('btn-activar-push').style.display = 'block';
+            } else if (Notification.permission === 'granted') {
+                inicializarNotificacionesPush();
+            }
+        }
 
         try {
             const resInv = await fetch('/api/ciclicos');
