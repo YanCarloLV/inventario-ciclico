@@ -559,4 +559,6 @@ app.post('/api/renombrar-producto', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => { console.log(`✅ Servidor Operativo en Puerto ${PORT}`); });
+app.listen(PORT, '0.0.0.0', () => { 
+    console.log(`✅ Servidor Operativo en Puerto ${PORT}`); 
+});
