@@ -1,11 +1,11 @@
 // ==========================================
-// server.js - Versión 6.4 (Integración WMS con Web Push y Seguridad de Picking)
+// server.js - Versión 6.5 (Integración WMS, Web Push, Seguridad y Mantenimiento)
 // ==========================================
 
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
-const webpush = require('web-push'); // 🔔 NUEVA LIBRERÍA PARA NOTIFICACIONES
+const webpush = require('web-push'); // 🔔 LIBRERÍA PARA NOTIFICACIONES
 
 const app = express();
 const PORT = process.env.PORT || 10000; 
@@ -77,7 +77,6 @@ const SuscripcionPushSchema = new mongoose.Schema({
 });
 const SuscripcionPush = mongoose.model('SuscripcionPush', SuscripcionPushSchema);
 
-
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
     cantidad: { type: Number, default: 0 }, ultimaActualizacion: String
@@ -120,7 +119,7 @@ const Pedido = mongoose.model('Pedido', PedidoSchema);
 
 
 // ==========================================
-// 🔔 NUEVOS ENDPOINTS PARA NOTIFICACIONES PUSH
+// 🔔 ENDPOINTS PARA NOTIFICACIONES PUSH
 // ==========================================
 
 app.post('/api/suscribir-push', async (req, res) => {
@@ -225,19 +224,16 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
         const horaFinStr = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Monterrey', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
         // --- FASE 1: VALIDACIÓN DE SEGURIDAD (CANDADO) ---
-        // Antes de descontar nada, verificamos que las cantidades sean válidas
         for (let item of items) {
             if (item.surtido > 0 && item.loteOrigen) {
                 const cantSurtida = parseFloat(item.surtido);
                 
-                // Validación A: ¿Intenta surtir más de lo solicitado?
                 if (cantSurtida > item.cantidadSolicitada) {
                     return res.status(400).json({ 
                         error: `Validación fallida: El artículo ${item.modelo} talla ${item.talla} excede la cantidad solicitada (Surtido: ${cantSurtida}, Pedido: ${item.cantidadSolicitada}).` 
                     });
                 }
 
-                // Validación B: ¿El lote tiene suficiente stock real para cubrir este surtido?
                 const llave = `${item.modelo.trim()}_${item.color.trim()}_${item.talla.trim()}`;
                 const kardexItemValidacion = await Kardex.findOne({ llave, lote: item.loteOrigen });
                 
@@ -460,6 +456,85 @@ app.post('/api/movimiento-masivo', async (req, res) => {
         await docTeorico.save();
         res.json({ success: true, folio: folioMov, procesados, errores });
     } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// ==========================================
+// ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO
+// ==========================================
+app.post('/api/renombrar-producto', async (req, res) => {
+    try {
+        const { modeloViejo, colorViejo, modeloNuevo, colorNuevo } = req.body;
+        if (!modeloViejo || !colorViejo || !modeloNuevo || !colorNuevo) {
+            return res.status(400).json({ error: "Faltan datos obligatorios" });
+        }
+
+        const modV = modeloViejo.trim().toUpperCase();
+        const colV = colorViejo.trim().toUpperCase();
+        const modN = modeloNuevo.trim().toUpperCase();
+        const colN = colorNuevo.trim().toUpperCase();
+
+        // 1. Actualizar Kardex
+        const kardexItems = await Kardex.find({ modelo: modV, color: colV });
+        for(let item of kardexItems) {
+            item.modelo = modN;
+            item.color = colN;
+            item.llave = `${modN}_${colN}_${item.talla}`;
+            await item.save();
+        }
+
+        // 2. Actualizar Historial de Movimientos
+        const movimientos = await Movimiento.find({ modelo: modV, color: colV });
+        for(let mov of movimientos) {
+            mov.modelo = modN;
+            mov.color = colN;
+            mov.llave = `${modN}_${colN}_${mov.talla}`;
+            await mov.save();
+        }
+
+        // 3. Actualizar Préstamos Activos
+        const prestamos = await Prestamo.find({ modelo: modV, color: colV });
+        for(let pres of prestamos) {
+            pres.modelo = modN;
+            pres.color = colN;
+            pres.llave = `${modN}_${colN}_${pres.talla}`;
+            await pres.save();
+        }
+
+        // 4. Actualizar Pedidos WMS (El carrito de los operadores)
+        const pedidos = await Pedido.find({ "items.modelo": modV, "items.color": colV });
+        for(let ped of pedidos) {
+            let changed = false;
+            ped.items.forEach(item => {
+                if(item.modelo === modV && item.color === colV) {
+                    item.modelo = modN;
+                    item.color = colN;
+                    changed = true;
+                }
+            });
+            if(changed) await ped.save();
+        }
+
+        // 5. Actualizar Base Teórica (El mapa interno)
+        let docTeorico = await Teorico.findById('teorico_maestro');
+        if(docTeorico) {
+            let mapUpdated = false;
+            for (let [key, value] of docTeorico.datos.entries()) {
+                const prefix = `${modV}_${colV}_`;
+                if (key.startsWith(prefix)) {
+                    const talla = key.replace(prefix, '');
+                    const newKey = `${modN}_${colN}_${talla}`;
+                    docTeorico.datos.delete(key);
+                    docTeorico.datos.set(newKey, value);
+                    mapUpdated = true;
+                }
+            }
+            if(mapUpdated) await docTeorico.save();
+        }
+
+        res.json({ success: true, message: `Producto actualizado a ${modN} - ${colN}` });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.listen(PORT, () => { console.log(`✅ Servidor Operativo en Puerto ${PORT}`); });
