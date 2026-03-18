@@ -306,14 +306,15 @@
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalMantenimiento')">❌</button>
         </div>
         <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
-            Busca y reemplaza el nombre de un modelo o color en <b>todo el sistema</b> (Kardex, Historial y Préstamos) sin generar movimientos falsos de entrada/salida.
+            Busca y reemplaza el nombre de un modelo o color en todo el sistema. Si dejas la talla en blanco, se cambiará TODO el modelo. Si pones una talla, <b>solo esa talla será editada.</b>
         </p>
         
         <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #E5E5EA;">
             <h4 style="margin-top:0; margin-bottom: 10px; color:var(--brand-navy);">🔍 Buscar (Error Actual)</h4>
-            <div class="form-grid">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 10px;">
                 <div class="form-group"><label>Modelo Actual</label><input type="text" id="mant-mod-old" class="input-sap" placeholder="Ej: 4642-M"></div>
                 <div class="form-group"><label>Color Actual</label><input type="text" id="mant-col-old" class="input-sap" placeholder="Ej: NEGRO"></div>
+                <div class="form-group"><label style="color:var(--brand-orange)">Talla (Opcional)</label><input type="text" id="mant-tal-old" class="input-sap" placeholder="Ej: 42R (Vacío = Todo)"></div>
             </div>
         </div>
 
@@ -1444,6 +1445,7 @@
     function abrirModalMantenimiento() {
         document.getElementById('mant-mod-old').value = '';
         document.getElementById('mant-col-old').value = '';
+        document.getElementById('mant-tal-old').value = ''; // NUEVO
         document.getElementById('mant-mod-new').value = '';
         document.getElementById('mant-col-new').value = '';
         const m = document.getElementById('modalMantenimiento');
@@ -1453,27 +1455,31 @@
     async function ejecutarMantenimiento() {
         const modV = document.getElementById('mant-mod-old').value.trim().toUpperCase();
         const colV = document.getElementById('mant-col-old').value.trim().toUpperCase();
+        const talV = document.getElementById('mant-tal-old').value.trim().toUpperCase(); // NUEVO
         const modN = document.getElementById('mant-mod-new').value.trim().toUpperCase();
         const colN = document.getElementById('mant-col-new').value.trim().toUpperCase();
 
-        if(!modV || !colV || !modN || !colN) return showToast("Debes llenar todos los 4 campos obligatorios.", "warning");
+        if(!modV || !colV || !modN || !colN) return showToast("Debes llenar Modelo y Color obligatorios.", "warning");
         
-        if(confirm(`⚠️ ATENCIÓN: Se cambiará "${modV} - ${colV}" a "${modN} - ${colN}" en todo el historial. ¿Confirmas esta acción?`)) {
+        let confirmText = `⚠️ ATENCIÓN: Se cambiará "${modV} - ${colV}" a "${modN} - ${colN}"`;
+        confirmText += talV ? ` SOLO EN LA TALLA "${talV}"` : ` EN TODAS LAS TALLAS (Aplanadora)`;
+        confirmText += `. ¿Confirmas esta acción?`;
+
+        if(confirm(confirmText)) {
             const btn = document.getElementById('btn-run-mant');
             btn.innerHTML = "⌛ Procesando Base de Datos..."; btn.disabled = true;
             
             try {
                 const res = await fetch('/api/renombrar-producto', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ modeloViejo: modV, colorViejo: colV, modeloNuevo: modN, colorNuevo: colN })
+                    body: JSON.stringify({ modeloViejo: modV, colorViejo: colV, tallaVieja: talV, modeloNuevo: modN, colorNuevo: colN })
                 });
                 const data = await res.json();
                 
                 if(res.ok) {
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-                    showToast("¡Inventario corregido con éxito!");
+                    showToast(data.message || "¡Inventario corregido con éxito!");
                     cerrarModal('modalMantenimiento');
-                    // Refrescamos las tablas para ver los cambios
                     cargarKardex(); cargarHistorial(); cargarPrestamos();
                 } else {
                     showToast(data.error, "danger");
