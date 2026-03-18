@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.5 (Integración WMS, Web Push, Seguridad y Mantenimiento)
+// server.js - Versión 6.6 (Integración WMS, Web Push, Seguridad y Mantenimiento Avanzado)
 // ==========================================
 
 const express = require('express');
@@ -459,22 +459,27 @@ app.post('/api/movimiento-masivo', async (req, res) => {
 });
 
 // ==========================================
-// ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO
+// ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO (MODO INTELIGENTE)
 // ==========================================
 app.post('/api/renombrar-producto', async (req, res) => {
     try {
-        const { modeloViejo, colorViejo, modeloNuevo, colorNuevo } = req.body;
+        const { modeloViejo, colorViejo, tallaVieja, modeloNuevo, colorNuevo } = req.body;
         if (!modeloViejo || !colorViejo || !modeloNuevo || !colorNuevo) {
             return res.status(400).json({ error: "Faltan datos obligatorios" });
         }
 
         const modV = modeloViejo.trim().toUpperCase();
         const colV = colorViejo.trim().toUpperCase();
+        const talV = tallaVieja ? tallaVieja.trim().toUpperCase() : null; // Capturamos la talla si existe
         const modN = modeloNuevo.trim().toUpperCase();
         const colN = colorNuevo.trim().toUpperCase();
 
+        // Creamos el filtro dinámico. Si mandaron talla, la agregamos al filtro.
+        let filtro = { modelo: modV, color: colV };
+        if (talV) filtro.talla = talV;
+
         // 1. Actualizar Kardex
-        const kardexItems = await Kardex.find({ modelo: modV, color: colV });
+        const kardexItems = await Kardex.find(filtro);
         for(let item of kardexItems) {
             item.modelo = modN;
             item.color = colN;
@@ -483,7 +488,7 @@ app.post('/api/renombrar-producto', async (req, res) => {
         }
 
         // 2. Actualizar Historial de Movimientos
-        const movimientos = await Movimiento.find({ modelo: modV, color: colV });
+        const movimientos = await Movimiento.find(filtro);
         for(let mov of movimientos) {
             mov.modelo = modN;
             mov.color = colN;
@@ -492,7 +497,7 @@ app.post('/api/renombrar-producto', async (req, res) => {
         }
 
         // 3. Actualizar Préstamos Activos
-        const prestamos = await Prestamo.find({ modelo: modV, color: colV });
+        const prestamos = await Prestamo.find(filtro);
         for(let pres of prestamos) {
             pres.modelo = modN;
             pres.color = colN;
@@ -501,11 +506,17 @@ app.post('/api/renombrar-producto', async (req, res) => {
         }
 
         // 4. Actualizar Pedidos WMS (El carrito de los operadores)
-        const pedidos = await Pedido.find({ "items.modelo": modV, "items.color": colV });
+        let filtroPedidos = { "items.modelo": modV, "items.color": colV };
+        if (talV) filtroPedidos["items.talla"] = talV;
+        
+        const pedidos = await Pedido.find(filtroPedidos);
         for(let ped of pedidos) {
             let changed = false;
             ped.items.forEach(item => {
-                if(item.modelo === modV && item.color === colV) {
+                let match = (item.modelo === modV && item.color === colV);
+                if (talV && item.talla !== talV) match = false; // Francotirador: descartar si no es la talla exacta
+                
+                if(match) {
                     item.modelo = modN;
                     item.color = colN;
                     changed = true;
@@ -519,19 +530,30 @@ app.post('/api/renombrar-producto', async (req, res) => {
         if(docTeorico) {
             let mapUpdated = false;
             for (let [key, value] of docTeorico.datos.entries()) {
-                const prefix = `${modV}_${colV}_`;
-                if (key.startsWith(prefix)) {
-                    const talla = key.replace(prefix, '');
-                    const newKey = `${modN}_${colN}_${talla}`;
-                    docTeorico.datos.delete(key);
-                    docTeorico.datos.set(newKey, value);
-                    mapUpdated = true;
+                const parts = key.split('_'); // [modelo, color, talla]
+                if(parts.length >= 3) {
+                    const m = parts[0];
+                    const c = parts[1];
+                    const t = parts.slice(2).join('_'); // Unimos la talla por si tiene guiones
+                    
+                    let match = (m === modV && c === colV);
+                    if (talV && t !== talV) match = false; // Francotirador
+
+                    if (match) {
+                        const newKey = `${modN}_${colN}_${t}`;
+                        docTeorico.datos.delete(key);
+                        docTeorico.datos.set(newKey, value);
+                        mapUpdated = true;
+                    }
                 }
             }
             if(mapUpdated) await docTeorico.save();
         }
 
-        res.json({ success: true, message: `Producto actualizado a ${modN} - ${colN}` });
+        let mensajeExito = `Producto actualizado a ${modN} - ${colN}`;
+        if(talV) mensajeExito += ` (Solo aplicado a la talla ${talV})`;
+
+        res.json({ success: true, message: mensajeExito });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
