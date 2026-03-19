@@ -129,7 +129,7 @@
         /* Paginación */
         .btn-page { padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; }
 
-        /* Estilos Carrito Préstamos */
+        /* Estilos Carrito Préstamos y Devoluciones */
         .cart-list-prestamo { border: 1px solid #E5E5EA; border-radius: 12px; max-height: 200px; overflow-y: auto; margin-bottom: 15px; }
         .cart-item-prestamo { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #F2F2F7; }
         .cart-item-prestamo:last-child { border-bottom: none; }
@@ -173,6 +173,7 @@
             </div>
             <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
                 <button class="btn btn-green" onclick="abrirModal('Entrada')">📥 Ingreso Manual</button>
+                <button class="btn btn-outline" style="border-color:#007AFF; color:#007AFF; background:#E8F2FF;" onclick="abrirModalDevolucion()">🔄 Devolución Masiva</button>
                 <button class="btn btn-purple" onclick="abrirModalMasivo()">🚀 Carga Masiva</button>
                 <button class="btn btn-navy" onclick="descargarStockExcel()">📊 Stock General</button>
                 <button class="btn btn-black" onclick="abrirModalAuditoria()">⚖️ Match Físico vs Sistema</button>
@@ -296,6 +297,51 @@
             <button class="btn btn-outline" onclick="triggerAjuste()">⚖️ Ajuste</button>
             <button class="btn btn-navy" onclick="triggerHistorialTalla()">📜 Bitácora Talla</button>
         </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalDevolucionMasiva">
+    <div class="modal-box" style="max-width: 800px; overflow: visible;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">🔄 Devolución Masiva (Retorno a Almacén)</h2>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalDevolucionMasiva')">❌</button>
+        </div>
+        
+        <div class="form-group" style="position: relative; margin-bottom: 10px;">
+            <label>🔍 Buscar Producto (Por Modelo o Color)</label>
+            <input type="text" id="dev-buscador" class="input-sap" placeholder="Escribe el modelo o color..." oninput="buscarModeloParaDevolucion(this.value)" autocomplete="off">
+            <div id="dev-resultados" class="search-results-prestamo"></div>
+        </div>
+
+        <div id="dev-pastillas-container" style="display:none; margin-bottom: 20px; background:#F9F9FB; padding:15px; border-radius:12px; border:1px solid #E5E5EA;">
+            <div style="font-size:12px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;" id="dev-pastillas-title">Selecciona las Tallas a Devolver:</div>
+            <div class="pills-grid" id="dev-pastillas-grid"></div>
+        </div>
+
+        <div class="cart-list-prestamo" id="dev-cart-list">
+            <div style="padding: 20px; text-align: center; color: var(--text-muted);">El carrito de devoluciones está vacío.</div>
+        </div>
+
+        <div class="form-grid" style="margin-top: 20px;">
+            <div class="form-group">
+                <label>Pedido de Origen *</label>
+                <input type="text" id="dev-pedido" class="input-sap" placeholder="Ej: WMS-00123 o WEB-992">
+            </div>
+            <div class="form-group">
+                <label>Factura / Remisión / Ticket *</label>
+                <input type="text" id="dev-factura" class="input-sap" placeholder="Ej: FAC-4589">
+            </div>
+            <div class="form-group">
+                <label>Lote Destino *</label>
+                <input type="text" id="dev-lote" class="input-sap" value="DEVOLUCIONES">
+            </div>
+            <div class="form-group">
+                <label>Quién Recibe (Responsable) *</label>
+                <input type="text" id="dev-responsable" class="input-sap" placeholder="Tu nombre">
+            </div>
+        </div>
+
+        <button class="btn btn-outline" style="width: 100%; padding: 18px; font-size: 16px; margin-top: 15px; border-color:#007AFF; color:#007AFF; background:#E8F2FF;" id="btn-procesar-dev" onclick="procesarDevolucionMasiva()">📥 Confirmar y Generar Folio de Devolución</button>
     </div>
 </div>
 
@@ -470,7 +516,6 @@
         </div>
     </div>
 </div>
-
 <script>
     let rawKardexData = []; 
     let kardexAgrupado = {}; 
@@ -488,6 +533,13 @@
     // VARIABLES CARRITO PRÉSTAMOS
     let carritoPrestamos = [];
 
+    // ==========================================
+    // NUEVAS VARIABLES: CARRITO DEVOLUCIONES
+    // ==========================================
+    let carritoDevoluciones = [];
+    let modeloSeleccionadoDev = null;
+    let colorSeleccionadoDev = null;
+
     function showToast(msj, tipo='success'){
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
         t.className = `toast ${tipo}`; t.innerHTML = tipo==='success'?`✅ ${msj}`:`⚠️ ${msj}`;
@@ -504,7 +556,6 @@
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
         document.getElementById('vista-kardexTotal').style.display = tId==='kardexTotal'?'block':'none';
 
-        // LAZY LOAD: Solo genera la trazabilidad masiva si entran a la pestaña y si hay cambios pendientes
         if(tId === 'kardexTotal' && !kardexTotalGenerado) {
             construirKardexTotalMemoria();
         }
@@ -557,7 +608,7 @@
     }
 
     // ==========================================
-    // 2. KARDEX Y PANEL LATERAL (+ PLANTILLAS EXCELJS)
+    // 2. KARDEX Y PANEL LATERAL
     // ==========================================
     async function cargarKardex(){
         const res = await fetch('/api/kardex'); 
@@ -576,7 +627,6 @@
         const tbody = document.querySelector('#tablaKardex tbody'); 
         tbody.innerHTML = '';
         
-        // Reset checkbox maestro
         const chkAll = document.getElementById('chkAllKardex');
         if(chkAll) chkAll.checked = false;
 
@@ -605,7 +655,6 @@
 
     function toggleAllKardex(isChecked) {
         document.querySelectorAll('.chk-kardex-row').forEach(cb => {
-            // Solo seleccionar si la fila es visible (por si hay una búsqueda activa)
             if(cb.closest('tr').style.display !== 'none') {
                 cb.checked = isChecked;
             }
@@ -618,14 +667,12 @@
         
         showToast("Generando Plantilla de Inventario Avanzada...", "info");
 
-        // Construir matriz como en supervisor.html
         const matriz = {};
         seleccionados.forEach(key => {
             const [modelo, color] = key.split('|');
             if (!matriz[color]) matriz[color] = {};
             if (!matriz[color][modelo]) matriz[color][modelo] = {};
             
-            // Sumar todo el stock disponible de ese modelo/color desde rawKardexData
             rawKardexData.forEach(item => {
                 if(item.modelo === modelo && item.color === color) {
                     matriz[color][modelo][item.talla] = (matriz[color][modelo][item.talla] || 0) + item.cantidad;
@@ -633,7 +680,6 @@
             });
         });
 
-        // Crear ExcelJS Workbook
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('Inventario Seleccionado', { views: [{ zoomScale: 77 }] });
         ws.getColumn(2).width = 7.38; 
@@ -801,7 +847,7 @@
     }
 
     // ==========================================
-    // NUEVO: CARRITO DE PRÉSTAMOS MASIVOS
+    // CARRITO DE PRÉSTAMOS MASIVOS
     // ==========================================
     function abrirModalPrestamoMasivo() {
         carritoPrestamos = [];
@@ -822,11 +868,10 @@
             contenedor.style.display = 'none'; return;
         }
 
-        // Buscar en rawKardexData
         const resultados = rawKardexData.filter(item => {
             const strBusqueda = `${item.modelo} ${item.color} ${item.talla} ${item.lote}`.toLowerCase();
             return terminos.every(term => strBusqueda.includes(term));
-        }).slice(0, 15); // Mostrar max 15 opciones
+        }).slice(0, 15);
 
         contenedor.innerHTML = '';
         if(resultados.length === 0) {
@@ -912,12 +957,9 @@
         btn.innerHTML = "⌛ Procesando..."; btn.disabled = true;
 
         try {
-            // Enviamos todo uno por uno para que genere folios individuales agrupados, 
-            // o mejor, aprovechamos el endpoint de movimiento simple en un loop Promise.all
             localStorage.setItem('almacen_resp', responsable);
             let errores = 0;
             
-            // Enviamos las peticiones en serie para no saturar
             for(let item of carritoPrestamos) {
                 const data = {
                     tipo: 'Préstamo',
@@ -944,6 +986,178 @@
             showToast("Error de conexión al servidor.", "danger");
         } finally {
             btn.innerHTML = "🚀 Confirmar y Registrar Préstamos"; btn.disabled = false;
+        }
+    }
+
+    // ==========================================
+    // NUEVO: DEVOLUCIÓN MASIVA ESTILO E-COMMERCE
+    // ==========================================
+    function abrirModalDevolucion() {
+        carritoDevoluciones = [];
+        document.getElementById('dev-buscador').value = '';
+        document.getElementById('dev-resultados').style.display = 'none';
+        document.getElementById('dev-pastillas-container').style.display = 'none';
+        document.getElementById('dev-pedido').value = '';
+        document.getElementById('dev-factura').value = '';
+        document.getElementById('dev-lote').value = 'DEVOLUCIONES';
+        if(localStorage.getItem('almacen_resp')) document.getElementById('dev-responsable').value = localStorage.getItem('almacen_resp');
+        renderCarritoDevolucion();
+        const m = document.getElementById('modalDevolucionMasiva');
+        m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+    }
+
+    function buscarModeloParaDevolucion(texto) {
+        const contenedor = document.getElementById('dev-resultados');
+        const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+        
+        if(terminos.length === 0) {
+            contenedor.style.display = 'none'; return;
+        }
+
+        // Buscamos en trazabilidadList (Historial maestro) para permitir devolver
+        // productos aunque actualmente su stock sea 0 en el Kardex.
+        let encontrados = {};
+        trazabilidadList.forEach(item => {
+            const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+            if(terminos.every(term => strBusqueda.includes(term))) {
+                const key = `${item.modelo}|${item.color}`;
+                if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: [] };
+                if(!encontrados[key].tallas.includes(item.talla)) encontrados[key].tallas.push(item.talla);
+            }
+        });
+
+        const resultados = Object.values(encontrados).slice(0, 10);
+
+        contenedor.innerHTML = '';
+        if(resultados.length === 0) {
+            contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto en el historial.</div>';
+        } else {
+            resultados.forEach(r => {
+                contenedor.innerHTML += `
+                    <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${r.tallas.join(',')}')">
+                        <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
+                        <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Ver Tallas</span></div>
+                    </div>`;
+            });
+        }
+        contenedor.style.display = 'block';
+    }
+
+    function mostrarPastillasDevolucion(modelo, color, tallasStr) {
+        document.getElementById('dev-resultados').style.display = 'none';
+        document.getElementById('dev-buscador').value = `${modelo} - ${color}`;
+        
+        modeloSeleccionadoDev = modelo;
+        colorSeleccionadoDev = color;
+
+        // Ordenamos las tallas para que se vean bonitas
+        const tallas = tallasStr.split(',').sort();
+        const grid = document.getElementById('dev-pastillas-grid');
+        grid.innerHTML = '';
+
+        tallas.forEach(t => {
+            grid.innerHTML += `
+                <div class="pill" onclick="agregarAlCarritoDevolucion('${modelo}', '${color}', '${t}')">
+                    <span class="pill-talla">${t}</span>
+                    <span class="pill-qty" style="color:#007AFF; font-size:11px;">+ Agregar</span>
+                </div>`;
+        });
+
+        document.getElementById('dev-pastillas-title').innerText = `Tallas Registradas de: ${modelo} - ${color}`;
+        document.getElementById('dev-pastillas-container').style.display = 'block';
+    }
+
+    function agregarAlCarritoDevolucion(modelo, color, talla) {
+        const index = carritoDevoluciones.findIndex(c => c.modelo === modelo && c.color === color && c.talla === talla);
+        if(index > -1) {
+            carritoDevoluciones[index].cant++;
+            showToast("Se sumó +1 pieza al carrito.", "info");
+        } else {
+            carritoDevoluciones.push({ modelo, color, talla, cant: 1 });
+            showToast("Talla agregada al carrito.", "success");
+        }
+        renderCarritoDevolucion();
+    }
+
+    function actualizarCantCartDev(index, valStr) {
+        let val = parseInt(valStr);
+        if(isNaN(val) || val < 1) val = 1;
+        carritoDevoluciones[index].cant = val;
+        renderCarritoDevolucion();
+    }
+
+    function eliminarCartDev(index) {
+        carritoDevoluciones.splice(index, 1);
+        renderCarritoDevolucion();
+    }
+
+    function renderCarritoDevolucion() {
+        const cartList = document.getElementById('dev-cart-list');
+        cartList.innerHTML = '';
+
+        if(carritoDevoluciones.length === 0) {
+            cartList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">El carrito de devoluciones está vacío.</div>';
+            return;
+        }
+
+        carritoDevoluciones.forEach((item, index) => {
+            cartList.innerHTML += `
+                <div class="cart-item-prestamo">
+                    <div>
+                        <b>${item.modelo}</b> <span style="color:var(--text-muted); font-size:13px;">${item.color}</span>
+                        <div style="font-size:13px; margin-top:4px;">Talla: <b style="color:var(--brand-navy)">${item.talla}</b></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:12px; color:var(--text-muted); font-weight:800;">CANT.</span>
+                        <input type="number" class="input-sap" style="width:70px; padding:8px; text-align:center;" value="${item.cant}" min="1" onchange="actualizarCantCartDev(${index}, this.value)">
+                        <button class="btn" style="background:#FFEBEB; color:var(--danger); padding:8px 12px;" onclick="eliminarCartDev(${index})">X</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    async function procesarDevolucionMasiva() {
+        if(carritoDevoluciones.length === 0) return showToast("El carrito está vacío.", "warning");
+        const pedido = document.getElementById('dev-pedido').value.trim();
+        const factura = document.getElementById('dev-factura').value.trim();
+        const lote = document.getElementById('dev-lote').value.trim().toUpperCase() || 'DEVOLUCIONES';
+        const responsable = document.getElementById('dev-responsable').value.trim();
+        
+        if(!pedido || !factura || !responsable) return showToast("Falta ingresar Pedido, Factura o Responsable.", "warning");
+
+        const btn = document.getElementById('btn-procesar-dev');
+        btn.innerHTML = "⌛ Generando Devolución..."; btn.disabled = true;
+
+        const referenciaGlobal = `Devolución - Pedido: ${pedido} | Fac: ${factura}`;
+
+        try {
+            localStorage.setItem('almacen_resp', responsable);
+            const res = await fetch('/api/movimiento-masivo', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    tipo: 'Entrada (Devolución)', 
+                    loteGlobal: lote, 
+                    referenciaGlobal: referenciaGlobal, 
+                    responsable: responsable, 
+                    items: carritoDevoluciones.map(i => ({modelo: i.modelo, color: i.color, talla: i.talla, cantidad: i.cant}))
+                })
+            });
+            
+            const result = await res.json();
+
+            if(res.ok) {
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } });
+                showToast(`Devolución Masiva Exitosa. Folio Master: ${result.folio}`);
+                cerrarModal('modalDevolucionMasiva');
+                cargarKardex(); cargarHistorial();
+            } else { 
+                showToast(result.error, "danger"); 
+            }
+        } catch(e) {
+            showToast("Error de conexión al servidor.", "danger");
+        } finally {
+            btn.innerHTML = "📥 Confirmar y Generar Folio de Devolución"; btn.disabled = false;
         }
     }
 
@@ -1286,7 +1500,6 @@
                 
                 const tbody = document.querySelector('#tabla-preview-masivo tbody');
                 tbody.innerHTML = '';
-                // Mostrar solo los primeros 100 para no trabar el navegador
                 datosMasivosGlobales.slice(0, 100).forEach(d => {
                     tbody.innerHTML += `<tr><td><b>${d.modelo}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
                 });
@@ -1445,7 +1658,7 @@
     function abrirModalMantenimiento() {
         document.getElementById('mant-mod-old').value = '';
         document.getElementById('mant-col-old').value = '';
-        document.getElementById('mant-tal-old').value = ''; // NUEVO
+        document.getElementById('mant-tal-old').value = '';
         document.getElementById('mant-mod-new').value = '';
         document.getElementById('mant-col-new').value = '';
         const m = document.getElementById('modalMantenimiento');
@@ -1455,7 +1668,7 @@
     async function ejecutarMantenimiento() {
         const modV = document.getElementById('mant-mod-old').value.trim().toUpperCase();
         const colV = document.getElementById('mant-col-old').value.trim().toUpperCase();
-        const talV = document.getElementById('mant-tal-old').value.trim().toUpperCase(); // NUEVO
+        const talV = document.getElementById('mant-tal-old').value.trim().toUpperCase();
         const modN = document.getElementById('mant-mod-new').value.trim().toUpperCase();
         const colN = document.getElementById('mant-col-new').value.trim().toUpperCase();
 

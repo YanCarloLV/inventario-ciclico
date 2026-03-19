@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.6 (Integración WMS, Web Push, Seguridad y Mantenimiento Avanzado)
+// server.js - Versión 6.7 (Integración WMS, Web Push, Seguridad y Fusión de Duplicados en Mantenimiento)
 // ==========================================
 
 const express = require('express');
@@ -478,13 +478,27 @@ app.post('/api/renombrar-producto', async (req, res) => {
         let filtro = { modelo: modV, color: colV };
         if (talV) filtro.talla = talV;
 
-        // 1. Actualizar Kardex
+        // 1. Actualizar Kardex con FUSIÓN DE DUPLICADOS
         const kardexItems = await Kardex.find(filtro);
         for(let item of kardexItems) {
-            item.modelo = modN;
-            item.color = colN;
-            item.llave = `${modN}_${colN}_${item.talla}`;
-            await item.save();
+            const nuevaLlave = `${modN}_${colN}_${item.talla}`;
+            
+            // Verificamos si ya existe el producto bueno en este lote
+            let itemExistente = await Kardex.findOne({ llave: nuevaLlave, lote: item.lote });
+            
+            if (itemExistente && itemExistente._id.toString() !== item._id.toString()) {
+                // FUSIÓN: Sumamos cantidad y borramos el clon viejo
+                itemExistente.cantidad += item.cantidad;
+                itemExistente.ultimaActualizacion = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
+                await itemExistente.save();
+                await Kardex.findByIdAndDelete(item._id);
+            } else {
+                // RENOMBRADO NORMAL: No hay duplicado, solo cambiamos el nombre
+                item.modelo = modN;
+                item.color = colN;
+                item.llave = nuevaLlave;
+                await item.save();
+            }
         }
 
         // 2. Actualizar Historial de Movimientos
@@ -514,7 +528,7 @@ app.post('/api/renombrar-producto', async (req, res) => {
             let changed = false;
             ped.items.forEach(item => {
                 let match = (item.modelo === modV && item.color === colV);
-                if (talV && item.talla !== talV) match = false; // Francotirador: descartar si no es la talla exacta
+                if (talV && item.talla !== talV) match = false; // Francotirador
                 
                 if(match) {
                     item.modelo = modN;
@@ -525,7 +539,7 @@ app.post('/api/renombrar-producto', async (req, res) => {
             if(changed) await ped.save();
         }
 
-        // 5. Actualizar Base Teórica (El mapa interno)
+        // 5. Actualizar Base Teórica (El mapa interno) con FUSIÓN
         let docTeorico = await Teorico.findById('teorico_maestro');
         if(docTeorico) {
             let mapUpdated = false;
@@ -534,15 +548,19 @@ app.post('/api/renombrar-producto', async (req, res) => {
                 if(parts.length >= 3) {
                     const m = parts[0];
                     const c = parts[1];
-                    const t = parts.slice(2).join('_'); // Unimos la talla por si tiene guiones
+                    const t = parts.slice(2).join('_'); // Unimos la talla
                     
                     let match = (m === modV && c === colV);
                     if (talV && t !== talV) match = false; // Francotirador
 
                     if (match) {
                         const newKey = `${modN}_${colN}_${t}`;
+                        
+                        // FUSIÓN TEÓRICA: Rescatamos el valor que ya tenga el producto bueno (si existe) y lo sumamos
+                        const valorExistente = docTeorico.datos.get(newKey) || 0;
+                        
                         docTeorico.datos.delete(key);
-                        docTeorico.datos.set(newKey, value);
+                        docTeorico.datos.set(newKey, valorExistente + value);
                         mapUpdated = true;
                     }
                 }

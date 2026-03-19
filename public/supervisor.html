@@ -530,15 +530,22 @@
         }
     }
 
-    // Renderizar tarjetas en la cuadrícula
+    // Renderizar tarjetas en la cuadrícula (ACTUALIZADO CON BÚSQUEDA INTELIGENTE)
     function renderCatalogo(filtro = '') {
         const grid = document.getElementById('catalogo-grid');
         grid.innerHTML = '';
-        filtro = filtro.toLowerCase().trim();
+        
+        // Dividir lo que el usuario escribe en "tokens" (palabras separadas)
+        const terminos = filtro.toLowerCase().trim().split(/\s+/);
 
         const filtrados = stockGlobal.filter(p => {
             const strBusqueda = `${p.modelo} ${p.color} ${p.talla}`.toLowerCase();
-            return strBusqueda.includes(filtro);
+            
+            // Si no escribió nada, lo mostramos todo
+            if (terminos.length === 1 && terminos[0] === "") return true;
+
+            // Verificar que TODAS las palabras buscadas existan en alguna parte del producto
+            return terminos.every(termino => strBusqueda.includes(termino));
         });
 
         if(filtrados.length === 0) {
