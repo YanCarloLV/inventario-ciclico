@@ -1007,41 +1007,54 @@
     }
 
     function buscarModeloParaDevolucion(texto) {
-        const contenedor = document.getElementById('dev-resultados');
-        const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
-        
-        if(terminos.length === 0) {
-            contenedor.style.display = 'none'; return;
-        }
-
-        // Buscamos en trazabilidadList (Historial maestro) para permitir devolver
-        // productos aunque actualmente su stock sea 0 en el Kardex.
-        let encontrados = {};
-        trazabilidadList.forEach(item => {
-            const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
-            if(terminos.every(term => strBusqueda.includes(term))) {
-                const key = `${item.modelo}|${item.color}`;
-                if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: [] };
-                if(!encontrados[key].tallas.includes(item.talla)) encontrados[key].tallas.push(item.talla);
-            }
-        });
-
-        const resultados = Object.values(encontrados).slice(0, 10);
-
-        contenedor.innerHTML = '';
-        if(resultados.length === 0) {
-            contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto en el historial.</div>';
-        } else {
-            resultados.forEach(r => {
-                contenedor.innerHTML += `
-                    <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${r.tallas.join(',')}')">
-                        <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
-                        <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Ver Tallas</span></div>
-                    </div>`;
-            });
-        }
-        contenedor.style.display = 'block';
+    const contenedor = document.getElementById('dev-resultados');
+    const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+    
+    if(terminos.length === 0) {
+        contenedor.style.display = 'none'; return;
     }
+
+    // Usamos un Set para no repetir modelos en la lista de búsqueda
+    let encontrados = {};
+
+    // 1. Buscamos en el stock actual (Kardex Vivo)
+    rawKardexData.forEach(item => {
+        const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+        if(terminos.every(term => strBusqueda.includes(term))) {
+            const key = `${item.modelo}|${item.color}`;
+            if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
+            encontrados[key].tallas.add(item.talla);
+        }
+    });
+
+    // 2. Buscamos también en el historial (por si es algo que ya no tiene stock)
+    rawHistorialData.forEach(item => {
+        const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+        if(terminos.every(term => strBusqueda.includes(term))) {
+            const key = `${item.modelo}|${item.color}`;
+            if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
+            encontrados[key].tallas.add(item.talla);
+        }
+    });
+
+    const resultados = Object.values(encontrados).slice(0, 10);
+
+    contenedor.innerHTML = '';
+    if(resultados.length === 0) {
+        contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto. Verifica el nombre.</div>';
+    } else {
+        resultados.forEach(r => {
+            // Convertimos el Set de tallas a un String separado por comas
+            const tallasArray = Array.from(r.tallas).sort();
+            contenedor.innerHTML += `
+                <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${tallasArray.join(',')}')">
+                    <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
+                    <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Seleccionar Tallas</span></div>
+                </div>`;
+        });
+    }
+    contenedor.style.display = 'block';
+}
 
     function mostrarPastillasDevolucion(modelo, color, tallasStr) {
         document.getElementById('dev-resultados').style.display = 'none';
