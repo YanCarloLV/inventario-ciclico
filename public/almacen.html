@@ -301,50 +301,58 @@
 </div>
 
 <div class="modal-overlay" id="modalDevolucionMasiva">
-    <div class="modal-box" style="max-width: 800px; overflow: visible;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div class="modal-box" style="max-width: 850px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; padding: 25px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
             <h2 style="margin:0;">🔄 Devolución Masiva (Retorno a Almacén)</h2>
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalDevolucionMasiva')">❌</button>
         </div>
         
-        <div class="form-group" style="position: relative; margin-bottom: 10px;">
-            <label>🔍 Buscar Producto (Por Modelo o Color)</label>
-            <input type="text" id="dev-buscador" class="input-sap" placeholder="Escribe el modelo o color..." oninput="buscarModeloParaDevolucion(this.value)" autocomplete="off">
-            <div id="dev-resultados" class="search-results-prestamo"></div>
-        </div>
-
-        <div id="dev-pastillas-container" style="display:none; margin-bottom: 20px; background:#F9F9FB; padding:15px; border-radius:12px; border:1px solid #E5E5EA;">
-            <div style="font-size:12px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;" id="dev-pastillas-title">Selecciona las Tallas a Devolver:</div>
-            <div class="pills-grid" id="dev-pastillas-grid"></div>
-        </div>
-
-        <div class="cart-list-prestamo" id="dev-cart-list">
-            <div style="padding: 20px; text-align: center; color: var(--text-muted);">El carrito de devoluciones está vacío.</div>
-        </div>
-
-        <div class="form-grid" style="margin-top: 20px;">
-            <div class="form-group">
-                <label>Pedido de Origen *</label>
-                <input type="text" id="dev-pedido" class="input-sap" placeholder="Ej: WMS-00123 o WEB-992">
+        <div style="flex: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 15px;" id="dev-scroll-area">
+            
+            <div class="form-group" style="position: relative; margin-bottom: 15px;">
+                <label>🔍 Buscar Producto (Por Modelo o Color)</label>
+                <input type="text" id="dev-buscador" class="input-sap" placeholder="Escribe el modelo o color..." oninput="buscarModeloParaDevolucion(this.value)" autocomplete="off">
+                <div id="dev-resultados" class="search-results-prestamo"></div>
             </div>
-            <div class="form-group">
-                <label>Factura / Remisión / Ticket *</label>
-                <input type="text" id="dev-factura" class="input-sap" placeholder="Ej: FAC-4589">
+
+            <div id="dev-pastillas-container" style="display:none; margin-bottom: 20px; background:#F9F9FB; padding:15px; border-radius:12px; border:1px solid #E5E5EA;">
+                <div style="font-size:12px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;" id="dev-pastillas-title">Selecciona las Tallas:</div>
+                <div class="pills-grid" id="dev-pastillas-grid"></div>
             </div>
-            <div class="form-group">
-                <label>Lote Destino *</label>
-                <input type="text" id="dev-lote" class="input-sap" value="DEVOLUCIONES">
-            </div>
-            <div class="form-group">
-                <label>Quién Recibe (Responsable) *</label>
-                <input type="text" id="dev-responsable" class="input-sap" placeholder="Tu nombre">
+
+            <div style="font-size:12px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Lista de Devolución:</div>
+            <div class="cart-list-prestamo" id="dev-cart-list" style="max-height: none; border-color: var(--brand-orange); border-width: 2px;">
+                <div style="padding: 20px; text-align: center; color: var(--text-muted);">El carrito está vacío.</div>
             </div>
         </div>
 
-        <button class="btn btn-outline" style="width: 100%; padding: 18px; font-size: 16px; margin-top: 15px; border-color:#007AFF; color:#007AFF; background:#E8F2FF;" id="btn-procesar-dev" onclick="procesarDevolucionMasiva()">📥 Confirmar y Generar Folio de Devolución</button>
+        <div style="background: #F4F7F6; padding: 20px; border-radius: 16px; border-top: 2px solid #E5E5EA; flex-shrink: 0;">
+            <div class="form-grid" style="margin-bottom: 0;">
+                <div class="form-group">
+                    <label>Pedido Origen</label>
+                    <input type="text" id="dev-pedido" class="input-sap" placeholder="WMS-000">
+                </div>
+                <div class="form-group">
+                    <label>Factura/Ticket</label>
+                    <input type="text" id="dev-factura" class="input-sap" placeholder="FAC-000">
+                </div>
+                <div class="form-group">
+                    <label>Lote Destino</label>
+                    <input type="text" id="dev-lote" class="input-sap" value="DEVOLUCIONES">
+                </div>
+                <div class="form-group">
+                    <label>Quién Recibe</label>
+                    <input type="text" id="dev-responsable" class="input-sap">
+                </div>
+            </div>
+
+            <button class="btn btn-outline" style="width: 100%; padding: 18px; font-size: 16px; margin-top: 15px; border-color:#007AFF; color:#007AFF; background:white; box-shadow: 0 4px 12px rgba(0,122,255,0.15);" id="btn-procesar-dev" onclick="procesarDevolucionMasiva()">
+                📥 Confirmar y Generar Folio de Devolución
+            </button>
+        </div>
     </div>
 </div>
-
 <div class="modal-overlay" id="modalMantenimiento">
     <div class="modal-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
