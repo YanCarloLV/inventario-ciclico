@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Etiquetado - Proyecto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --brand-navy: #001A33; --brand-orange: #FF8C00; --brand-gold: #C5A059;
+            --bg-body: #F4F7F6; --text-main: #1C1C1E; --text-muted: #8E8E93;
+            --success: #34C759; --danger: #FF3B30;
+        }
+
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-body); margin: 0; padding: 20px; color: var(--text-main); }
+        
+        /* HEADER Y PROGRESO GLOBAL */
+        .header-global { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; text-align: center; position: sticky; top: 10px; z-index: 100;}
+        .title { font-size: 24px; font-weight: 800; color: var(--brand-navy); margin: 0 0 15px 0; }
+        .global-percent { font-size: 48px; font-weight: 800; color: var(--brand-orange); margin-bottom: 10px; line-height: 1; transition: 0.3s;}
+        
+        /* BARRAS DE PROGRESO */
+        .progress-track { background: #E5E5EA; border-radius: 20px; height: 16px; width: 100%; overflow: hidden; position: relative; }
+        .progress-fill { background: var(--brand-orange); height: 100%; border-radius: 20px; transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); width: 0%; }
+        .progress-fill.done { background: var(--success); }
+
+        /* CONTROLES */
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 15px;}
+        .btn { padding: 12px 20px; border: none; border-radius: 12px; cursor: pointer; font-weight: 800; font-size: 14px; transition: 0.2s; color: white; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-navy { background: var(--brand-navy); }
+        .btn-danger { background: #FFEBEB; color: var(--danger); }
+        .input-file { display: none; }
+        .file-label { background: var(--brand-navy); color: white; padding: 12px 20px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; display: inline-block; transition: 0.2s;}
+        .file-label:hover { background: var(--brand-orange); transform: translateY(-2px); }
+
+        /* TARJETAS DE MODELOS */
+        .card { background: white; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; border: 1px solid #E5E5EA; transition: 0.3s; }
+        .card.completed { border-color: var(--success); background: #F4FBF5; }
+        
+        .card-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .card-header:hover { background: #F9F9FB; }
+        
+        .model-info { flex: 1; }
+        .model-title { font-size: 18px; font-weight: 800; color: var(--brand-navy); margin-bottom: 5px; }
+        
+        .card-actions { display: flex; align-items: center; gap: 15px; width: 40%; justify-content: flex-end;}
+        .card-progress-box { width: 100%; max-width: 200px; text-align: right; }
+        .card-percent-text { font-size: 13px; font-weight: 800; color: var(--text-muted); margin-bottom: 5px; }
+        
+        /* TALLAS (BODY) */
+        .card-body { padding: 0 20px 20px 20px; display: none; border-top: 1px solid #E5E5EA; background: #FAFAFC; }
+        .tallas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 15px; }
+        
+        .talla-item { background: white; border: 2px solid #E5E5EA; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: 0.2s; }
+        .talla-item:hover { border-color: var(--brand-orange); }
+        .talla-item.checked { border-color: var(--success); background: #E5F9E7; }
+        
+        .chk-custom { width: 20px; height: 20px; accent-color: var(--success); cursor: pointer; transform: scale(1.2); }
+        .talla-text { font-weight: 800; font-size: 15px; color: var(--brand-navy); }
+        .talla-qty { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+        .btn-delete-card { background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; }
+        .btn-delete-card:hover { background: #FFEBEB; }
+        
+        /* Loading Overlay */
+        #loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; font-size:24px; font-weight:800; color:var(--brand-navy); backdrop-filter: blur(5px);}
+    </style>
+</head>
+<body>
+
+    <div id="loading">Sincronizando con la nube... ☁️</div>
+
+    <div class="header-global">
+        <h1 class="title">📊 Progreso General de Etiquetado</h1>
+        <div class="global-percent" id="lbl-global-percent">0%</div>
+        <div class="progress-track" style="height: 24px;">
+            <div class="progress-fill" id="bar-global-percent"></div>
+        </div>
+        <div style="margin-top: 10px; color: var(--text-muted); font-weight: 600; font-size: 14px;" id="lbl-global-stats">Cargando base de datos...</div>
+    </div>
+
+    <div class="controls">
+        <div>
+            <label class="file-label">
+                📥 Cargar Excel de Modelos
+                <input type="file" class="input-file" accept=".xlsx, .csv" id="file-upload" onchange="cargarExcel(event)">
+            </label>
+        </div>
+        <button class="btn btn-danger" onclick="limpiarTodo()">🗑️ Borrar Todo el Proyecto</button>
+    </div>
+
+    <div id="contenedor-modelos">
+        </div>
+
+<script>
+    let proyectoData = [];
+
+    // 1. CARGAR DATOS DESDE MONGODB AL ABRIR LA PÁGINA
+    window.onload = async () => {
+        mostrarCarga(true);
+        try {
+            const res = await fetch('/api/etiquetado');
+            if(res.ok) {
+                proyectoData = await res.json();
+                renderizarTarjetas();
+            }
+        } catch (e) {
+            console.error("Error conectando al servidor:", e);
+        }
+        mostrarCarga(false);
+    };
+
+    // 2. GUARDAR DATOS EN MONGODB
+    async function guardarDatosBaseDeDatos() {
+        try {
+            await fetch('/api/etiquetado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(proyectoData)
+            });
+            calcularProgresoGlobal();
+        } catch (e) {
+            alert("Hubo un error al guardar tu progreso. Verifica tu conexión.");
+        }
+    }
+
+    function mostrarCarga(mostrar) {
+        document.getElementById('loading').style.display = mostrar ? 'flex' : 'none';
+    }
+
+    // 3. CARGAR Y LEER EL EXCEL
+    function cargarExcel(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+
+        mostrarCarga(true);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            
+            await procesarFilas(rows);
+            document.getElementById('file-upload').value = ''; 
+            mostrarCarga(false);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    async function procesarFilas(rows) {
+        let nuevosAgregados = 0;
+
+        rows.forEach(r => {
+            const mod = String(r.Modelo || r.MODELO || r.modelo || '').trim();
+            const col = String(r.Color || r.COLOR || r.color || '').trim();
+            const tal = String(r.Talla || r.TALLA || r.talla || '').trim();
+            const qty = parseInt(r['Cantidad Fija'] || r.CANTIDAD || r.Cantidad || r.cantidad || 0);
+
+            if(mod && col && tal && qty > 0) {
+                const idGrupo = `${mod}_${col}`;
+                
+                let grupo = proyectoData.find(g => g.id === idGrupo);
+                if(!grupo) {
+                    grupo = { id: idGrupo, modelo: mod, color: col, tallas: [] };
+                    proyectoData.push(grupo);
+                    nuevosAgregados++;
+                }
+
+                let tallaObj = grupo.tallas.find(t => t.talla === tal);
+                if(tallaObj) {
+                    tallaObj.cantidad += qty; // Sumar si mandan otro excel
+                } else {
+                    grupo.tallas.push({ talla: tal, cantidad: qty, checked: false });
+                }
+            }
+        });
+
+        if(nuevosAgregados > 0) alert(`Se cargaron ${nuevosAgregados} nuevos modelos al proyecto.`);
+        proyectoData.forEach(g => g.tallas.sort((a,b) => a.talla.localeCompare(b.talla)));
+        
+        await guardarDatosBaseDeDatos();
+        renderizarTarjetas();
+    }
+
+    function renderizarTarjetas() {
+        const contenedor = document.getElementById('contenedor-modelos');
+        contenedor.innerHTML = '';
+
+        if(proyectoData.length === 0) {
+            contenedor.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600;">Sube un archivo Excel para comenzar a traquear el etiquetado.</div>';
+            calcularProgresoGlobal();
+            return;
+        }
+
+        proyectoData.forEach((grupo, indexGrupo) => {
+            const totalPiezas = grupo.tallas.reduce((sum, t) => sum + t.cantidad, 0);
+            const piezasHechas = grupo.tallas.filter(t => t.checked).reduce((sum, t) => sum + t.cantidad, 0);
+            const porcentaje = totalPiezas === 0 ? 0 : Math.round((piezasHechas / totalPiezas) * 100);
+            const isCompleted = porcentaje === 100;
+
+            let tallasHtml = '';
+            grupo.tallas.forEach((t, indexTalla) => {
+                const isChecked = t.checked ? 'checked' : '';
+                tallasHtml += `
+                    <div class="talla-item ${isChecked}" onclick="toggleTalla(${indexGrupo}, ${indexTalla}, event)">
+                        <input type="checkbox" class="chk-custom" ${isChecked} onclick="event.stopPropagation(); toggleTalla(${indexGrupo}, ${indexTalla}, event)">
+                        <div>
+                            <div class="talla-text">${t.talla}</div>
+                            <div class="talla-qty">${t.cantidad} piezas</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            contenedor.innerHTML += `
+                <div class="card ${isCompleted ? 'completed' : ''}" id="card-${indexGrupo}">
+                    <div class="card-header" onclick="toggleCard(${indexGrupo})">
+                        <div class="model-info">
+                            <div class="model-title">${grupo.modelo} <span style="color:var(--text-muted); font-size:15px; margin-left:8px;">${grupo.color}</span></div>
+                            <div style="font-size:13px; font-weight:600; color:var(--text-muted);">Total: ${totalPiezas} piezas</div>
+                        </div>
+                        
+                        <div class="card-actions">
+                            <div class="card-progress-box">
+                                <div class="card-percent-text">${porcentaje}% Completado</div>
+                                <div class="progress-track">
+                                    <div class="progress-fill ${isCompleted ? 'done' : ''}" style="width: ${porcentaje}%"></div>
+                                </div>
+                            </div>
+                            <button class="btn-delete-card" onclick="event.stopPropagation(); borrarGrupo(${indexGrupo})" title="Eliminar este modelo">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body" id="body-${indexGrupo}">
+                        <div class="tallas-grid">
+                            ${tallasHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        calcularProgresoGlobal();
+    }
+
+    function toggleCard(index) {
+        const body = document.getElementById(`body-${index}`);
+        body.style.display = body.style.display === 'block' ? 'none' : 'block';
+    }
+
+    async function toggleTalla(indexGrupo, indexTalla, event) {
+        const currentState = proyectoData[indexGrupo].tallas[indexTalla].checked;
+        proyectoData[indexGrupo].tallas[indexTalla].checked = !currentState;
+        
+        // Guardamos en la nube sin bloquear la pantalla para que sea rápido y fluido
+        guardarDatosBaseDeDatos();
+        renderizarTarjetas();
+        document.getElementById(`body-${indexGrupo}`).style.display = 'block';
+
+        const total = proyectoData[indexGrupo].tallas.reduce((sum, t) => sum + t.cantidad, 0);
+        const hechas = proyectoData[indexGrupo].tallas.filter(t => t.checked).reduce((sum, t) => sum + t.cantidad, 0);
+        if(total === hechas && !currentState) {
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        }
+    }
+
+    async function borrarGrupo(index) {
+        if(confirm(`¿Seguro que deseas eliminar a ${proyectoData[index].modelo}?`)) {
+            mostrarCarga(true);
+            proyectoData.splice(index, 1);
+            await guardarDatosBaseDeDatos();
+            renderizarTarjetas();
+            mostrarCarga(false);
+        }
+    }
+
+    async function limpiarTodo() {
+        if(confirm("🚨 ADVERTENCIA: Esto borrará TODO el progreso para todo el equipo en la nube. ¿Estás seguro?")) {
+            mostrarCarga(true);
+            proyectoData = [];
+            await guardarDatosBaseDeDatos();
+            renderizarTarjetas();
+            mostrarCarga(false);
+        }
+    }
+
+    function calcularProgresoGlobal() {
+        let totalPiezasGlobal = 0;
+        let piezasHechasGlobal = 0;
+
+        proyectoData.forEach(grupo => {
+            grupo.tallas.forEach(t => {
+                totalPiezasGlobal += t.cantidad;
+                if(t.checked) piezasHechasGlobal += t.cantidad;
+            });
+        });
+
+        const porcentajeGlobal = totalPiezasGlobal === 0 ? 0 : Math.round((piezasHechasGlobal / totalPiezasGlobal) * 100);
+
+        document.getElementById('lbl-global-percent').innerText = `${porcentajeGlobal}%`;
+        document.getElementById('lbl-global-stats').innerText = `${piezasHechasGlobal} de ${totalPiezasGlobal} piezas etiquetadas en total`;
+        
+        const barra = document.getElementById('bar-global-percent');
+        barra.style.width = `${porcentajeGlobal}%`;
+        
+        if(porcentajeGlobal === 100 && totalPiezasGlobal > 0) {
+            barra.classList.add('done');
+        } else {
+            barra.classList.remove('done');
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.7 (Integración WMS, Web Push, Seguridad y Fusión de Duplicados en Mantenimiento)
+// server.js - Versión 6.8 (Integración WMS, Web Push, Seguridad de Lotes y Etiquetado en Nube)
 // ==========================================
 
 const express = require('express');
@@ -67,8 +67,15 @@ const CiclicoSchema = new mongoose.Schema({
 const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 
 // ==========================================
-// 3. MODELOS DE ALMACÉN, WMS PEDIDOS Y PUSH
+// 3. MODELOS DE ALMACÉN, WMS PEDIDOS, PUSH Y ETIQUETADO
 // ==========================================
+
+// --- NUEVO ESQUEMA: PROYECTO DE ETIQUETADO EN NUBE ---
+const EtiquetadoSchema = new mongoose.Schema({
+    idProyecto: { type: String, default: "global" },
+    datos: { type: Array, default: [] }
+});
+const Etiquetado = mongoose.model('Etiquetado', EtiquetadoSchema);
 
 const SuscripcionPushSchema = new mongoose.Schema({
     operador: String,
@@ -161,6 +168,37 @@ app.post('/api/enviar-notificacion', async (req, res) => {
 
 
 // ==========================================
+// 🏷️ ENDPOINTS PARA ETIQUETADO EN NUBE
+// ==========================================
+app.get('/api/etiquetado', async (req, res) => {
+    try {
+        let proyecto = await Etiquetado.findOne({ idProyecto: "global" });
+        if (!proyecto) {
+            proyecto = await Etiquetado.create({ idProyecto: "global", datos: [] });
+        }
+        res.json(proyecto.datos);
+    } catch (error) {
+        console.error("Error al cargar etiquetado:", error);
+        res.status(500).json({ error: 'Error al obtener progreso' });
+    }
+});
+
+app.post('/api/etiquetado', async (req, res) => {
+    try {
+        await Etiquetado.findOneAndUpdate(
+            { idProyecto: "global" },
+            { datos: req.body },
+            { upsert: true }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Error al guardar etiquetado:", error);
+        res.status(500).json({ error: 'Error al guardar progreso' });
+    }
+});
+
+
+// ==========================================
 // ENDPOINTS DE WMS Y PEDIDOS
 // ==========================================
 
@@ -202,7 +240,7 @@ app.post('/api/asignar-pedido', async (req, res) => {
 app.get('/api/lotes-disponibles', async (req, res) => {
     try {
         const { modelo, color, talla } = req.query;
-        const llave = `${modelo.trim()}_${color.trim()}_${talla.trim()}`;
+        const llave = `${modelo.trim().toUpperCase()}_${color.trim().toUpperCase()}_${talla.trim().toUpperCase()}`;
         const lotes = await Kardex.find({ llave, cantidad: { $gt: 0 } });
         res.json(lotes.map(l => ({ lote: l.lote, cantidad: l.cantidad })));
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -216,35 +254,33 @@ app.post('/api/actualizar-pedido', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛡️ CANDADO DE SEGURIDAD IMPLEMENTADO AQUÍ 🛡️
+// 🛡️ CANDADO DE SEGURIDAD WMS IMPLEMENTADO AQUÍ 🛡️
 app.post('/api/finalizar-pedido-wms', async (req, res) => {
     try {
         const { folio, items, operador } = req.body;
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
         const horaFinStr = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Monterrey', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-        // --- FASE 1: VALIDACIÓN DE SEGURIDAD (CANDADO) ---
         for (let item of items) {
             if (item.surtido > 0 && item.loteOrigen) {
                 const cantSurtida = parseFloat(item.surtido);
                 
                 if (cantSurtida > item.cantidadSolicitada) {
                     return res.status(400).json({ 
-                        error: `Validación fallida: El artículo ${item.modelo} talla ${item.talla} excede la cantidad solicitada (Surtido: ${cantSurtida}, Pedido: ${item.cantidadSolicitada}).` 
+                        error: `Validación fallida: El artículo ${item.modelo} talla ${item.talla} excede la cantidad solicitada.` 
                     });
                 }
 
-                const llave = `${item.modelo.trim()}_${item.color.trim()}_${item.talla.trim()}`;
-                const kardexItemValidacion = await Kardex.findOne({ llave, lote: item.loteOrigen });
+                const llave = `${item.modelo.trim().toUpperCase()}_${item.color.trim().toUpperCase()}_${item.talla.trim().toUpperCase()}`;
+                const kardexItemValidacion = await Kardex.findOne({ llave, lote: item.loteOrigen.trim().toUpperCase() });
                 
                 if (!kardexItemValidacion || kardexItemValidacion.cantidad < cantSurtida) {
                     return res.status(400).json({ 
-                        error: `Stock insuficiente: El lote ${item.loteOrigen} no tiene suficientes piezas para el artículo ${item.modelo} talla ${item.talla}.` 
+                        error: `Stock insuficiente: El lote ${item.loteOrigen} no tiene suficientes piezas.` 
                     });
                 }
             }
         }
-        // --- FIN DE LA FASE DE VALIDACIÓN ---
 
         const pedidoOriginal = await Pedido.findOne({ folio });
         const folioRealSAP = (pedidoOriginal && pedidoOriginal.numeroPedido) ? pedidoOriginal.numeroPedido : folio;
@@ -257,10 +293,11 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
 
         for (let item of items) {
             if (item.surtido > 0 && item.loteOrigen) {
-                const llave = `${item.modelo.trim()}_${item.color.trim()}_${item.talla.trim()}`;
+                const llave = `${item.modelo.trim().toUpperCase()}_${item.color.trim().toUpperCase()}_${item.talla.trim().toUpperCase()}`;
+                const loteSeguro = item.loteOrigen.trim().toUpperCase();
                 const cantSurtida = parseFloat(item.surtido);
 
-                let kardexItem = await Kardex.findOne({ llave, lote: item.loteOrigen });
+                let kardexItem = await Kardex.findOne({ llave, lote: loteSeguro });
                 if (kardexItem) {
                     kardexItem.cantidad -= cantSurtida;
                     kardexItem.ultimaActualizacion = fechaMty;
@@ -278,7 +315,8 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
                     folio: baseFolioMov + '-WMS',
                     tipo: 'Salida (Surtido WMS)',
                     llave: llave,
-                    modelo: item.modelo, color: item.color, talla: item.talla, lote: item.loteOrigen,
+                    modelo: item.modelo.trim().toUpperCase(), color: item.color.trim().toUpperCase(), 
+                    talla: item.talla.trim().toUpperCase(), lote: loteSeguro,
                     cantidad: cantSurtida,
                     referencia: `Surtido de Pedido ${folioRealSAP}`,
                     responsable: operador,
@@ -334,7 +372,7 @@ app.post('/api/crear-ciclico', async (req, res) => {
         let docTeorico = await Teorico.findById('teorico_maestro');
         let mapaTeorico = docTeorico ? docTeorico.datos : new Map();
         const listaTallasStr = tallasRaw.split(',').map(t => t.trim()).filter(t => t !== "");
-        const listaTallasConTeorico = listaTallasStr.map(t => ({ talla: t, teorico: mapaTeorico.get(`${modelo.trim()}_${color.trim()}_${t}`) || 0 }));
+        const listaTallasConTeorico = listaTallasStr.map(t => ({ talla: t, teorico: mapaTeorico.get(`${modelo.trim().toUpperCase()}_${color.trim().toUpperCase()}_${t.toUpperCase()}`) || 0 }));
         const nuevoRegistro = new Ciclico({ id: idLargo, modelo, color, tallas: listaTallasConTeorico, totalTallas: listaTallasConTeorico.length || 1, fecha: fechaMty });
         await nuevoRegistro.save(); res.json(nuevoRegistro);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -362,7 +400,7 @@ app.delete('/api/eliminar-todos-finalizados', async (req, res) => {
 });
 
 // ==========================================
-// ENDPOINTS DE ALMACÉN
+// ENDPOINTS DE ALMACÉN (KARDEX VIVO)
 // ==========================================
 app.get('/api/kardex', async (req, res) => {
     try { res.json(await Kardex.find().sort({ llave: 1, lote: 1 })); } catch (e) { res.status(500).json({ error: e.message }); }
@@ -379,10 +417,18 @@ app.get('/api/prestamos', async (req, res) => {
     try { res.json(await Prestamo.find({ estatus: "Activo" }).sort({ _id: -1 })); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 🛡️ CANDADO DE LOTES: MOVIMIENTO INDIVIDUAL
 app.post('/api/movimiento', async (req, res) => {
     try {
         const { tipo, modelo, color, talla, lote, cantidad, referencia, responsable } = req.body;
-        const llave = `${modelo.trim()}_${color.trim()}_${talla.trim()}`;
+        
+        // PADLOCK: Normalización estricta de todos los campos para evitar clones
+        const modSeguro = modelo ? modelo.trim().toUpperCase() : '';
+        const colSeguro = color ? color.trim().toUpperCase() : '';
+        const talSeguro = talla ? talla.trim().toUpperCase() : '';
+        const loteSeguro = lote ? lote.trim().toUpperCase() : 'SIN-LOTE';
+        const llave = `${modSeguro}_${colSeguro}_${talSeguro}`;
+
         const cantFloat = parseFloat(cantidad);
         if (cantFloat <= 0) return res.status(400).json({ error: "Cantidad inválida." });
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
@@ -390,39 +436,51 @@ app.post('/api/movimiento', async (req, res) => {
         const counterMov = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
         const folioMov = 'MOV-' + counterMov.secuencia.toString().padStart(6, '0');
 
-        let kardexItem = await Kardex.findOne({ llave, lote });
+        let kardexItem = await Kardex.findOne({ llave, lote: loteSeguro });
         let docTeorico = await Teorico.findById('teorico_maestro');
         if (!docTeorico) { docTeorico = new Teorico({ _id: 'teorico_maestro', datos: {} }); }
         let actualTeorico = docTeorico.datos.get(llave) || 0;
 
         if (tipo === 'Entrada' || tipo === 'Devolución' || tipo === 'Ajuste Positivo' || tipo === 'Retorno de Préstamo') {
-            if (kardexItem) { kardexItem.cantidad += cantFloat; kardexItem.ultimaActualizacion = fechaMty; await kardexItem.save(); } 
-            else { await new Kardex({ llave, modelo, color, talla, lote, cantidad: cantFloat, ultimaActualizacion: fechaMty }).save(); }
+            if (kardexItem) { 
+                kardexItem.cantidad += cantFloat; 
+                kardexItem.ultimaActualizacion = fechaMty; 
+                await kardexItem.save(); 
+            } else { 
+                await new Kardex({ llave, modelo: modSeguro, color: colSeguro, talla: talSeguro, lote: loteSeguro, cantidad: cantFloat, ultimaActualizacion: fechaMty }).save(); 
+            }
             docTeorico.datos.set(llave, actualTeorico + cantFloat);
         } else if (tipo === 'Salida' || tipo === 'Ajuste Negativo' || tipo === 'Préstamo') {
-            if (!kardexItem || kardexItem.cantidad < cantFloat) return res.status(400).json({ error: "Stock insuficiente en el lote." });
+            if (!kardexItem || kardexItem.cantidad < cantFloat) return res.status(400).json({ error: "Stock insuficiente en el lote especificado." });
             kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-            if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); else await kardexItem.save();
-            let nuevoTeorico = actualTeorico - cantFloat; docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
+            if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); 
+            else await kardexItem.save();
+            let nuevoTeorico = actualTeorico - cantFloat; 
+            docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
         }
 
         if (tipo === 'Préstamo') {
             const counterPres = await Counter.findByIdAndUpdate('prestamo_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
             const idPres = 'PRES-' + counterPres.secuencia.toString().padStart(5, '0');
-            await new Prestamo({ idPrestamo: idPres, llave, modelo, color, talla, lote, cantidad: cantFloat, prestatario: referencia, responsable, fechaSalida: fechaMty }).save();
+            await new Prestamo({ idPrestamo: idPres, llave, modelo: modSeguro, color: colSeguro, talla: talSeguro, lote: loteSeguro, cantidad: cantFloat, prestatario: referencia, responsable, fechaSalida: fechaMty }).save();
         } else if (tipo === 'Retorno de Préstamo') {
             await Prestamo.findOneAndUpdate({ idPrestamo: referencia }, { estatus: "Devuelto" });
         }
 
-        await new Movimiento({ folio: folioMov, tipo, llave, modelo, color, talla, lote, cantidad: cantFloat, referencia, responsable, fecha: fechaMty }).save();
+        await new Movimiento({ folio: folioMov, tipo, llave, modelo: modSeguro, color: colSeguro, talla: talSeguro, lote: loteSeguro, cantidad: cantFloat, referencia, responsable, fecha: fechaMty }).save();
         await docTeorico.save();
         res.json({ success: true, folio: folioMov });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// 🛡️ CANDADO DE LOTES: MOVIMIENTO MASIVO (CARGA Y DEVOLUCIONES)
 app.post('/api/movimiento-masivo', async (req, res) => {
     try {
         const { tipo, loteGlobal, referenciaGlobal, responsable, items } = req.body;
+        
+        // PADLOCK GLOBAL: El lote se convierte estrictamente a mayúsculas y sin espacios
+        const loteSeguro = loteGlobal ? loteGlobal.trim().toUpperCase() : 'GENERAL';
+
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
         const counter = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
         const folioMov = 'MOV-' + counter.secuencia.toString().padStart(6, '0');
@@ -432,24 +490,35 @@ app.post('/api/movimiento-masivo', async (req, res) => {
         let procesados = 0; let errores = [];
 
         for (let item of items) {
-            const llave = `${item.modelo.trim()}_${item.color.trim()}_${item.talla.trim()}`;
+            const modSeguro = item.modelo ? String(item.modelo).trim().toUpperCase() : '';
+            const colSeguro = item.color ? String(item.color).trim().toUpperCase() : '';
+            const talSeguro = item.talla ? String(item.talla).trim().toUpperCase() : '';
+            const llave = `${modSeguro}_${colSeguro}_${talSeguro}`;
+            
             const cantFloat = parseFloat(item.cantidad);
             if (isNaN(cantFloat) || cantFloat <= 0) continue;
 
-            const nuevoMov = new Movimiento({ folio: folioMov, tipo, llave, modelo: item.modelo.trim(), color: item.color.trim(), talla: item.talla.trim(), lote: loteGlobal, cantidad: cantFloat, referencia: referenciaGlobal, responsable, fecha: fechaMty });
-            let kardexItem = await Kardex.findOne({ llave, lote: loteGlobal });
+            const nuevoMov = new Movimiento({ folio: folioMov, tipo, llave, modelo: modSeguro, color: colSeguro, talla: talSeguro, lote: loteSeguro, cantidad: cantFloat, referencia: referenciaGlobal, responsable, fecha: fechaMty });
+            let kardexItem = await Kardex.findOne({ llave, lote: loteSeguro });
             let actualTeorico = docTeorico.datos.get(llave) || 0;
 
             if (tipo.includes('Entrada')) {
-                if (kardexItem) { kardexItem.cantidad += cantFloat; kardexItem.ultimaActualizacion = fechaMty; await kardexItem.save(); } 
-                else { await new Kardex({ llave, modelo: item.modelo.trim(), color: item.color.trim(), talla: item.talla.trim(), lote: loteGlobal, cantidad: cantFloat, ultimaActualizacion: fechaMty }).save(); }
+                if (kardexItem) { 
+                    kardexItem.cantidad += cantFloat; 
+                    kardexItem.ultimaActualizacion = fechaMty; 
+                    await kardexItem.save(); 
+                } else { 
+                    await new Kardex({ llave, modelo: modSeguro, color: colSeguro, talla: talSeguro, lote: loteSeguro, cantidad: cantFloat, ultimaActualizacion: fechaMty }).save(); 
+                }
                 docTeorico.datos.set(llave, actualTeorico + cantFloat);
                 await nuevoMov.save(); procesados++;
             } else if (tipo.includes('Salida')) {
-                if (!kardexItem || kardexItem.cantidad < cantFloat) { errores.push(`Sin stock: ${llave}`); continue; }
+                if (!kardexItem || kardexItem.cantidad < cantFloat) { errores.push(`Sin stock: ${llave} en Lote: ${loteSeguro}`); continue; }
                 kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-                if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); else await kardexItem.save();
-                let nuevoTeorico = actualTeorico - cantFloat; docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
+                if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); 
+                else await kardexItem.save();
+                let nuevoTeorico = actualTeorico - cantFloat; 
+                docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
                 await nuevoMov.save(); procesados++;
             }
         }
@@ -470,11 +539,10 @@ app.post('/api/renombrar-producto', async (req, res) => {
 
         const modV = modeloViejo.trim().toUpperCase();
         const colV = colorViejo.trim().toUpperCase();
-        const talV = tallaVieja ? tallaVieja.trim().toUpperCase() : null; // Capturamos la talla si existe
+        const talV = tallaVieja ? tallaVieja.trim().toUpperCase() : null; 
         const modN = modeloNuevo.trim().toUpperCase();
         const colN = colorNuevo.trim().toUpperCase();
 
-        // Creamos el filtro dinámico. Si mandaron talla, la agregamos al filtro.
         let filtro = { modelo: modV, color: colV };
         if (talV) filtro.talla = talV;
 
@@ -483,17 +551,14 @@ app.post('/api/renombrar-producto', async (req, res) => {
         for(let item of kardexItems) {
             const nuevaLlave = `${modN}_${colN}_${item.talla}`;
             
-            // Verificamos si ya existe el producto bueno en este lote
             let itemExistente = await Kardex.findOne({ llave: nuevaLlave, lote: item.lote });
             
             if (itemExistente && itemExistente._id.toString() !== item._id.toString()) {
-                // FUSIÓN: Sumamos cantidad y borramos el clon viejo
                 itemExistente.cantidad += item.cantidad;
                 itemExistente.ultimaActualizacion = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
                 await itemExistente.save();
                 await Kardex.findByIdAndDelete(item._id);
             } else {
-                // RENOMBRADO NORMAL: No hay duplicado, solo cambiamos el nombre
                 item.modelo = modN;
                 item.color = colN;
                 item.llave = nuevaLlave;
@@ -519,7 +584,7 @@ app.post('/api/renombrar-producto', async (req, res) => {
             await pres.save();
         }
 
-        // 4. Actualizar Pedidos WMS (El carrito de los operadores)
+        // 4. Actualizar Pedidos WMS
         let filtroPedidos = { "items.modelo": modV, "items.color": colV };
         if (talV) filtroPedidos["items.talla"] = talV;
         
@@ -528,7 +593,7 @@ app.post('/api/renombrar-producto', async (req, res) => {
             let changed = false;
             ped.items.forEach(item => {
                 let match = (item.modelo === modV && item.color === colV);
-                if (talV && item.talla !== talV) match = false; // Francotirador
+                if (talV && item.talla !== talV) match = false; 
                 
                 if(match) {
                     item.modelo = modN;
@@ -539,26 +604,23 @@ app.post('/api/renombrar-producto', async (req, res) => {
             if(changed) await ped.save();
         }
 
-        // 5. Actualizar Base Teórica (El mapa interno) con FUSIÓN
+        // 5. Actualizar Base Teórica con FUSIÓN
         let docTeorico = await Teorico.findById('teorico_maestro');
         if(docTeorico) {
             let mapUpdated = false;
             for (let [key, value] of docTeorico.datos.entries()) {
-                const parts = key.split('_'); // [modelo, color, talla]
+                const parts = key.split('_'); 
                 if(parts.length >= 3) {
                     const m = parts[0];
                     const c = parts[1];
-                    const t = parts.slice(2).join('_'); // Unimos la talla
+                    const t = parts.slice(2).join('_'); 
                     
                     let match = (m === modV && c === colV);
-                    if (talV && t !== talV) match = false; // Francotirador
+                    if (talV && t !== talV) match = false; 
 
                     if (match) {
                         const newKey = `${modN}_${colN}_${t}`;
-                        
-                        // FUSIÓN TEÓRICA: Rescatamos el valor que ya tenga el producto bueno (si existe) y lo sumamos
                         const valorExistente = docTeorico.datos.get(newKey) || 0;
-                        
                         docTeorico.datos.delete(key);
                         docTeorico.datos.set(newKey, valorExistente + value);
                         mapUpdated = true;
