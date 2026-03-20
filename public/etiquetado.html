@@ -11,7 +11,7 @@
         :root {
             --brand-navy: #001A33; --brand-orange: #FF8C00; --brand-gold: #C5A059;
             --bg-body: #F4F7F6; --text-main: #1C1C1E; --text-muted: #8E8E93;
-            --success: #34C759; --danger: #FF3B30;
+            --success: #34C759; --danger: #FF3B30; --warning: #FF9500;
         }
 
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-body); margin: 0; padding: 20px; color: var(--text-main); }
@@ -52,20 +52,23 @@
         
         /* TALLAS (BODY) */
         .card-body { padding: 0 20px 20px 20px; display: none; border-top: 1px solid #E5E5EA; background: #FAFAFC; }
-        .tallas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 15px; }
+        .tallas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 15px; }
         
-        .talla-item { background: white; border: 2px solid #E5E5EA; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: 0.2s; }
-        .talla-item:hover { border-color: var(--brand-orange); }
-        .talla-item.checked { border-color: var(--success); background: #E5F9E7; }
+        /* ITEMS DE TALLA (ACTUALIZADO PARA PARCIALES) */
+        .talla-item { background: white; border: 2px solid #E5E5EA; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .talla-item:hover { border-color: var(--brand-navy); }
+        .talla-item.partial { border-color: var(--warning); background: #FFF9F0; }
+        .talla-item.completed { border-color: var(--success); background: #E5F9E7; }
         
-        .chk-custom { width: 20px; height: 20px; accent-color: var(--success); cursor: pointer; transform: scale(1.2); }
-        .talla-text { font-weight: 800; font-size: 15px; color: var(--brand-navy); }
-        .talla-qty { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .talla-text { font-weight: 800; font-size: 18px; color: var(--brand-navy); margin-bottom: 2px;}
+        .talla-qty { font-size: 12px; color: var(--text-muted); font-weight: 800; text-transform: uppercase;}
+        
+        .input-parcial { width: 50px; padding: 8px; border: 2px solid #E5E5EA; border-radius: 8px; font-size: 16px; font-weight: 800; color: var(--brand-navy); text-align: center; font-family: inherit; transition: 0.2s; }
+        .input-parcial:focus { outline: none; border-color: var(--brand-orange); }
 
         .btn-delete-card { background: transparent; border: none; font-size: 18px; cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; }
         .btn-delete-card:hover { background: #FFEBEB; }
         
-        /* Loading Overlay */
         #loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; font-size:24px; font-weight:800; color:var(--brand-navy); backdrop-filter: blur(5px);}
     </style>
 </head>
@@ -92,19 +95,28 @@
         <button class="btn btn-danger" onclick="limpiarTodo()">🗑️ Borrar Todo el Proyecto</button>
     </div>
 
-    <div id="contenedor-modelos">
-        </div>
+    <div id="contenedor-modelos"></div>
 
 <script>
     let proyectoData = [];
 
-    // 1. CARGAR DATOS DESDE MONGODB AL ABRIR LA PÁGINA
+    // 1. CARGAR DATOS DESDE MONGODB
     window.onload = async () => {
         mostrarCarga(true);
         try {
             const res = await fetch('/api/etiquetado');
             if(res.ok) {
                 proyectoData = await res.json();
+                
+                // PARCHE DE COMPATIBILIDAD: Si ya tenías datos con "checked", los convertimos al nuevo formato de "hechas"
+                proyectoData.forEach(grupo => {
+                    grupo.tallas.forEach(t => {
+                        if (t.hechas === undefined) {
+                            t.hechas = t.checked ? t.cantidad : 0;
+                        }
+                    });
+                });
+
                 renderizarTarjetas();
             }
         } catch (e) {
@@ -171,9 +183,10 @@
 
                 let tallaObj = grupo.tallas.find(t => t.talla === tal);
                 if(tallaObj) {
-                    tallaObj.cantidad += qty; // Sumar si mandan otro excel
+                    tallaObj.cantidad += qty; 
                 } else {
-                    grupo.tallas.push({ talla: tal, cantidad: qty, checked: false });
+                    // Ahora guardamos "hechas" empezando en 0
+                    grupo.tallas.push({ talla: tal, cantidad: qty, hechas: 0 });
                 }
             }
         });
@@ -197,19 +210,32 @@
 
         proyectoData.forEach((grupo, indexGrupo) => {
             const totalPiezas = grupo.tallas.reduce((sum, t) => sum + t.cantidad, 0);
-            const piezasHechas = grupo.tallas.filter(t => t.checked).reduce((sum, t) => sum + t.cantidad, 0);
+            const piezasHechas = grupo.tallas.reduce((sum, t) => sum + (t.hechas || 0), 0);
             const porcentaje = totalPiezas === 0 ? 0 : Math.round((piezasHechas / totalPiezas) * 100);
             const isCompleted = porcentaje === 100;
 
             let tallasHtml = '';
             grupo.tallas.forEach((t, indexTalla) => {
-                const isChecked = t.checked ? 'checked' : '';
+                const hechas = t.hechas || 0;
+                
+                // Determinar el color de la caja (Gris, Naranja o Verde)
+                let statusClass = '';
+                if(hechas > 0 && hechas < t.cantidad) statusClass = 'partial';
+                if(hechas >= t.cantidad) statusClass = 'completed';
+
                 tallasHtml += `
-                    <div class="talla-item ${isChecked}" onclick="toggleTalla(${indexGrupo}, ${indexTalla}, event)">
-                        <input type="checkbox" class="chk-custom" ${isChecked} onclick="event.stopPropagation(); toggleTalla(${indexGrupo}, ${indexTalla}, event)">
+                    <div class="talla-item ${statusClass}">
                         <div>
                             <div class="talla-text">${t.talla}</div>
-                            <div class="talla-qty">${t.cantidad} piezas</div>
+                            <div class="talla-qty">De ${t.cantidad} pz</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="number" class="input-parcial" 
+                                value="${hechas}" 
+                                min="0" max="${t.cantidad}" 
+                                onchange="actualizarParcial(${indexGrupo}, ${indexTalla}, this.value)"
+                                onclick="event.stopPropagation()">
+                            <span style="font-size:14px; font-weight:800; color:var(--text-muted);">/ ${t.cantidad}</span>
                         </div>
                     </div>
                 `;
@@ -220,7 +246,7 @@
                     <div class="card-header" onclick="toggleCard(${indexGrupo})">
                         <div class="model-info">
                             <div class="model-title">${grupo.modelo} <span style="color:var(--text-muted); font-size:15px; margin-left:8px;">${grupo.color}</span></div>
-                            <div style="font-size:13px; font-weight:600; color:var(--text-muted);">Total: ${totalPiezas} piezas</div>
+                            <div style="font-size:13px; font-weight:600; color:var(--text-muted);">Progreso: ${piezasHechas} de ${totalPiezas} piezas</div>
                         </div>
                         
                         <div class="card-actions">
@@ -251,19 +277,32 @@
         body.style.display = body.style.display === 'block' ? 'none' : 'block';
     }
 
-    async function toggleTalla(indexGrupo, indexTalla, event) {
-        const currentState = proyectoData[indexGrupo].tallas[indexTalla].checked;
-        proyectoData[indexGrupo].tallas[indexTalla].checked = !currentState;
+    // 4. NUEVA LÓGICA: ACTUALIZAR POR CANTIDAD PARCIAL
+    async function actualizarParcial(indexGrupo, indexTalla, valorIngresado) {
+        let val = parseInt(valorIngresado);
+        if(isNaN(val) || val < 0) val = 0;
         
-        // Guardamos en la nube sin bloquear la pantalla para que sea rápido y fluido
+        const maximo = proyectoData[indexGrupo].tallas[indexTalla].cantidad;
+        
+        // Evitamos que capturen más de lo que existe
+        if(val > maximo) {
+            val = maximo;
+            alert(`No puedes ingresar más de las ${maximo} piezas requeridas.`);
+        }
+        
+        // Guardar el nuevo valor
+        proyectoData[indexGrupo].tallas[indexTalla].hechas = val;
+        
         guardarDatosBaseDeDatos();
         renderizarTarjetas();
         document.getElementById(`body-${indexGrupo}`).style.display = 'block';
 
-        const total = proyectoData[indexGrupo].tallas.reduce((sum, t) => sum + t.cantidad, 0);
-        const hechas = proyectoData[indexGrupo].tallas.filter(t => t.checked).reduce((sum, t) => sum + t.cantidad, 0);
-        if(total === hechas && !currentState) {
-            confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        // Lanzar confeti solo si el grupo acaba de llegar al 100% gracias a este input
+        const totalGrupo = proyectoData[indexGrupo].tallas.reduce((sum, t) => sum + t.cantidad, 0);
+        const hechasGrupo = proyectoData[indexGrupo].tallas.reduce((sum, t) => sum + (t.hechas || 0), 0);
+        
+        if(totalGrupo === hechasGrupo && val === maximo) {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         }
     }
 
@@ -294,7 +333,7 @@
         proyectoData.forEach(grupo => {
             grupo.tallas.forEach(t => {
                 totalPiezasGlobal += t.cantidad;
-                if(t.checked) piezasHechasGlobal += t.cantidad;
+                piezasHechasGlobal += (t.hechas || 0);
             });
         });
 
