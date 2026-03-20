@@ -417,22 +417,23 @@
 </div>
 
 <div class="modal-overlay" id="modalAuditoria">
-    <div class="modal-box">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">⚖️ Auditoría Inteligente (Match)</h2>
+    <div class="modal-box" style="max-width: 800px;"> <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">⚖️ Auditoría Inteligente Sectorizada (Match)</h2>
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalAuditoria')">❌</button>
         </div>
         <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
-            Sube el archivo de Excel donde capturas tu conteo físico del día a día (Inventario TRAJES.xlsx).<br>
-            <b>El sistema lo cruzará en tiempo real contra la base de datos viva del KARDEX</b> y te generará un reporte de discrepancias al instante.
+            Sube el archivo de Excel o CSV exportado del Panel de Supervisor.<br>
+            <b>El sistema identificará qué modelos auditaste y cruzará ÚNICAMENTE esos modelos</b> contra la base de datos viva del KARDEX.
         </p>
         <div class="form-grid">
             <div class="form-group full">
-                <label>Sube el Conteo Físico (Columnas: MODELO, COLOR, TALLA, CANTIDAD)</label>
+                <label>Sube el Reporte de Conteo Físico / Cíclico</label>
                 <input type="file" id="file-auditoria" class="input-sap" accept=".xlsx, .csv">
             </div>
         </div>
-        <button class="btn btn-black" style="width: 100%; padding: 18px; font-size: 16px;" onclick="generarMatchAuditoria()" id="btn-run-match">⚡ Ejecutar Cruce y Descargar Reporte</button>
+        <button class="btn btn-black" style="width: 100%; padding: 18px; font-size: 16px;" onclick="generarMatchAuditoria()" id="btn-run-match">⚡ Ejecutar Cruce</button>
+        
+        <div id="match-resultados-container" style="display: none;"></div>
     </div>
 </div>
 
@@ -1586,81 +1587,186 @@
         const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
-    function generarMatchAuditoria() {
-        const input = document.getElementById('file-auditoria');
-        if(!input.files || !input.files[0]) return showToast("Sube el Excel del conteo físico.", "warning");
+    let reporteMatchActual = []; // Variable global para guardar el reporte a descargar
 
-        const btn = document.getElementById('btn-run-match');
-        btn.innerHTML = "🧠 Cruzando Datos..."; btn.disabled = true;
+function generarMatchAuditoria() {
+    const input = document.getElementById('file-auditoria');
+    if(!input.files || !input.files[0]) return showToast("Sube el Excel o CSV del conteo físico.", "warning");
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+    const btn = document.getElementById('btn-run-match');
+    btn.innerHTML = "🧠 Cruzando Datos y Sectorizando..."; btn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            
+            // Leemos el archivo como una matriz pura para poder ignorar las filas vacías de arriba (típico en exportaciones)
+            const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            let headerRowIndex = -1;
+            let colIdx = { m: -1, c: -1, t: -1, q: -1 };
+
+            // 1. Buscamos inteligentemente dónde empiezan realmente los encabezados
+            for (let i = 0; i < rowsRaw.length; i++) {
+                const row = rowsRaw[i];
+                if (!row || row.length === 0) continue;
                 
-                // 1. Agrupar conteo físico
-                let fisicoMap = {};
-                rows.forEach(r => {
-                    const m = String(r.MODELO || r.Modelo || r.modelo).trim().toUpperCase();
-                    const c = String(r.COLOR || r.Color || r.color).trim().toUpperCase();
-                    const t = String(r.TALLA || r.Talla || r.talla).trim().toUpperCase();
-                    const q = parseInt(r.CANTIDAD || r.Cantidad || r.cantidad || 0);
-                    if(m && c && t && m !== 'UNDEFINED') {
-                        const key = `${m}_${c}_${t}`;
-                        fisicoMap[key] = (fisicoMap[key] || 0) + q;
+                row.forEach((cell, idx) => {
+                    if (typeof cell === 'string') {
+                        const upper = cell.toUpperCase().trim();
+                        if (upper.includes('MODELO')) colIdx.m = idx;
+                        if (upper.includes('COLOR')) colIdx.c = idx;
+                        if (upper.includes('TALLA')) colIdx.t = idx;
+                        if (upper.includes('CANTIDAD')) colIdx.q = idx;
                     }
                 });
 
-                // 2. Agrupar Kardex Vivo
-                let sistemaMap = {};
-                rawKardexData.forEach(k => {
-                    const key = `${k.modelo}_${k.color}_${k.talla}`;
-                    sistemaMap[key] = (sistemaMap[key] || 0) + k.cantidad;
-                });
+                if (colIdx.m !== -1 && colIdx.c !== -1 && colIdx.t !== -1 && colIdx.q !== -1) {
+                    headerRowIndex = i;
+                    break;
+                }
+            }
 
-                // 3. Generar Reporte
-                let reporte = [];
-                let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
+            if (headerRowIndex === -1) {
+                showToast("No se encontraron las columnas Modelo, Color, Talla y Cantidad.", "danger");
+                btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false;
+                return;
+            }
+
+            // 2. Extraer conteos y saber QUÉ MODELOS exactos auditamos
+            let fisicoMap = {};
+            let modelosAuditados = new Set(); // El filtro sectorizado
+
+            for (let i = headerRowIndex + 1; i < rowsRaw.length; i++) {
+                const row = rowsRaw[i];
+                if (!row || row.length === 0) continue;
                 
-                allKeys.forEach(k => {
-                    const [mod, col, tal] = k.split('_');
-                    const qFis = fisicoMap[k] || 0;
-                    const qSis = sistemaMap[k] || 0;
-                    const diff = qFis - qSis;
+                const m = String(row[colIdx.m] || '').trim().toUpperCase();
+                const c = String(row[colIdx.c] || '').trim().toUpperCase();
+                const t = String(row[colIdx.t] || '').trim().toUpperCase();
+                const q = parseInt(row[colIdx.q]) || 0;
+
+                if (m && c && t && m !== 'UNDEFINED') {
+                    const keyModeloColor = `${m}_${c}`;
+                    modelosAuditados.add(keyModeloColor); // Registramos que este modelo SÍ se auditó
                     
-                    if(diff !== 0) {
-                        reporte.push({
-                            "Modelo": mod, "Color": col, "Talla": tal,
-                            "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
-                            "Diferencia": diff,
-                            "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
-                        });
-                    }
-                });
+                    const keyFull = `${m}_${c}_${t}`;
+                    fisicoMap[keyFull] = (fisicoMap[keyFull] || 0) + q;
+                }
+            }
 
-                if(reporte.length === 0) {
-                    showToast("¡Felicidades! Inventario 100% Cuadrado. Cero diferencias.", "success");
-                    cerrarModal('modalAuditoria');
-                    btn.innerHTML = "⚡ Ejecutar Cruce y Descargar Reporte"; btn.disabled = false;
-                    return;
+            // 3. Agrupar Kardex Vivo SOLO para los modelos auditados
+            let sistemaMap = {};
+            rawKardexData.forEach(k => {
+                const keyModeloColor = `${k.modelo}_${k.color}`;
+                // Si el modelo está en nuestra lista de auditados, lo tomamos en cuenta
+                if (modelosAuditados.has(keyModeloColor)) {
+                    const keyFull = `${k.modelo}_${k.color}_${k.talla}`;
+                    sistemaMap[keyFull] = (sistemaMap[keyFull] || 0) + k.cantidad;
+                }
+            });
+
+            // 4. Generar el Match
+            reporteMatchActual = [];
+            let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
+            let hayDiferencias = false;
+
+            let htmlTabla = `
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr>
+                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px;">Producto</th>
+                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Talla</th>
+                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Físico</th>
+                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Kardex</th>
+                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Dif.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            allKeys.forEach(k => {
+                const [mod, col, tal] = k.split('_');
+                const qFis = fisicoMap[k] || 0;
+                const qSis = sistemaMap[k] || 0;
+                const diff = qFis - qSis;
+                
+                // Si hay diferencia (o si todo cuadró perfecto), lo añadimos a la tabla
+                const bgRow = diff !== 0 ? 'background-color: #FFEBEB;' : ''; // Subrayado rojo claro
+                const colorDif = diff > 0 ? 'color: #28A745;' : (diff < 0 ? 'color: #FF3B30;' : 'color: #8E8E93;');
+                const signo = diff > 0 ? '+' : '';
+
+                if (diff !== 0) {
+                    hayDiferencias = true;
+                    reporteMatchActual.push({
+                        "Modelo": mod, "Color": col, "Talla": tal,
+                        "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
+                        "Diferencia": diff,
+                        "Estatus": diff > 0 ? "SOBRANTE" : "FALTANTE",
+                        "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
+                    });
                 }
 
-                // 4. Descargar Reporte Excel
-                const ws = XLSX.utils.json_to_sheet(reporte);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
-                XLSX.writeFile(wb, `Reporte_Auditoria_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
-                
-                showToast(`Match Finalizado. Se detectaron ${reporte.length} diferencias. Revisa el Excel descargado.`, "warning");
-                cerrarModal('modalAuditoria');
+                htmlTabla += `
+                    <tr style="${bgRow} border-bottom: 1px solid #F2F2F7;">
+                        <td style="padding: 10px;"><b>${mod}</b><br><small style="color:var(--text-muted);">${col}</small></td>
+                        <td style="padding: 10px; text-align: center; font-weight: 800;">${tal}</td>
+                        <td style="padding: 10px; text-align: center;">${qFis}</td>
+                        <td style="padding: 10px; text-align: center;">${qSis}</td>
+                        <td style="padding: 10px; text-align: center; font-weight: 800; ${colorDif}">${signo}${diff}</td>
+                    </tr>
+                `;
+            });
 
-            } catch (error) { showToast("Error procesando el cruce.", "danger"); } 
-            finally { btn.innerHTML = "⚡ Ejecutar Cruce y Descargar Reporte"; btn.disabled = false; }
-        };
-        reader.readAsArrayBuffer(input.files[0]);
-    }
+            htmlTabla += `</tbody></table>`;
+
+            // 5. Inyectar la tabla en el Modal
+            const containerResultados = document.getElementById('match-resultados-container');
+            containerResultados.innerHTML = `
+                <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #E5E5EA;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: var(--brand-navy);">📊 Resultados del Cruce (${modelosAuditados.size} Modelos)</h4>
+                        ${hayDiferencias ? `<span class="tag tag-out">Con Diferencias</span>` : `<span class="tag tag-in">Inventario Cuadrado</span>`}
+                    </div>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        ${htmlTabla}
+                    </div>
+                    ${hayDiferencias ? `
+                    <button class="btn btn-navy" style="width: 100%; padding: 15px; font-size: 15px; margin-top: 15px;" onclick="descargarReporteMatch()">
+                        📥 Descargar Diferencias en Excel
+                    </button>` : ''}
+                </div>
+            `;
+            containerResultados.style.display = 'block';
+
+            if(hayDiferencias) {
+                showToast(`Se auditaron ${modelosAuditados.size} modelos. Se encontraron diferencias.`, "warning");
+            } else {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+                showToast(`¡Excelente! Los ${modelosAuditados.size} modelos auditados están 100% cuadrados.`, "success");
+            }
+
+        } catch (error) { 
+            showToast("Error procesando el cruce.", "danger"); 
+            console.error(error); 
+        } finally { 
+            btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false; 
+        }
+    };
+    reader.readAsArrayBuffer(input.files[0]);
+}
+
+// Función auxiliar para descargar solo las diferencias
+function descargarReporteMatch() {
+    if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
+    const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
+    XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
+}
 
     async function descargarStockExcel(){
         if(rawKardexData.length === 0) return showToast("No hay stock para descargar.", "warning");
