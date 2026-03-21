@@ -183,10 +183,13 @@
     </div>
 
     <div id="vista-kardex" class="card reveal" style="animation-delay: 0.1s;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-            <h2>Catálogo Maestro de Inventario</h2>
-            <button class="btn btn-orange" onclick="descargarPlantillaKardex()">📊 Generar Plantilla de Inventario</button>
-        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+            <h2>Catálogo Maestro de Inventario</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-black" onclick="descargarInventarioCiclico()">📝 Generar Inventario Cíclico</button>
+                <button class="btn btn-orange" onclick="descargarPlantillaKardex()">📊 Generar Plantilla de Inventario</button>
+            </div>
+        </div>
         <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar Modelo, Color o Talla (Ej: 4040 38R)..." onkeyup="filtrarTablaInteligente('tablaKardex', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaKardex">
@@ -1831,7 +1834,130 @@ function descargarReporteMatch() {
             }
         }
     }
+// ==========================================
+    // NUEVO: DESCARGA DE INVENTARIO CÍCLICO
+    // ==========================================
+    async function getBase64ImageFromUrl(url) {
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch(e) { return null; }
+    }
 
+    async function descargarInventarioCiclico() {
+        const seleccionados = Array.from(document.querySelectorAll('.chk-kardex-row:checked')).map(cb => cb.value);
+        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un producto del Kardex.", "warning");
+
+        showToast("Generando Excel de Inventario Cíclico...", "info");
+
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const ws = workbook.addWorksheet('Inventario Ciclico', { views: [{ zoomScale: 90 }] });
+
+            // Configuramos anchos de columnas
+            ws.columns = [
+                { header: '', key: 'id', width: 14 },
+                { header: '', key: 'fecha', width: 14 },
+                { header: '', key: 'modelo', width: 16 },
+                { header: '', key: 'color', width: 20 },
+                { header: '', key: 'operador', width: 25 },
+                { header: '', key: 'talla', width: 12 },
+                { header: '', key: 'stock', width: 12 },
+                { header: '', key: 'fisico', width: 16 }
+            ];
+
+            // Insertar Logo (Si existe en /logo.png)
+            const logoBase64 = await getBase64ImageFromUrl('/logo.png');
+            if (logoBase64) {
+                const imageId = workbook.addImage({ base64: logoBase64, extension: 'png' });
+                ws.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 140, height: 60 } });
+            }
+
+            // Título
+            ws.mergeCells('A2:H3');
+            const titulo = ws.getCell('A2');
+            titulo.value = "INVENTARIO CICLICO";
+            titulo.font = { name: 'Arial', size: 18, bold: true };
+            titulo.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // Encabezados en la fila 6
+            const headerRow = ws.getRow(6);
+            headerRow.values = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'STOCK', 'FISICO'];
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.height = 25;
+            headerRow.eachCell((cell, colNumber) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF001A33' } }; // Azul Navy
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            });
+
+            // Preparar datos
+            const fechaHoy = new Date().toLocaleDateString('es-MX', {day: '2-digit', month: '2-digit', year: 'numeric'});
+            let startRow = 7;
+            let idCounter = 1;
+
+            seleccionados.forEach(key => {
+                const [modelo, color] = key.split('|');
+                
+                // Buscar todas las tallas en el Kardex Vivo para este modelo/color
+                const variaciones = rawKardexData.filter(item => item.modelo === modelo && item.color === color);
+
+                // Agrupar las cantidades por talla (por si el traje está en varios lotes a la vez)
+                const agrupadoPorTalla = {};
+                variaciones.forEach(v => {
+                    if(!agrupadoPorTalla[v.talla]) agrupadoPorTalla[v.talla] = 0;
+                    agrupadoPorTalla[v.talla] += v.cantidad;
+                });
+
+                Object.keys(agrupadoPorTalla).sort().forEach(talla => {
+                    const row = ws.getRow(startRow);
+                    row.values = [
+                        `##${String(idCounter).padStart(8, '0')}`,
+                        fechaHoy,
+                        modelo,
+                        color,
+                        "", // Operador en blanco para escribir
+                        talla,
+                        agrupadoPorTalla[talla], // STOCK REAL de BD
+                        "" // FÍSICO en blanco para escribir
+                    ];
+                    row.height = 20;
+
+                    row.eachCell((cell, colNumber) => {
+                        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                        cell.border = { top: {style:'thin', color:{argb:'FFCCCCCC'}}, left: {style:'thin', color:{argb:'FFCCCCCC'}}, bottom: {style:'thin', color:{argb:'FFCCCCCC'}}, right: {style:'thin', color:{argb:'FFCCCCCC'}} };
+                        // Sombrear levemente la columna FISICO para que sepan dónde escribir
+                        if (colNumber === 8) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F7' } };
+                        }
+                    });
+                    startRow++; idCounter++;
+                });
+            });
+
+            // Descargar
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+            a.download = `Reporte_Ciclico_${fechaHoy.replace(/\//g, '-')}.xlsx`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+            // Limpiar selección de tabla
+            document.querySelectorAll('.chk-kardex-row').forEach(cb => cb.checked = false);
+            const chkAll = document.getElementById('chkAllKardex');
+            if(chkAll) chkAll.checked = false;
+
+        } catch (error) { 
+            showToast("Error al generar el Excel.", "danger"); 
+            console.error(error); 
+        }
+    }
     // Init General
     window.onload = () => { cargarKardex(); cargarHistorial(); cargarPrestamos(); setInterval(cargarPedidosWMS, 20000); };
 </script>
