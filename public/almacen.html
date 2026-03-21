@@ -187,7 +187,10 @@
     <div id="vista-kardex" class="card reveal" style="animation-delay: 0.1s;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
             <h2>Catálogo Maestro de Inventario</h2>
-            <button class="btn btn-orange" onclick="descargarPlantillaKardex()">📊 Generar Plantilla de Inventario</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-navy" onclick="descargarInventarioConsolidado()">📋 Descargar Inventario Consolidado</button>
+                <button class="btn btn-orange" onclick="descargarPlantillaKardex()">📊 Generar Plantilla de Inventario</button>
+            </div>
         </div>
         <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar Modelo, Color o Talla (Ej: 4040 38R)..." onkeyup="filtrarTablaInteligente('tablaKardex', this.value)">
         <div style="overflow-x: auto;">
@@ -752,6 +755,130 @@
                 cb.checked = isChecked;
             }
         });
+    }
+async function descargarInventarioConsolidado() {
+        const seleccionados = Array.from(document.querySelectorAll('.chk-kardex-row:checked')).map(cb => cb.value);
+        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un producto del Kardex.", "warning");
+
+        const btn = event.target;
+        const textoOriginal = btn.innerText;
+        btn.innerText = "⌛ Generando Excel con Logo...";
+        btn.disabled = true;
+        showToast("Generando Inventario Consolidado con formato profesional...", "info");
+
+        try {
+            // 1. Obtener la imagen del logo
+            let base64Logo = "";
+            try {
+                const imgRes = await fetch('/logo.png');
+                const imgBlob = await imgRes.blob();
+                base64Logo = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(imgBlob);
+                });
+            } catch (error) {
+                console.warn("No se pudo cargar el logo para el Excel.", error);
+            }
+
+            // 2. Agrupar la información
+            let itemsExportar = [];
+            seleccionados.forEach(key => {
+                const [modelo, color] = key.split('|');
+                rawKardexData.forEach(item => {
+                    if(item.modelo === modelo && item.color === color) {
+                        itemsExportar.push(item);
+                    }
+                });
+            });
+
+            let inventarioAgrupado = {};
+            itemsExportar.forEach(item => {
+                const keyAgrupacion = `${item.modelo}|${item.color}|${item.talla}`;
+                if(!inventarioAgrupado[keyAgrupacion]) {
+                    inventarioAgrupado[keyAgrupacion] = { modelo: item.modelo, color: item.color, talla: item.talla, stockTotal: 0 };
+                }
+                inventarioAgrupado[keyAgrupacion].stockTotal += item.cantidad;
+            });
+
+            // 3. Crear el Workbook con ExcelJS
+            const workbook = new ExcelJS.Workbook();
+            const ws = workbook.addWorksheet('Reporte Plano');
+
+            ws.columns = [
+                { width: 15 }, { width: 15 }, { width: 25 }, { width: 20 }, 
+                { width: 25 }, { width: 12 }, { width: 12 }, { width: 12 }
+            ];
+
+            // 4. Insertar Logo si existe
+            if (base64Logo) {
+                const imageId = workbook.addImage({ base64: base64Logo, extension: 'png' });
+                ws.addImage(imageId, 'A1:B4');
+            }
+
+            // 5. Título del reporte
+            ws.mergeCells('D2:F3');
+            const titleCell = ws.getCell('D2');
+            titleCell.value = "INVENTARIO CICLICO";
+            titleCell.font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FF001A33' } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // 6. Configurar Encabezados
+            const headerRow = ws.getRow(6);
+            headerRow.values = ["ID", "FECHA", "MODELO", "COLOR", "OPERADOR", "TALLA", "STOCK", "FISICO"];
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            headerRow.height = 25;
+            
+            headerRow.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF001A33' } }; 
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            });
+
+            // 7. Llenar los datos
+            const fechaActual = new Date().toLocaleDateString('es-MX');
+            const operador = localStorage.getItem('almacen_resp') || "Operador Almacén";
+            const idReporte = "##" + String(Math.floor(Math.random() * 100000000)).padStart(8, '0');
+            
+            let rowIdx = 7;
+            Object.values(inventarioAgrupado).forEach(item => {
+                const row = ws.getRow(rowIdx);
+                row.values = [
+                    idReporte, fechaActual, item.modelo, item.color, 
+                    operador, item.talla, item.stockTotal, ""
+                ];
+                row.alignment = { vertical: 'middle', horizontal: 'center' };
+                row.eachCell((cell, colNumber) => {
+                    cell.border = { top: {style:'thin', color:{argb:'FFCCCCCC'}}, left: {style:'thin', color:{argb:'FFCCCCCC'}}, bottom: {style:'thin', color:{argb:'FFCCCCCC'}}, right: {style:'thin', color:{argb:'FFCCCCCC'}} };
+                    if(colNumber === 8) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF4E5' } };
+                    }
+                });
+                rowIdx++;
+            });
+
+            // 8. Descargar
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Reporte_Inventario_Consolidado_${fechaActual.replace(/\//g, '-')}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            document.querySelectorAll('.chk-kardex-row').forEach(cb => cb.checked = false);
+            const chkAll = document.getElementById('chkAllKardex');
+            if(chkAll) chkAll.checked = false;
+
+        } catch (error) {
+            console.error(error);
+            showToast("Error al generar el archivo Excel.", "danger");
+        } finally {
+            btn.innerText = textoOriginal;
+            btn.disabled = false;
+        }
     }
 
     async function descargarPlantillaKardex() {
