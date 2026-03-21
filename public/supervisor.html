@@ -530,21 +530,16 @@
         }
     }
 
-    // Renderizar tarjetas en la cuadrícula (ACTUALIZADO CON BÚSQUEDA INTELIGENTE)
+    // Renderizar tarjetas en la cuadrícula (BÚSQUEDA INTELIGENTE)
     function renderCatalogo(filtro = '') {
         const grid = document.getElementById('catalogo-grid');
         grid.innerHTML = '';
         
-        // Dividir lo que el usuario escribe en "tokens" (palabras separadas)
         const terminos = filtro.toLowerCase().trim().split(/\s+/);
 
         const filtrados = stockGlobal.filter(p => {
             const strBusqueda = `${p.modelo} ${p.color} ${p.talla}`.toLowerCase();
-            
-            // Si no escribió nada, lo mostramos todo
             if (terminos.length === 1 && terminos[0] === "") return true;
-
-            // Verificar que TODAS las palabras buscadas existan en alguna parte del producto
             return terminos.every(termino => strBusqueda.includes(termino));
         });
 
@@ -564,7 +559,6 @@
                 claseStock = 'stock-bajo'; textoStock = `¡Solo ${p.cantidad}!`;
             }
 
-            // Validar si ya está en el carrito para deshabilitar botón temporalmente o cambiar texto
             const enCarrito = carritoPedidos.find(c => c.modelo === p.modelo && c.color === p.color && c.talla === p.talla);
             let btnTexto = "➕ Agregar";
             if(enCarrito) {
@@ -606,7 +600,7 @@
         }
         
         renderCarrito();
-        renderCatalogo(document.getElementById('buscador-catalogo').value); // Actualiza estado de botones
+        renderCatalogo(document.getElementById('buscador-catalogo').value);
     }
 
     function eliminarDelCarrito(index) {
@@ -680,7 +674,6 @@
         const btn = document.getElementById('btn-lanzar-pedido');
         btn.innerHTML = "⌛ Enviando..."; btn.disabled = true;
 
-        // Formatear items para el backend
         const itemsParaWMS = carritoPedidos.map(c => ({
             modelo: c.modelo,
             color: c.color,
@@ -706,7 +699,7 @@
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } }); 
                 showToast(`¡Pedido ${folio} enviado a los operadores!`); 
 
-                // 🔔 AQUI SE DISPARA LA NOTIFICACIÓN PUSH AL SERVIDOR
+                // 🔔 NOTIFICACIÓN PUSH AL SERVIDOR
                 try {
                     let tituloNotif = prioridad === 'Urgente' ? '🔴 PEDIDO URGENTE WMS' : '🟢 NUEVO PEDIDO WMS';
                     let cuerpoNotif = `Folio: ${folio}. Se requieren ${itemsParaWMS.length} prendas. ¡A surtir!`;
@@ -717,7 +710,7 @@
                         body: JSON.stringify({
                             titulo: tituloNotif,
                             mensaje: cuerpoNotif,
-                            urlAccion: '/' // Para que abra la app al tocar la notificación
+                            urlAccion: '/' 
                         })
                     });
                     console.log("Alerta Push enviada a los dispositivos");
@@ -725,7 +718,6 @@
                     console.error("El pedido se creó, pero la notificación push falló:", pushErr);
                 }
                 
-                // Limpiar todo
                 carritoPedidos = [];
                 document.getElementById('cart-folio').value = '';
                 document.getElementById('cart-notas').value = '';
@@ -744,7 +736,7 @@
     }
 
     // ==========================================
-    // LÓGICA ORIGINAL DE INVENTARIOS CÍCLICOS
+    // LÓGICA DE INVENTARIOS CÍCLICOS Y EXCEL
     // ==========================================
     const EXCEL_STYLES = {
         colWidth: 13.57,

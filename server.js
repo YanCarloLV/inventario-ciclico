@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.8 (Integración WMS, Web Push, Seguridad de Lotes y Etiquetado en Nube)
+// server.js - Versión 7.0 (Integración WMS, Web Push, Seguridad de Lotes, Etiquetado y Catálogo SKU)
 // ==========================================
 
 const express = require('express');
@@ -70,7 +70,16 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // 3. MODELOS DE ALMACÉN, WMS PEDIDOS, PUSH Y ETIQUETADO
 // ==========================================
 
-// --- NUEVO ESQUEMA: PROYECTO DE ETIQUETADO EN NUBE ---
+// --- NUEVO ESQUEMA: CATÁLOGO DE SKUs ---
+const CatalogoSKUSchema = new mongoose.Schema({
+    sku: { type: String, unique: true },
+    modelo: String,
+    color: String,
+    talla: String
+});
+const CatalogoSKU = mongoose.model('CatalogoSKU', CatalogoSKUSchema);
+
+// --- ESQUEMA: PROYECTO DE ETIQUETADO EN NUBE ---
 const EtiquetadoSchema = new mongoose.Schema({
     idProyecto: { type: String, default: "global" },
     datos: { type: Array, default: [] }
@@ -123,6 +132,40 @@ const PedidoSchema = new mongoose.Schema({
     }]
 });
 const Pedido = mongoose.model('Pedido', PedidoSchema);
+
+
+// ==========================================
+// 📦 ENDPOINTS PARA CATÁLOGO SKU
+// ==========================================
+
+app.get('/api/catalogo-sku', async (req, res) => {
+    try {
+        res.json(await CatalogoSKU.find());
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/catalogo-sku', async (req, res) => {
+    try {
+        const items = req.body; // Espera un Array de { sku, modelo, color, talla }
+        let procesados = 0;
+        
+        for (let item of items) {
+            if (item.sku && item.modelo && item.color) {
+                await CatalogoSKU.findOneAndUpdate(
+                    { sku: item.sku.toString().trim().toUpperCase() },
+                    {
+                        modelo: item.modelo.toString().trim().toUpperCase(),
+                        color: item.color.toString().trim().toUpperCase(),
+                        talla: item.talla ? item.talla.toString().trim().toUpperCase() : ''
+                    },
+                    { upsert: true }
+                );
+                procesados++;
+            }
+        }
+        res.json({ success: true, procesados });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 
 // ==========================================
@@ -254,7 +297,7 @@ app.post('/api/actualizar-pedido', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛡️ CANDADO DE SEGURIDAD WMS IMPLEMENTADO AQUÍ 🛡️
+// 🛡️ CANDADO DE SEGURIDAD WMS
 app.post('/api/finalizar-pedido-wms', async (req, res) => {
     try {
         const { folio, items, operador } = req.body;
@@ -422,7 +465,7 @@ app.post('/api/movimiento', async (req, res) => {
     try {
         const { tipo, modelo, color, talla, lote, cantidad, referencia, responsable } = req.body;
         
-        // PADLOCK: Normalización estricta de todos los campos para evitar clones
+        // PADLOCK: Normalización estricta de todos los campos
         const modSeguro = modelo ? modelo.trim().toUpperCase() : '';
         const colSeguro = color ? color.trim().toUpperCase() : '';
         const talSeguro = talla ? talla.trim().toUpperCase() : '';
@@ -478,12 +521,11 @@ app.post('/api/movimiento-masivo', async (req, res) => {
     try {
         const { tipo, loteGlobal, referenciaGlobal, responsable, items } = req.body;
         
-        // PADLOCK GLOBAL: El lote se convierte estrictamente a mayúsculas y sin espacios
         const loteSeguro = loteGlobal ? loteGlobal.trim().toUpperCase() : 'GENERAL';
-
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
         const counter = await Counter.findByIdAndUpdate('movimiento_id', { $inc: { secuencia: 1 } }, { new: true, upsert: true });
         const folioMov = 'MOV-' + counter.secuencia.toString().padStart(6, '0');
+        
         let docTeorico = await Teorico.findById('teorico_maestro');
         if (!docTeorico) { docTeorico = new Teorico({ _id: 'teorico_maestro', datos: {} }); }
 
@@ -528,7 +570,7 @@ app.post('/api/movimiento-masivo', async (req, res) => {
 });
 
 // ==========================================
-// ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO (MODO INTELIGENTE)
+// ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO
 // ==========================================
 app.post('/api/renombrar-producto', async (req, res) => {
     try {

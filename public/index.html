@@ -718,41 +718,41 @@
         setTimeout(() => { modal.style.display = 'none'; itemActivoIndex = null; }, 300);
     }
 
-async function guardarPickingModal() {
-    const cantStr = document.getElementById('pick-cant').value;
-    const loteVal = document.getElementById('pick-lote').value;
-    const item = pedidoActivo.items[itemActivoIndex];
-    
-    if (!cantStr || cantStr === "") return alert("Ingresa cuántas piezas encontraste físicamente.");
-    if (!loteVal) return alert("Debes indicar de qué lote sacaste la mercancía.");
-    
-    const n = parseInt(cantStr); if (isNaN(n) || n < 0) return;
+    async function guardarPickingModal() {
+        const cantStr = document.getElementById('pick-cant').value;
+        const loteVal = document.getElementById('pick-lote').value;
+        const item = pedidoActivo.items[itemActivoIndex];
+        
+        if (!cantStr || cantStr === "") return alert("Ingresa cuántas piezas encontraste físicamente.");
+        if (!loteVal) return alert("Debes indicar de qué lote sacaste la mercancía.");
+        
+        const n = parseInt(cantStr); if (isNaN(n) || n < 0) return;
 
-    // --- CANDADO A: No surtir más de lo pedido ---
-    if (n > item.cantidadSolicitada) {
-        return alert(`🚫 Error: No puedes surtir más de lo que el cliente pidió (${item.cantidadSolicitada} pz).`);
-    }
-
-    // --- CANDADO B: No surtir más de lo que hay en el lote ---
-    if (window.lotesCache && loteVal !== "SIN-LOTE" && loteVal !== "MANUAL") {
-        const loteInfo = window.lotesCache.find(l => l.lote === loteVal);
-        if (loteInfo && n > loteInfo.cantidad) {
-            return alert(`🚫 Error: Solo hay ${loteInfo.cantidad} piezas disponibles en el lote ${loteVal}.`);
+        // --- CANDADO A: No surtir más de lo pedido ---
+        if (n > item.cantidadSolicitada) {
+            return alert(`🚫 Error: No puedes surtir más de lo que el cliente pidió (${item.cantidadSolicitada} pz).`);
         }
+
+        // --- CANDADO B: No surtir más de lo que hay en el lote ---
+        if (window.lotesCache && loteVal !== "SIN-LOTE" && loteVal !== "MANUAL") {
+            const loteInfo = window.lotesCache.find(l => l.lote === loteVal);
+            if (loteInfo && n > loteInfo.cantidad) {
+                return alert(`🚫 Error: Solo hay ${loteInfo.cantidad} piezas disponibles en el lote ${loteVal}.`);
+            }
+        }
+
+        item.surtido = n;
+        item.loteOrigen = loteVal;
+        cerrarModalPicking(); 
+        renderItemsPicking(); 
+        enfocarSiguienteTalla(`pick-${itemActivoIndex}`, '#sticky-pick');
+
+        fetch('/api/actualizar-pedido', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items }) 
+        });
     }
-
-    item.surtido = n;
-    item.loteOrigen = loteVal;
-    cerrarModalPicking(); 
-    renderItemsPicking(); 
-    enfocarSiguienteTalla(`pick-${itemActivoIndex}`, '#sticky-pick');
-
-    fetch('/api/actualizar-pedido', { 
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items }) 
-    });
-}
 
     function enfocarSiguienteTalla(idParcial, stickySelector) {
         setTimeout(() => {
@@ -776,70 +776,69 @@ async function guardarPickingModal() {
     }
 
     // ==============================================================
-    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE) - CORREGIDO DISEÑO PDF
+    // GENERACIÓN DE PDF Y AUTO-BAJA (WMS CORE)
     // ==============================================================
     async function finalizarPedidoWMS() {
-    let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
-    if(piezasSurtidasTotal < pedidoActivo.totalPiezas) { 
-        if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas. ¿Continuar?`)) return; 
-    }
-
-    const btnPick = document.getElementById('btn-final-pick'); 
-    btnPick.innerHTML = "Generando PDF... 🖨️"; 
-    btnPick.disabled = true;
-
-    try {
-        const res = await fetch('/api/finalizar-pedido-wms', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items, operador: miNombre }) 
-        });
-
-        if(!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error || "Error en servidor");
+        let piezasSurtidasTotal = pedidoActivo.items.reduce((sum, item) => sum + (item.surtido || 0), 0);
+        if(piezasSurtidasTotal < pedidoActivo.totalPiezas) { 
+            if(!confirm(`⚠️ ATENCIÓN: Solo surtiste ${piezasSurtidasTotal} de ${pedidoActivo.totalPiezas} piezas. ¿Continuar?`)) return; 
         }
 
-        await generarPDFRemision(pedidoActivo);
-        confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
-        showToast("¡Surtido Finalizado! PDF Descargado.");
-        setTimeout(() => { location.reload(); }, 1500);
+        const btnPick = document.getElementById('btn-final-pick'); 
+        btnPick.innerHTML = "Generando PDF... 🖨️"; 
+        btnPick.disabled = true;
 
-    } catch (e) {
-        alert(`❌ Operación Rechazada: ${e.message}`);
-        btnPick.innerHTML = "🖨️ Finalizar y Generar Remisión PDF"; 
-        btnPick.disabled = false;
+        try {
+            const res = await fetch('/api/finalizar-pedido-wms', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ folio: pedidoActivo.folio, items: pedidoActivo.items, operador: miNombre }) 
+            });
+
+            if(!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || "Error en servidor");
+            }
+
+            await generarPDFRemision(pedidoActivo);
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#007AFF', '#34C759', '#FFFFFF'] });
+            showToast("¡Surtido Finalizado! PDF Descargado.");
+            setTimeout(() => { location.reload(); }, 1500);
+
+        } catch (e) {
+            alert(`❌ Operación Rechazada: ${e.message}`);
+            btnPick.innerHTML = "🖨️ Finalizar y Generar Remisión PDF"; 
+            btnPick.disabled = false;
+        }
     }
-}
 
     async function generarPDFRemision(pedido) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'letter');
         
-        // 1. Logo (Proporción ajustada para evitar verse apachurrado)
+        // 1. Logo
         const logoBase64 = await getBase64ImageFromUrl('/logo.png');
         if(logoBase64) {
             doc.addImage(logoBase64, 'PNG', 40, 25, 130, 75); 
         }
 
-        // 2. Título Central (Recorrido a la derecha para no colisionar)
+        // 2. Título Central
         doc.setFont("helvetica", "bold");
         doc.setFontSize(20);
         doc.setTextColor(0, 26, 51);
-        doc.text("REMISIÓN DE SURTIDO WMS", 360, 100, { align: "center" }); // X cambió a 360
+        doc.text("REMISIÓN DE SURTIDO WMS", 360, 100, { align: "center" });
 
         // Línea divisoria decorativa
         doc.setLineWidth(1);
         doc.setDrawColor(220, 220, 220);
         doc.line(40, 115, 570, 115);
 
-        // 3. CABECERA DERECHA (Alineada a la derecha, Eliminado el Folio WMS)
+        // 3. CABECERA DERECHA
         const numPedidoVisible = pedido.numeroPedido ? pedido.numeroPedido : pedido.folio;
 
-        // Número de Pedido Real Resaltado en Grande
         doc.setFontSize(15);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 122, 255); // Azul Resaltado
+        doc.setTextColor(0, 122, 255);
         doc.text(`PEDIDO: ${numPedidoVisible}`, 570, 135, { align: "right" });
         
         doc.setFontSize(10);
@@ -861,7 +860,6 @@ async function guardarPickingModal() {
         const splitNotas = doc.splitTextToSize(pedido.notas || 'Ninguna', 250);
         doc.text(splitNotas, 115, 152);
 
-        // Restaurar color para la tabla
         doc.setTextColor(50);
 
         // 5. Tabla de Productos
@@ -890,7 +888,7 @@ async function guardarPickingModal() {
         tableBody.push([{ content: 'TOTALES', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, totalSolicitado.toString(), totalSurtido.toString(), '']);
 
         doc.autoTable({
-            startY: 190, // Comenzamos la tabla más abajo para respetar las cabeceras
+            startY: 190,
             head: [['MODELO', 'COLOR', 'TALLA', 'LOTE ORIGEN', 'PEDIDO', 'SURTIDO', 'ESTATUS']],
             body: tableBody,
             theme: 'grid',
@@ -932,7 +930,6 @@ async function guardarPickingModal() {
         doc.setTextColor(150);
         doc.text("Nota: Las cantidades surtidas detalladas en este documento han sido descontadas automáticamente del inventario (KARDEX).", 300, finalY + 70, { align: "center" });
 
-        // Descarga utilizando el Folio Real (Limpiado para que sea un nombre de archivo válido)
         const nombreArchivoLimpio = numPedidoVisible.replace(/[^a-zA-Z0-9_-]/g, '');
         doc.save(`Remision_${nombreArchivoLimpio}.pdf`);
     }

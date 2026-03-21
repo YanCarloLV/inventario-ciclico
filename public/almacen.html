@@ -62,6 +62,7 @@
         .btn-green { background: var(--success); }
         .btn-orange { background: var(--brand-orange); }
         .btn-navy { background: var(--brand-navy); }
+        .btn-gold { background: var(--brand-gold); }
         .btn-outline { background: #F2F2F7; color: var(--text-main); border: 1px solid #E5E5EA;}
         .btn-purple { background: #5E5CE6; }
         .btn-black { background: #1C1C1E; }
@@ -170,6 +171,7 @@
                 <button class="tab-btn" onclick="switchTab('prestamos')">🤝 Préstamos Activos</button>
                 <button class="tab-btn" onclick="switchTab('historial')">📜 Bitácora General</button>
                 <button class="tab-btn" onclick="switchTab('kardexTotal')">🗂️ Kardex Total (Trazabilidad)</button>
+                <button class="tab-btn" onclick="switchTab('catalogosku')">🏷️ Catálogo SKU</button>
             </div>
             <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
                 <button class="btn btn-green" onclick="abrirModal('Entrada')">📥 Ingreso Manual</button>
@@ -263,6 +265,27 @@
         </div>
         <div id="paginacionKardexTotal" style="display: flex; justify-content: center; gap: 8px; margin-top: 25px; flex-wrap: wrap; align-items: center;"></div>
     </div>
+
+    <div id="vista-catalogosku" class="card reveal" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Catálogo Maestro de SKUs</h2>
+            <label class="btn btn-gold" style="cursor:pointer;">
+                📂 Subir Excel SKUs
+                <input type="file" id="fileSKU" accept=".xlsx, .xls" style="display:none;" onchange="procesarExcelSKU(this)">
+            </label>
+        </div>
+        <p style="color:var(--text-muted); font-size: 14px; margin-top: 0; margin-bottom: 20px;">
+            Sube tu archivo Excel con las columnas: <b>SKU, MODELO, COLOR, TALLA</b>. Esto permitirá que en la carga masiva el sistema reconozca automáticamente los productos si subes un archivo que solo contenga el código SKU.
+        </p>
+        <input type="text" id="buscarSKU" class="search-box" placeholder="🔍 Buscar por SKU, Modelo, Color..." onkeyup="filtrarTablaInteligente('tablaSKU', this.value)">
+        <div style="overflow-x: auto;">
+            <table id="tablaSKU">
+                <thead><tr><th>Código SKU</th><th>Modelo</th><th>Color</th><th>Talla</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <div class="panel-overlay" id="panelOverlay" onclick="cerrarPanel()"></div>
@@ -489,7 +512,7 @@
         
         <div id="form-masivo-inputs">
             <div class="form-grid">
-                <div class="form-group full"><label>Archivo Excel/CSV (Columnas: MODELO, COLOR, TALLA, CANTIDAD)</label><input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv"></div>
+                <div class="form-group full"><label>Archivo Excel/CSV (Columnas: MODELO, COLOR, TALLA, CANTIDAD, o simplemente SKU)</label><input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv"></div>
                 <div class="form-group full">
                     <label>Tipo de Operación</label>
                     <select id="mas-tipo" class="input-sap">
@@ -525,12 +548,14 @@
         </div>
     </div>
 </div>
+
 <script>
     let rawKardexData = []; 
     let kardexAgrupado = {}; 
     let datosMasivosGlobales = null; 
     let activeSelection = null; 
     let rawHistorialData = []; 
+    let catalogoSKUGlobal = []; // NUEVO: Catalogo de SKUs
 
     // VARIABLES PARA OPTIMIZACIÓN KARDEX TOTAL
     let trazabilidadList = []; 
@@ -542,9 +567,7 @@
     // VARIABLES CARRITO PRÉSTAMOS
     let carritoPrestamos = [];
 
-    // ==========================================
-    // NUEVAS VARIABLES: CARRITO DEVOLUCIONES
-    // ==========================================
+    // VARIABLES CARRITO DEVOLUCIONES
     let carritoDevoluciones = [];
     let modeloSeleccionadoDev = null;
     let colorSeleccionadoDev = null;
@@ -553,6 +576,7 @@
         const c = document.getElementById('toast-container'); const t = document.createElement('div');
         t.className = `toast ${tipo}`; t.innerHTML = tipo==='success'?`✅ ${msj}`:`⚠️ ${msj}`;
         if(tipo === 'info') t.innerHTML = `ℹ️ ${msj}`;
+        if(tipo === 'danger') t.innerHTML = `❌ ${msj}`;
         c.appendChild(t); setTimeout(()=>t.remove(), 4500);
     }
 
@@ -564,10 +588,12 @@
         document.getElementById('vista-prestamos').style.display = tId==='prestamos'?'block':'none';
         document.getElementById('vista-historial').style.display = tId==='historial'?'block':'none';
         document.getElementById('vista-kardexTotal').style.display = tId==='kardexTotal'?'block':'none';
+        document.getElementById('vista-catalogosku').style.display = tId==='catalogosku'?'block':'none';
 
         if(tId === 'kardexTotal' && !kardexTotalGenerado) {
             construirKardexTotalMemoria();
         }
+        if(tId === 'catalogosku') cargarCatalogoSKU();
     }
 
     function filtrarTablaInteligente(id, texto){
@@ -580,7 +606,65 @@
     }
 
     // ==========================================
-    // 1. CARGAR PEDIDOS WMS
+    // 1. CARGAR CATÁLOGO SKU (NUEVO)
+    // ==========================================
+    async function cargarCatalogoSKU() {
+        try {
+            const res = await fetch('/api/catalogo-sku');
+            if(res.ok) {
+                catalogoSKUGlobal = await res.json();
+                const tbody = document.querySelector('#tablaSKU tbody'); 
+                if(tbody) {
+                    tbody.innerHTML = '';
+                    catalogoSKUGlobal.forEach(d => {
+                        tbody.innerHTML += `<tr><td><b style="color:var(--brand-navy)">${d.sku}</b></td><td><b>${d.modelo}</b></td><td>${d.color}</td><td><b>${d.talla || 'N/A'}</b></td></tr>`;
+                    });
+                }
+            }
+        } catch(e) { console.error("Error cargando SKU: ", e); }
+    }
+
+    function procesarExcelSKU(input) {
+        if(!input.files || !input.files[0]) return;
+        showToast("Leyendo archivo de SKUs...", "info");
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                const skuData = [];
+                rows.forEach(r => {
+                    const sku = r.SKU || r.sku;
+                    const modelo = r.MODELO || r.Modelo || r.modelo;
+                    const color = r.COLOR || r.Color || r.color;
+                    const talla = r.TALLA || r.Talla || r.talla || '';
+
+                    if(sku && modelo && color) {
+                        skuData.push({ sku, modelo, color, talla });
+                    }
+                });
+
+                if(skuData.length === 0) return showToast("No se encontraron columnas válidas (SKU, MODELO, COLOR)", "danger");
+
+                const res = await fetch('/api/catalogo-sku', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(skuData)
+                });
+
+                if(res.ok) {
+                    const ans = await res.json();
+                    showToast(`¡Catálogo Actualizado! ${ans.procesados} SKUs vinculados.`);
+                    cargarCatalogoSKU(); 
+                } else { showToast("Error al procesar archivo en el servidor", "danger"); }
+            } catch(err) { showToast("Archivo no válido o corrupto.", "danger"); }
+            input.value = '';
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
+
+    // ==========================================
+    // 2. CARGAR PEDIDOS WMS
     // ==========================================
     async function cargarPedidosWMS() {
         try {
@@ -617,7 +701,7 @@
     }
 
     // ==========================================
-    // 2. KARDEX Y PANEL LATERAL
+    // 3. KARDEX Y PANEL LATERAL
     // ==========================================
     async function cargarKardex(){
         const res = await fetch('/api/kardex'); 
@@ -830,7 +914,7 @@
     function triggerHistorialTalla() { verHistorialIndividual(`${activeSelection.modelo}_${activeSelection.color}_${activeSelection.talla}`); }
 
     // ==========================================
-    // 3. TABLAS SECUNDARIAS E HISTORIAL
+    // 4. TABLAS SECUNDARIAS E HISTORIAL
     // ==========================================
     async function cargarHistorial(){
         const res = await fetch('/api/historial-almacen'); 
@@ -999,7 +1083,7 @@
     }
 
     // ==========================================
-    // NUEVO: DEVOLUCIÓN MASIVA ESTILO E-COMMERCE
+    // DEVOLUCIÓN MASIVA ESTILO E-COMMERCE
     // ==========================================
     function abrirModalDevolucion() {
         carritoDevoluciones = [];
@@ -1016,54 +1100,50 @@
     }
 
     function buscarModeloParaDevolucion(texto) {
-    const contenedor = document.getElementById('dev-resultados');
-    const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
-    
-    if(terminos.length === 0) {
-        contenedor.style.display = 'none'; return;
-    }
-
-    // Usamos un Set para no repetir modelos en la lista de búsqueda
-    let encontrados = {};
-
-    // 1. Buscamos en el stock actual (Kardex Vivo)
-    rawKardexData.forEach(item => {
-        const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
-        if(terminos.every(term => strBusqueda.includes(term))) {
-            const key = `${item.modelo}|${item.color}`;
-            if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
-            encontrados[key].tallas.add(item.talla);
+        const contenedor = document.getElementById('dev-resultados');
+        const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+        
+        if(terminos.length === 0) {
+            contenedor.style.display = 'none'; return;
         }
-    });
 
-    // 2. Buscamos también en el historial (por si es algo que ya no tiene stock)
-    rawHistorialData.forEach(item => {
-        const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
-        if(terminos.every(term => strBusqueda.includes(term))) {
-            const key = `${item.modelo}|${item.color}`;
-            if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
-            encontrados[key].tallas.add(item.talla);
-        }
-    });
+        let encontrados = {};
 
-    const resultados = Object.values(encontrados).slice(0, 10);
-
-    contenedor.innerHTML = '';
-    if(resultados.length === 0) {
-        contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto. Verifica el nombre.</div>';
-    } else {
-        resultados.forEach(r => {
-            // Convertimos el Set de tallas a un String separado por comas
-            const tallasArray = Array.from(r.tallas).sort();
-            contenedor.innerHTML += `
-                <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${tallasArray.join(',')}')">
-                    <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
-                    <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Seleccionar Tallas</span></div>
-                </div>`;
+        rawKardexData.forEach(item => {
+            const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+            if(terminos.every(term => strBusqueda.includes(term))) {
+                const key = `${item.modelo}|${item.color}`;
+                if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
+                encontrados[key].tallas.add(item.talla);
+            }
         });
+
+        rawHistorialData.forEach(item => {
+            const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+            if(terminos.every(term => strBusqueda.includes(term))) {
+                const key = `${item.modelo}|${item.color}`;
+                if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
+                encontrados[key].tallas.add(item.talla);
+            }
+        });
+
+        const resultados = Object.values(encontrados).slice(0, 10);
+
+        contenedor.innerHTML = '';
+        if(resultados.length === 0) {
+            contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto. Verifica el nombre.</div>';
+        } else {
+            resultados.forEach(r => {
+                const tallasArray = Array.from(r.tallas).sort();
+                contenedor.innerHTML += `
+                    <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${tallasArray.join(',')}')">
+                        <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
+                        <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Seleccionar Tallas</span></div>
+                    </div>`;
+            });
+        }
+        contenedor.style.display = 'block';
     }
-    contenedor.style.display = 'block';
-}
 
     function mostrarPastillasDevolucion(modelo, color, tallasStr) {
         document.getElementById('dev-resultados').style.display = 'none';
@@ -1072,7 +1152,6 @@
         modeloSeleccionadoDev = modelo;
         colorSeleccionadoDev = color;
 
-        // Ordenamos las tallas para que se vean bonitas
         const tallas = tallasStr.split(',').sort();
         const grid = document.getElementById('dev-pastillas-grid');
         grid.innerHTML = '';
@@ -1364,7 +1443,7 @@
     }
 
     // ==========================================
-    // 4. MODALES PRINCIPALES SAP (MOVIMIENTOS)
+    // MODALES PRINCIPALES SAP (MOVIMIENTOS)
     // ==========================================
     function abrirModal(tipo) {
         document.getElementById('modal-title').innerText = `Nuevo Registro: ${tipo}`;
@@ -1468,7 +1547,7 @@
     }
 
     // ==========================================
-    // 5. CARGA MASIVA Y AUDITORÍA
+    // CARGA MASIVA CON INTEGRACIÓN SKU
     // ==========================================
     function abrirModalMasivo() {
         document.getElementById('file-masivo').value = '';
@@ -1501,10 +1580,22 @@
                 datosMasivosGlobales = [];
                 let totalPz = 0;
                 rows.forEach(r => {
-                    const m = r.MODELO || r.Modelo || r.modelo;
-                    const c = r.COLOR || r.Color || r.color;
-                    const t = r.TALLA || r.Talla || r.talla;
+                    let m = r.MODELO || r.Modelo || r.modelo;
+                    let c = r.COLOR || r.Color || r.color;
+                    let t = r.TALLA || r.Talla || r.talla || '';
                     const qty = parseInt(r.CANTIDAD || r.Cantidad || r.cantidad || 0);
+                    const sku = r.SKU || r.sku;
+
+                    // LÓGICA DE CRUCE SKU CON EL CATÁLOGO GLOBAL (NUEVA FUNCIONALIDAD)
+                    if (sku && catalogoSKUGlobal.length > 0) {
+                        const skuLimpio = String(sku).trim().toUpperCase();
+                        const match = catalogoSKUGlobal.find(s => s.sku === skuLimpio);
+                        if (match) {
+                            m = match.modelo;
+                            c = match.color;
+                            t = match.talla;
+                        }
+                    }
                     
                     if(m && c && t && qty > 0) {
                         datosMasivosGlobales.push({ modelo: String(m).trim().toUpperCase(), color: String(c).trim().toUpperCase(), talla: String(t).trim().toUpperCase(), cantidad: qty });
@@ -1513,7 +1604,7 @@
                 });
 
                 if(datosMasivosGlobales.length === 0) {
-                    showToast("No se encontraron datos válidos. Revisa las columnas.", "danger");
+                    showToast("No se encontraron datos válidos o no hubo coincidencia de SKUs.", "danger");
                     btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
                     return;
                 }
@@ -1587,186 +1678,177 @@
         const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
-    let reporteMatchActual = []; // Variable global para guardar el reporte a descargar
+    let reporteMatchActual = []; 
 
-function generarMatchAuditoria() {
-    const input = document.getElementById('file-auditoria');
-    if(!input.files || !input.files[0]) return showToast("Sube el Excel o CSV del conteo físico.", "warning");
+    function generarMatchAuditoria() {
+        const input = document.getElementById('file-auditoria');
+        if(!input.files || !input.files[0]) return showToast("Sube el Excel o CSV del conteo físico.", "warning");
 
-    const btn = document.getElementById('btn-run-match');
-    btn.innerHTML = "🧠 Cruzando Datos y Sectorizando..."; btn.disabled = true;
+        const btn = document.getElementById('btn-run-match');
+        btn.innerHTML = "🧠 Cruzando Datos y Sectorizando..."; btn.disabled = true;
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            
-            // Leemos el archivo como una matriz pura para poder ignorar las filas vacías de arriba (típico en exportaciones)
-            const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-            let headerRowIndex = -1;
-            let colIdx = { m: -1, c: -1, t: -1, q: -1 };
-
-            // 1. Buscamos inteligentemente dónde empiezan realmente los encabezados
-            for (let i = 0; i < rowsRaw.length; i++) {
-                const row = rowsRaw[i];
-                if (!row || row.length === 0) continue;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
                 
-                row.forEach((cell, idx) => {
-                    if (typeof cell === 'string') {
-                        const upper = cell.toUpperCase().trim();
-                        if (upper.includes('MODELO')) colIdx.m = idx;
-                        if (upper.includes('COLOR')) colIdx.c = idx;
-                        if (upper.includes('TALLA')) colIdx.t = idx;
-                        if (upper.includes('CANTIDAD')) colIdx.q = idx;
+                const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                let headerRowIndex = -1;
+                let colIdx = { m: -1, c: -1, t: -1, q: -1 };
+
+                for (let i = 0; i < rowsRaw.length; i++) {
+                    const row = rowsRaw[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    row.forEach((cell, idx) => {
+                        if (typeof cell === 'string') {
+                            const upper = cell.toUpperCase().trim();
+                            if (upper.includes('MODELO')) colIdx.m = idx;
+                            if (upper.includes('COLOR')) colIdx.c = idx;
+                            if (upper.includes('TALLA')) colIdx.t = idx;
+                            if (upper.includes('CANTIDAD')) colIdx.q = idx;
+                        }
+                    });
+
+                    if (colIdx.m !== -1 && colIdx.c !== -1 && colIdx.t !== -1 && colIdx.q !== -1) {
+                        headerRowIndex = i;
+                        break;
+                    }
+                }
+
+                if (headerRowIndex === -1) {
+                    showToast("No se encontraron las columnas Modelo, Color, Talla y Cantidad.", "danger");
+                    btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false;
+                    return;
+                }
+
+                let fisicoMap = {};
+                let modelosAuditados = new Set(); 
+
+                for (let i = headerRowIndex + 1; i < rowsRaw.length; i++) {
+                    const row = rowsRaw[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    const m = String(row[colIdx.m] || '').trim().toUpperCase();
+                    const c = String(row[colIdx.c] || '').trim().toUpperCase();
+                    const t = String(row[colIdx.t] || '').trim().toUpperCase();
+                    const q = parseInt(row[colIdx.q]) || 0;
+
+                    if (m && c && t && m !== 'UNDEFINED') {
+                        const keyModeloColor = `${m}_${c}`;
+                        modelosAuditados.add(keyModeloColor); 
+                        
+                        const keyFull = `${m}_${c}_${t}`;
+                        fisicoMap[keyFull] = (fisicoMap[keyFull] || 0) + q;
+                    }
+                }
+
+                let sistemaMap = {};
+                rawKardexData.forEach(k => {
+                    const keyModeloColor = `${k.modelo}_${k.color}`;
+                    if (modelosAuditados.has(keyModeloColor)) {
+                        const keyFull = `${k.modelo}_${k.color}_${k.talla}`;
+                        sistemaMap[keyFull] = (sistemaMap[keyFull] || 0) + k.cantidad;
                     }
                 });
 
-                if (colIdx.m !== -1 && colIdx.c !== -1 && colIdx.t !== -1 && colIdx.q !== -1) {
-                    headerRowIndex = i;
-                    break;
-                }
-            }
+                reporteMatchActual = [];
+                let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
+                let hayDiferencias = false;
 
-            if (headerRowIndex === -1) {
-                showToast("No se encontraron las columnas Modelo, Color, Talla y Cantidad.", "danger");
-                btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false;
-                return;
-            }
-
-            // 2. Extraer conteos y saber QUÉ MODELOS exactos auditamos
-            let fisicoMap = {};
-            let modelosAuditados = new Set(); // El filtro sectorizado
-
-            for (let i = headerRowIndex + 1; i < rowsRaw.length; i++) {
-                const row = rowsRaw[i];
-                if (!row || row.length === 0) continue;
-                
-                const m = String(row[colIdx.m] || '').trim().toUpperCase();
-                const c = String(row[colIdx.c] || '').trim().toUpperCase();
-                const t = String(row[colIdx.t] || '').trim().toUpperCase();
-                const q = parseInt(row[colIdx.q]) || 0;
-
-                if (m && c && t && m !== 'UNDEFINED') {
-                    const keyModeloColor = `${m}_${c}`;
-                    modelosAuditados.add(keyModeloColor); // Registramos que este modelo SÍ se auditó
-                    
-                    const keyFull = `${m}_${c}_${t}`;
-                    fisicoMap[keyFull] = (fisicoMap[keyFull] || 0) + q;
-                }
-            }
-
-            // 3. Agrupar Kardex Vivo SOLO para los modelos auditados
-            let sistemaMap = {};
-            rawKardexData.forEach(k => {
-                const keyModeloColor = `${k.modelo}_${k.color}`;
-                // Si el modelo está en nuestra lista de auditados, lo tomamos en cuenta
-                if (modelosAuditados.has(keyModeloColor)) {
-                    const keyFull = `${k.modelo}_${k.color}_${k.talla}`;
-                    sistemaMap[keyFull] = (sistemaMap[keyFull] || 0) + k.cantidad;
-                }
-            });
-
-            // 4. Generar el Match
-            reporteMatchActual = [];
-            let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
-            let hayDiferencias = false;
-
-            let htmlTabla = `
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                    <thead>
-                        <tr>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px;">Producto</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Talla</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Físico</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Kardex</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Dif.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            allKeys.forEach(k => {
-                const [mod, col, tal] = k.split('_');
-                const qFis = fisicoMap[k] || 0;
-                const qSis = sistemaMap[k] || 0;
-                const diff = qFis - qSis;
-                
-                // Si hay diferencia (o si todo cuadró perfecto), lo añadimos a la tabla
-                const bgRow = diff !== 0 ? 'background-color: #FFEBEB;' : ''; // Subrayado rojo claro
-                const colorDif = diff > 0 ? 'color: #28A745;' : (diff < 0 ? 'color: #FF3B30;' : 'color: #8E8E93;');
-                const signo = diff > 0 ? '+' : '';
-
-                if (diff !== 0) {
-                    hayDiferencias = true;
-                    reporteMatchActual.push({
-                        "Modelo": mod, "Color": col, "Talla": tal,
-                        "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
-                        "Diferencia": diff,
-                        "Estatus": diff > 0 ? "SOBRANTE" : "FALTANTE",
-                        "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
-                    });
-                }
-
-                htmlTabla += `
-                    <tr style="${bgRow} border-bottom: 1px solid #F2F2F7;">
-                        <td style="padding: 10px;"><b>${mod}</b><br><small style="color:var(--text-muted);">${col}</small></td>
-                        <td style="padding: 10px; text-align: center; font-weight: 800;">${tal}</td>
-                        <td style="padding: 10px; text-align: center;">${qFis}</td>
-                        <td style="padding: 10px; text-align: center;">${qSis}</td>
-                        <td style="padding: 10px; text-align: center; font-weight: 800; ${colorDif}">${signo}${diff}</td>
-                    </tr>
+                let htmlTabla = `
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px;">Producto</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Talla</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Físico</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Kardex</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Dif.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
-            });
 
-            htmlTabla += `</tbody></table>`;
+                allKeys.forEach(k => {
+                    const [mod, col, tal] = k.split('_');
+                    const qFis = fisicoMap[k] || 0;
+                    const qSis = sistemaMap[k] || 0;
+                    const diff = qFis - qSis;
+                    
+                    const bgRow = diff !== 0 ? 'background-color: #FFEBEB;' : ''; 
+                    const colorDif = diff > 0 ? 'color: #28A745;' : (diff < 0 ? 'color: #FF3B30;' : 'color: #8E8E93;');
+                    const signo = diff > 0 ? '+' : '';
 
-            // 5. Inyectar la tabla en el Modal
-            const containerResultados = document.getElementById('match-resultados-container');
-            containerResultados.innerHTML = `
-                <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #E5E5EA;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: var(--brand-navy);">📊 Resultados del Cruce (${modelosAuditados.size} Modelos)</h4>
-                        ${hayDiferencias ? `<span class="tag tag-out">Con Diferencias</span>` : `<span class="tag tag-in">Inventario Cuadrado</span>`}
+                    if (diff !== 0) {
+                        hayDiferencias = true;
+                        reporteMatchActual.push({
+                            "Modelo": mod, "Color": col, "Talla": tal,
+                            "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
+                            "Diferencia": diff,
+                            "Estatus": diff > 0 ? "SOBRANTE" : "FALTANTE",
+                            "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
+                        });
+                    }
+
+                    htmlTabla += `
+                        <tr style="${bgRow} border-bottom: 1px solid #F2F2F7;">
+                            <td style="padding: 10px;"><b>${mod}</b><br><small style="color:var(--text-muted);">${col}</small></td>
+                            <td style="padding: 10px; text-align: center; font-weight: 800;">${tal}</td>
+                            <td style="padding: 10px; text-align: center;">${qFis}</td>
+                            <td style="padding: 10px; text-align: center;">${qSis}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: 800; ${colorDif}">${signo}${diff}</td>
+                        </tr>
+                    `;
+                });
+
+                htmlTabla += `</tbody></table>`;
+
+                const containerResultados = document.getElementById('match-resultados-container');
+                containerResultados.innerHTML = `
+                    <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #E5E5EA;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: var(--brand-navy);">📊 Resultados del Cruce (${modelosAuditados.size} Modelos)</h4>
+                            ${hayDiferencias ? `<span class="tag tag-out">Con Diferencias</span>` : `<span class="tag tag-in">Inventario Cuadrado</span>`}
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            ${htmlTabla}
+                        </div>
+                        ${hayDiferencias ? `
+                        <button class="btn btn-navy" style="width: 100%; padding: 15px; font-size: 15px; margin-top: 15px;" onclick="descargarReporteMatch()">
+                            📥 Descargar Diferencias en Excel
+                        </button>` : ''}
                     </div>
-                    <div style="max-height: 250px; overflow-y: auto;">
-                        ${htmlTabla}
-                    </div>
-                    ${hayDiferencias ? `
-                    <button class="btn btn-navy" style="width: 100%; padding: 15px; font-size: 15px; margin-top: 15px;" onclick="descargarReporteMatch()">
-                        📥 Descargar Diferencias en Excel
-                    </button>` : ''}
-                </div>
-            `;
-            containerResultados.style.display = 'block';
+                `;
+                containerResultados.style.display = 'block';
 
-            if(hayDiferencias) {
-                showToast(`Se auditaron ${modelosAuditados.size} modelos. Se encontraron diferencias.`, "warning");
-            } else {
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
-                showToast(`¡Excelente! Los ${modelosAuditados.size} modelos auditados están 100% cuadrados.`, "success");
+                if(hayDiferencias) {
+                    showToast(`Se auditaron ${modelosAuditados.size} modelos. Se encontraron diferencias.`, "warning");
+                } else {
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+                    showToast(`¡Excelente! Los ${modelosAuditados.size} modelos auditados están 100% cuadrados.`, "success");
+                }
+
+            } catch (error) { 
+                showToast("Error procesando el cruce.", "danger"); 
+                console.error(error); 
+            } finally { 
+                btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false; 
             }
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
 
-        } catch (error) { 
-            showToast("Error procesando el cruce.", "danger"); 
-            console.error(error); 
-        } finally { 
-            btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false; 
-        }
-    };
-    reader.readAsArrayBuffer(input.files[0]);
-}
-
-// Función auxiliar para descargar solo las diferencias
-function descargarReporteMatch() {
-    if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
-    const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
-    XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
-}
+    function descargarReporteMatch() {
+        if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
+        const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
+        XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
+    }
 
     async function descargarStockExcel(){
         if(rawKardexData.length === 0) return showToast("No hay stock para descargar.", "warning");
@@ -1833,7 +1915,13 @@ function descargarReporteMatch() {
     }
 
     // Init General
-    window.onload = () => { cargarKardex(); cargarHistorial(); cargarPrestamos(); setInterval(cargarPedidosWMS, 20000); };
+    window.onload = () => { 
+        cargarCatalogoSKU(); // Carga de SKUs desde el inicio
+        cargarKardex(); 
+        cargarHistorial(); 
+        cargarPrestamos(); 
+        setInterval(cargarPedidosWMS, 20000); 
+    };
 </script>
 </body>
 </html>
