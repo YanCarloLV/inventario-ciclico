@@ -1849,115 +1849,121 @@ function descargarReporteMatch() {
             });
         } catch(e) { return null; }
     }
+async function descargarInventarioCiclico() {
+        const seleccionados = Array.from(document.querySelectorAll('.chk-kardex-row:checked')).map(cb => cb.value);
+        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un producto del Kardex.", "warning");
 
-    async function descargarInventarioCiclico() {
-        const seleccionados = Array.from(document.querySelectorAll('.chk-kardex-row:checked')).map(cb => cb.value);
-        if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un producto del Kardex.", "warning");
+        showToast("Generando Excel con plantilla pro...", "info");
 
-        showToast("Generando Excel de Inventario Cíclico...", "info");
+        try {
+            // === ESTILOS EXACTOS IMPORTADOS DE SUPERVISOR ===
+            const EXCEL_STYLES = {
+                colWidth: 13.57,
+                headerFont: { name: 'Calibri', family: 2, size: 12, bold: true, color: { argb: 'FFFFFFFF' } },
+                headerFill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } }, // Fondo negro
+                dataFont: { name: 'Calibri', family: 2, size: 11 },
+                alignmentCenter: { vertical: 'middle', horizontal: 'center' },
+                borderThin: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+            };
 
-        try {
-            const workbook = new ExcelJS.Workbook();
-            const ws = workbook.addWorksheet('Inventario Ciclico', { views: [{ zoomScale: 90 }] });
+            const workbook = new ExcelJS.Workbook();
+            const ws = workbook.addWorksheet('Inventario Ciclico', {
+                views: [{ zoomScale: 100 }],
+                // === CONFIGURACIÓN DE PÁGINA (CONTEO, MÁRGENES Y REPETIR ENCABEZADOS) ===
+                pageSetup: { 
+                    paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, 
+                    printTitlesRow: '1:6', 
+                    margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } 
+                },
+                headerFooter: { oddFooter: "&CPágina &P" } // Paginación automática abajo al centro
+            });
 
-            // Configuramos anchos de columnas
-            ws.columns = [
-                { header: '', key: 'id', width: 14 },
-                { header: '', key: 'fecha', width: 14 },
-                { header: '', key: 'modelo', width: 16 },
-                { header: '', key: 'color', width: 20 },
-                { header: '', key: 'operador', width: 25 },
-                { header: '', key: 'talla', width: 12 },
-                { header: '', key: 'stock', width: 12 },
-                { header: '', key: 'fisico', width: 16 }
-            ];
+            // Aplicar ancho exacto a las columnas
+            for (let i = 1; i <= 8; i++) { ws.getColumn(i).width = EXCEL_STYLES.colWidth; }
 
-            // Insertar Logo (Si existe en /logo.png)
-            const logoBase64 = await getBase64ImageFromUrl('/logo.png');
-            if (logoBase64) {
-                const imageId = workbook.addImage({ base64: logoBase64, extension: 'png' });
-                ws.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 140, height: 60 } });
-            }
+            // Insertar Logo flotante
+            const logoBase64 = await getBase64ImageFromUrl('/logo.png');
+            if (logoBase64) {
+                const logoId = workbook.addImage({ base64: logoBase64, extension: 'png' });
+                ws.addImage(logoId, { tl: { col: 0.1, row: 0.1 }, ext: { width: 220, height: 90 }, editAs: 'absolute' });
+            }
 
-            // Título
-            ws.mergeCells('A2:H3');
-            const titulo = ws.getCell('A2');
-            titulo.value = "INVENTARIO CICLICO";
-            titulo.font = { name: 'Arial', size: 18, bold: true };
-            titulo.alignment = { vertical: 'middle', horizontal: 'center' };
+            // Alturas de filas para dar espacio al logo
+            ws.getRow(1).height = 30; ws.getRow(2).height = 30; ws.getRow(3).height = 30; 
+            ws.getRow(4).height = 10; ws.getRow(5).height = 10;
 
-            // Encabezados en la fila 6
-            const headerRow = ws.getRow(6);
-            headerRow.values = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'STOCK', 'FISICO'];
-            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            headerRow.height = 25;
-            headerRow.eachCell((cell, colNumber) => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF001A33' } }; // Azul Navy
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-            });
+            // Fila 6: Encabezados con formato Supervisor
+            const headerRow = ws.getRow(6); headerRow.height = 25;
+            const titulos = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'STOCK', 'FISICO'];
 
-            // Preparar datos
-            const fechaHoy = new Date().toLocaleDateString('es-MX', {day: '2-digit', month: '2-digit', year: 'numeric'});
-            let startRow = 7;
-            let idCounter = 1;
+            for (let i = 0; i < titulos.length; i++) {
+                const cell = headerRow.getCell(i + 1);
+                cell.value = titulos[i]; 
+                cell.font = EXCEL_STYLES.headerFont; 
+                cell.fill = EXCEL_STYLES.headerFill; 
+                cell.alignment = EXCEL_STYLES.alignmentCenter; 
+                cell.border = EXCEL_STYLES.borderThin;
+            }
 
-            seleccionados.forEach(key => {
-                const [modelo, color] = key.split('|');
-                
-                // Buscar todas las tallas en el Kardex Vivo para este modelo/color
-                const variaciones = rawKardexData.filter(item => item.modelo === modelo && item.color === color);
+            // Procesar los datos seleccionados del Kardex
+            const fechaHoy = new Date().toLocaleDateString('es-MX', {day: '2-digit', month: '2-digit', year: 'numeric'});
+            let startRow = 7;
+            let idCounter = 1;
 
-                // Agrupar las cantidades por talla (por si el traje está en varios lotes a la vez)
-                const agrupadoPorTalla = {};
-                variaciones.forEach(v => {
-                    if(!agrupadoPorTalla[v.talla]) agrupadoPorTalla[v.talla] = 0;
-                    agrupadoPorTalla[v.talla] += v.cantidad;
-                });
+            seleccionados.forEach(key => {
+                const [modelo, color] = key.split('|');
+                
+                const variaciones = rawKardexData.filter(item => item.modelo === modelo && item.color === color);
+                const agrupadoPorTalla = {};
+                variaciones.forEach(v => {
+                    if(!agrupadoPorTalla[v.talla]) agrupadoPorTalla[v.talla] = 0;
+                    agrupadoPorTalla[v.talla] += v.cantidad;
+                });
 
-                Object.keys(agrupadoPorTalla).sort().forEach(talla => {
-                    const row = ws.getRow(startRow);
-                    row.values = [
-                        `##${String(idCounter).padStart(8, '0')}`,
-                        fechaHoy,
-                        modelo,
-                        color,
-                        "", // Operador en blanco para escribir
-                        talla,
-                        agrupadoPorTalla[talla], // STOCK REAL de BD
-                        "" // FÍSICO en blanco para escribir
-                    ];
-                    row.height = 20;
+                Object.keys(agrupadoPorTalla).sort().forEach(talla => {
+                    const row = ws.getRow(startRow);
+                    row.height = 20;
+                    
+                    const rowData = [
+                        `##${String(idCounter).padStart(8, '0')}`,
+                        fechaHoy,
+                        modelo,
+                        color,
+                        "", 
+                        talla,
+                        agrupadoPorTalla[talla], // STOCK REAL
+                        ""  // FÍSICO VACÍO
+                    ];
 
-                    row.eachCell((cell, colNumber) => {
-                        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                        cell.border = { top: {style:'thin', color:{argb:'FFCCCCCC'}}, left: {style:'thin', color:{argb:'FFCCCCCC'}}, bottom: {style:'thin', color:{argb:'FFCCCCCC'}}, right: {style:'thin', color:{argb:'FFCCCCCC'}} };
-                        // Sombrear levemente la columna FISICO para que sepan dónde escribir
-                        if (colNumber === 8) {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F7' } };
-                        }
-                    });
-                    startRow++; idCounter++;
-                });
-            });
+                    for (let i = 0; i < rowData.length; i++) {
+                        const cell = row.getCell(i + 1);
+                        cell.value = rowData[i]; 
+                        cell.font = EXCEL_STYLES.dataFont; 
+                        cell.alignment = EXCEL_STYLES.alignmentCenter; 
+                        cell.border = EXCEL_STYLES.borderThin;
+                    }
+                    startRow++; idCounter++;
+                });
+            });
 
-            // Descargar
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-            a.download = `Reporte_Ciclico_${fechaHoy.replace(/\//g, '-')}.xlsx`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            // Descargar el archivo procesado
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+            a.download = `Inventario_Ciclico_${fechaHoy.replace(/\//g, '-')}.xlsx`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
 
-            // Limpiar selección de tabla
-            document.querySelectorAll('.chk-kardex-row').forEach(cb => cb.checked = false);
-            const chkAll = document.getElementById('chkAllKardex');
-            if(chkAll) chkAll.checked = false;
+            // Limpiar las casillas de la tabla
+            document.querySelectorAll('.chk-kardex-row').forEach(cb => cb.checked = false);
+            const chkAll = document.getElementById('chkAllKardex');
+            if(chkAll) chkAll.checked = false;
 
-        } catch (error) { 
-            showToast("Error al generar el Excel.", "danger"); 
-            console.error(error); 
-        }
-    }
+        } catch (error) { 
+            showToast("Error al generar el Excel.", "danger"); 
+            console.error(error); 
+        }
+    }
+    
     // Init General
     window.onload = () => { cargarKardex(); cargarHistorial(); cargarPrestamos(); setInterval(cargarPedidosWMS, 20000); };
 </script>
