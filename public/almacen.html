@@ -1386,13 +1386,19 @@
         renderKardexTotalPaginado();
     }
 
+    // === ACTUALIZACIÓN: SKUS EN EL EXCEL DE TRAZABILIDAD INDIVIDUAL ===
     async function descargarTrazabilidadExcel(key) {
         const hRes = await fetch(`/api/historial-almacen?llave=${key}`);
         const historial = await hRes.json();
 
         if(historial.length === 0) return showToast("No hay historial para exportar de este producto.", "warning");
 
+        const [mod, col, tal] = key.split('_');
+        const itemK = rawKardexData.find(k => k.modelo === mod && k.color === col && k.talla === tal);
+        const skuVal = itemK && itemK.sku ? itemK.sku : "N/A";
+
         const ws = XLSX.utils.json_to_sheet(historial.map(h => ({
+            "SKU": skuVal,
             "Folio": h.folio,
             "Fecha": h.fecha,
             "Tipo": h.tipo,
@@ -1786,7 +1792,13 @@
 
                     if (diff !== 0) {
                         hayDiferencias = true;
+                        
+                        // === ACTUALIZACIÓN: BUSCAR EL SKU PARA EL REPORTE DE MATCH ===
+                        const itemK = rawKardexData.find(kdx => kdx.modelo === mod && kdx.color === col && kdx.talla === tal);
+                        const skuVal = itemK && itemK.sku ? itemK.sku : "N/A";
+
                         reporteMatchActual.push({
+                            "SKU": skuVal,
                             "Modelo": mod, "Color": col, "Talla": tal,
                             "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
                             "Diferencia": diff,
@@ -1843,6 +1855,7 @@
         reader.readAsArrayBuffer(input.files[0]);
     }
 
+    // === ACTUALIZACIÓN: DESCARGA DE REPORTE DE MATCH AHORA INCLUYE SKU ===
     function descargarReporteMatch() {
         if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
         const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
@@ -1851,7 +1864,6 @@
         XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
     }
 
-    // === AGREGADO DE SKU AL EXCEL ===
     async function descargarStockExcel(){
         if(rawKardexData.length === 0) return showToast("No hay stock para descargar.", "warning");
         showToast("Generando Excel...", "info");
@@ -1960,7 +1972,8 @@
                 headerFooter: { oddFooter: "&CPágina &P" }
             });
 
-            for (let i = 1; i <= 8; i++) { ws.getColumn(i).width = EXCEL_STYLES.colWidth; }
+            // === ACTUALIZACIÓN: INCREMENTO DE COLUMNAS A 9 PARA AGREGAR EL SKU ===
+            for (let i = 1; i <= 9; i++) { ws.getColumn(i).width = EXCEL_STYLES.colWidth; }
 
             const logoBase64 = await getBase64ImageFromUrl('/logo.png');
             if (logoBase64) {
@@ -1972,7 +1985,8 @@
             ws.getRow(4).height = 10; ws.getRow(5).height = 10;
 
             const headerRow = ws.getRow(6); headerRow.height = 25;
-            const titulos = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'STOCK', 'FISICO'];
+            // === ACTUALIZACIÓN: AÑADIDO 'SKU' EN LOS ENCABEZADOS DE LA PLANTILLA ===
+            const titulos = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'SKU', 'STOCK', 'FISICO'];
 
             for (let i = 0; i < titulos.length; i++) {
                 const cell = headerRow.getCell(i + 1);
@@ -2001,6 +2015,10 @@
                     const row = ws.getRow(startRow);
                     row.height = 20;
                     
+                    // === ACTUALIZACIÓN: OBTENER EL SKU PARA LA PLANTILLA ===
+                    const itemSku = variaciones.find(v => v.talla === talla);
+                    const skuVal = itemSku && itemSku.sku ? itemSku.sku : "";
+
                     const rowData = [
                         `##${String(idCounter).padStart(8, '0')}`,
                         fechaHoy,
@@ -2008,6 +2026,7 @@
                         color,
                         "", 
                         talla,
+                        skuVal, // <--- Aquí inyectamos el SKU
                         agrupadoPorTalla[talla],
                         ""  
                     ];
