@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.8 (Integración WMS, Web Push, Seguridad de Lotes y Etiquetado en Nube)
+// server.js - Versión 6.8 (Integración WMS, Web Push, Seguridad de Lotes, Etiquetado y SKUs)
 // ==========================================
 
 const express = require('express');
@@ -84,9 +84,11 @@ const SuscripcionPushSchema = new mongoose.Schema({
 });
 const SuscripcionPush = mongoose.model('SuscripcionPush', SuscripcionPushSchema);
 
+// ACTUALIZACIÓN: Se agregó el campo sku al Kardex
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
-    cantidad: { type: Number, default: 0 }, ultimaActualizacion: String
+    cantidad: { type: Number, default: 0 }, ultimaActualizacion: String,
+    sku: { type: String, default: null } 
 });
 const Kardex = mongoose.model('Kardex', KardexSchema);
 
@@ -402,6 +404,36 @@ app.delete('/api/eliminar-todos-finalizados', async (req, res) => {
 // ==========================================
 // ENDPOINTS DE ALMACÉN (KARDEX VIVO)
 // ==========================================
+
+// ACTUALIZACIÓN: Nuevo Endpoint de subida de SKUs
+app.post('/api/cargar-skus', async (req, res) => {
+    try {
+        const { skus } = req.body;
+        if (!skus || !Array.isArray(skus)) {
+            return res.status(400).json({ error: "Datos inválidos. Se esperaba un arreglo de SKUs." });
+        }
+
+        // Usamos bulkWrite para actualizar todos los registros rápidamente
+        let bulkOps = skus.map(item => ({
+            updateMany: {
+                filter: { llave: item.llave },
+                update: { $set: { sku: item.sku } }
+            }
+        }));
+
+        let actualizados = 0;
+        if (bulkOps.length > 0) {
+            const result = await Kardex.bulkWrite(bulkOps);
+            actualizados = result.modifiedCount;
+        }
+
+        res.json({ success: true, message: `Se actualizaron ${actualizados} registros en el Kardex.` });
+    } catch (error) {
+        console.error("Error al cargar SKUs:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/kardex', async (req, res) => {
     try { res.json(await Kardex.find().sort({ llave: 1, lote: 1 })); } catch (e) { res.status(500).json({ error: e.message }); }
 });

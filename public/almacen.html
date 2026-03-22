@@ -176,6 +176,12 @@
                 <button class="btn btn-outline" style="border-color:#007AFF; color:#007AFF; background:#E8F2FF;" onclick="abrirModalDevolucion()">🔄 Devolución Masiva</button>
                 <button class="btn btn-purple" onclick="abrirModalMasivo()">🚀 Carga Masiva</button>
                 <button class="btn btn-navy" onclick="descargarStockExcel()">📊 Stock General</button>
+                
+                <label class="btn btn-outline" style="border-color:#5E5CE6; color:#5E5CE6; cursor:pointer; margin: 0;">
+                    🔗 Cargar SKUs (CSV)
+                    <input type="file" accept=".csv" style="display:none;" onchange="procesarCSV_SKU(this)">
+                </label>
+
                 <button class="btn btn-black" onclick="abrirModalAuditoria()">⚖️ Match Físico vs Sistema</button>
                 <button class="btn btn-outline" style="border-color:#FF8C00; color:#FF8C00;" onclick="abrirModalMantenimiento()">✏️ Corregir Modelo/Color</button>
             </div>
@@ -183,13 +189,13 @@
     </div>
 
     <div id="vista-kardex" class="card reveal" style="animation-delay: 0.1s;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-            <h2>Catálogo Maestro de Inventario</h2>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn btn-black" onclick="descargarInventarioCiclico()">📝 Generar Inventario Cíclico</button>
-                <button class="btn btn-orange" onclick="descargarPlantillaKardex()">📊 Generar Plantilla de Inventario</button>
-            </div>
-        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+            <h2>Catálogo Maestro de Inventario</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-black" onclick="descargarInventarioCiclico()">📝 Generar Inventario Cíclico</button>
+                <button class="btn btn-orange" onclick="descargarPlantillaKardex()">📊 Generar Plantilla de Inventario</button>
+            </div>
+        </div>
         <input type="text" id="buscarKardex" class="search-box" placeholder="🔍 Buscar Modelo, Color o Talla (Ej: 4040 38R)..." onkeyup="filtrarTablaInteligente('tablaKardex', this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaKardex">
@@ -281,10 +287,15 @@
     <div class="slide-content" id="sp-content"></div>
 
     <div class="action-box" id="sp-action-box">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
             <div>
                 <span style="font-size: 12px; color: var(--text-muted); font-weight: 800; text-transform: uppercase;">Talla Seleccionada</span><br>
                 <span id="act-talla" style="font-size: 22px; font-weight: 800; color: var(--brand-navy);">--</span>
+                
+                <div id="act-sku-container" style="font-size: 12px; color: #8E8E93; margin-top: 2px; font-weight: 600; display: none;">
+                    SKU: <span id="act-sku-val"></span>
+                </div>
+
             </div>
             <div style="text-align: right;">
                 <span style="font-size: 12px; color: var(--text-muted); font-weight: 800; text-transform: uppercase;">Lote Activo</span><br>
@@ -583,6 +594,57 @@
     }
 
     // ==========================================
+    // NUEVO: PROCESAR CSV DE SKUS
+    // ==========================================
+    function procesarCSV_SKU(input) {
+        if(!input.files || !input.files[0]) return;
+        const btnLabel = input.parentElement;
+        const originalText = btnLabel.innerHTML;
+        btnLabel.innerHTML = "⌛ Subiendo SKUs...";
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target.result;
+            const rows = text.split('\n');
+            const skusParaSubir = [];
+
+            // Ignoramos el encabezado (empezamos i = 1)
+            for(let i = 1; i < rows.length; i++) {
+                const cols = rows[i].split(',');
+                if(cols.length >= 4) {
+                    const sku = cols[0].trim();
+                    const mod = cols[1].trim().toUpperCase();
+                    const col = cols[2].trim().toUpperCase();
+                    const tal = cols[3].trim().toUpperCase();
+                    
+                    if(sku && mod && col && tal) {
+                        skusParaSubir.push({ llave: `${mod}_${col}_${tal}`, sku });
+                    }
+                }
+            }
+
+            try {
+                const res = await fetch('/api/cargar-skus', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ skus: skusParaSubir })
+                });
+                if(res.ok) {
+                    showToast(`¡Diccionario actualizado con ${skusParaSubir.length} SKUs!`);
+                    cargarKardex(); 
+                } else {
+                    showToast("No se pudo cargar SKUs al servidor.", "warning");
+                }
+            } catch(err) { 
+                showToast("Error de conexión al subir SKUs.", "danger"); 
+            } finally { 
+                btnLabel.innerHTML = originalText; 
+                input.value = ''; 
+            }
+        };
+        reader.readAsText(input.files[0]);
+    }
+
+    // ==========================================
     // 1. CARGAR PEDIDOS WMS
     // ==========================================
     async function cargarPedidosWMS() {
@@ -785,8 +847,15 @@
             let htmlPills = '';
             itemsLote.sort((a,b) => a.talla.localeCompare(b.talla)).forEach(item => {
                 const idDiv = `pill_${item.modelo}_${item.color}_${item.talla}_${item.lote}`.replace(/[^a-zA-Z0-9_]/g, '');
+                
+                // === ETIQUETA SKU EN LA PASTILLA ===
+                const badgeSku = item.sku 
+                    ? `<div style="font-size:10px; color:#8E8E93; background:#F2F2F7; padding:2px 6px; border-radius:4px; margin-bottom:4px; font-weight:700;">${item.sku}</div>` 
+                    : '';
+
                 htmlPills += `
-                <div class="pill" id="${idDiv}" onclick="seleccionarTallaPanel('${idDiv}', '${item.modelo}', '${item.color}', '${item.talla}', '${item.lote}', ${item.cantidad})">
+                <div class="pill" id="${idDiv}" onclick="seleccionarTallaPanel('${idDiv}', '${item.modelo}', '${item.color}', '${item.talla}', '${item.lote}', ${item.cantidad}, '${item.sku || ''}')">
+                    ${badgeSku}
                     <span class="pill-talla">${item.talla}</span>
                     <span class="pill-qty">${item.cantidad} pz</span>
                 </div>`;
@@ -817,13 +886,24 @@
         activeSelection = null;
     }
 
-    function seleccionarTallaPanel(idDiv, modelo, color, talla, lote, cantidad) {
+    // === SELECCIONAR TALLA: AHORA RECIBE EL SKU PARA MOSTRARLO ESTILO MERCADO LIBRE ===
+    function seleccionarTallaPanel(idDiv, modelo, color, talla, lote, cantidad, sku) {
         document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
         document.getElementById(idDiv).classList.add('active');
-        activeSelection = { modelo, color, talla, lote, cantidad };
+        activeSelection = { modelo, color, talla, lote, cantidad, sku };
 
         document.getElementById('act-talla').innerText = talla;
         document.getElementById('act-lote').innerText = lote;
+        
+        // Control visual del SKU
+        const skuContainer = document.getElementById('act-sku-container');
+        if (sku && sku !== 'undefined' && sku !== 'null' && sku !== '') {
+            document.getElementById('act-sku-val').innerText = sku;
+            skuContainer.style.display = 'block';
+        } else {
+            skuContainer.style.display = 'none';
+        }
+
         document.getElementById('sp-action-box').style.display = 'block';
     }
 
@@ -1019,54 +1099,50 @@
     }
 
     function buscarModeloParaDevolucion(texto) {
-    const contenedor = document.getElementById('dev-resultados');
-    const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
-    
-    if(terminos.length === 0) {
-        contenedor.style.display = 'none'; return;
-    }
-
-    // Usamos un Set para no repetir modelos en la lista de búsqueda
-    let encontrados = {};
-
-    // 1. Buscamos en el stock actual (Kardex Vivo)
-    rawKardexData.forEach(item => {
-        const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
-        if(terminos.every(term => strBusqueda.includes(term))) {
-            const key = `${item.modelo}|${item.color}`;
-            if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
-            encontrados[key].tallas.add(item.talla);
+        const contenedor = document.getElementById('dev-resultados');
+        const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+        
+        if(terminos.length === 0) {
+            contenedor.style.display = 'none'; return;
         }
-    });
 
-    // 2. Buscamos también en el historial (por si es algo que ya no tiene stock)
-    rawHistorialData.forEach(item => {
-        const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
-        if(terminos.every(term => strBusqueda.includes(term))) {
-            const key = `${item.modelo}|${item.color}`;
-            if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
-            encontrados[key].tallas.add(item.talla);
-        }
-    });
+        let encontrados = {};
 
-    const resultados = Object.values(encontrados).slice(0, 10);
-
-    contenedor.innerHTML = '';
-    if(resultados.length === 0) {
-        contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto. Verifica el nombre.</div>';
-    } else {
-        resultados.forEach(r => {
-            // Convertimos el Set de tallas a un String separado por comas
-            const tallasArray = Array.from(r.tallas).sort();
-            contenedor.innerHTML += `
-                <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${tallasArray.join(',')}')">
-                    <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
-                    <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Seleccionar Tallas</span></div>
-                </div>`;
+        rawKardexData.forEach(item => {
+            const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+            if(terminos.every(term => strBusqueda.includes(term))) {
+                const key = `${item.modelo}|${item.color}`;
+                if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
+                encontrados[key].tallas.add(item.talla);
+            }
         });
+
+        rawHistorialData.forEach(item => {
+            const strBusqueda = `${item.modelo} ${item.color}`.toLowerCase();
+            if(terminos.every(term => strBusqueda.includes(term))) {
+                const key = `${item.modelo}|${item.color}`;
+                if(!encontrados[key]) encontrados[key] = { modelo: item.modelo, color: item.color, tallas: new Set() };
+                encontrados[key].tallas.add(item.talla);
+            }
+        });
+
+        const resultados = Object.values(encontrados).slice(0, 10);
+
+        contenedor.innerHTML = '';
+        if(resultados.length === 0) {
+            contenedor.innerHTML = '<div style="padding: 12px; color: var(--text-muted);">No se encontró el producto. Verifica el nombre.</div>';
+        } else {
+            resultados.forEach(r => {
+                const tallasArray = Array.from(r.tallas).sort();
+                contenedor.innerHTML += `
+                    <div class="search-result-item" onclick="mostrarPastillasDevolucion('${r.modelo}', '${r.color}', '${tallasArray.join(',')}')">
+                        <div><b>${r.modelo}</b> - <span style="color:var(--text-muted);">${r.color}</span></div>
+                        <div style="text-align:right;"><span class="tag tag-info" style="background:#E8F2FF; color:#007AFF;">Seleccionar Tallas</span></div>
+                    </div>`;
+            });
+        }
+        contenedor.style.display = 'block';
     }
-    contenedor.style.display = 'block';
-}
 
     function mostrarPastillasDevolucion(modelo, color, tallasStr) {
         document.getElementById('dev-resultados').style.display = 'none';
@@ -1075,7 +1151,6 @@
         modeloSeleccionadoDev = modelo;
         colorSeleccionadoDev = color;
 
-        // Ordenamos las tallas para que se vean bonitas
         const tallas = tallasStr.split(',').sort();
         const grid = document.getElementById('dev-pastillas-grid');
         grid.innerHTML = '';
@@ -1187,10 +1262,11 @@
     }
 
     // ==========================================
-    // OPTIMIZACIÓN KARDEX TOTAL
+    // OPTIMIZACIÓN KARDEX TOTAL CON SKU INCORPORADO
     // ==========================================
     function construirKardexTotalMemoria() {
         let trazabilidadMap = {};
+        
         rawHistorialData.forEach(m => {
             const key = `${m.modelo}_${m.color}_${m.talla}`;
             if(!trazabilidadMap[key]) trazabilidadMap[key] = { modelo: m.modelo, color: m.color, talla: m.talla };
@@ -1200,6 +1276,10 @@
         rawKardexData.forEach(k => {
             const key = `${k.modelo}_${k.color}_${k.talla}`;
             if(!trazabilidadMap[key]) trazabilidadMap[key] = { modelo: k.modelo, color: k.color, talla: k.talla };
+            
+            // Si el backend envía el SKU, lo capturamos
+            if(k.sku) trazabilidadMap[key].sku = k.sku;
+
             stockMap[key] = (stockMap[key] || 0) + k.cantidad;
         });
 
@@ -1236,9 +1316,17 @@
                 ? `<span class="tag tag-in">🟢 Activo (${item.stock} pz)</span>` 
                 : `<span class="tag tag-out">🔴 Agotado (0 pz)</span>`;
 
+            // === AQUI SE INYECTA EL SKU ESTILO MERCADO LIBRE EN EL KARDEX TOTAL ===
+            let skuVisual = item.sku 
+                ? `<div style="font-size: 12px; color: #8E8E93; margin-top: 4px; font-weight:600;">SKU: ${item.sku}</div>` 
+                : '';
+
             tbody.innerHTML += `
                 <tr>
-                    <td><b>${item.modelo}</b></td>
+                    <td>
+                        <b style="font-size: 15px;">${item.modelo}</b>
+                        ${skuVisual}
+                    </td>
                     <td><b style="color:var(--text-muted);">${item.color}</b></td>
                     <td><b style="font-size: 16px;">${item.talla}</b></td>
                     <td>${statusTag}</td>
@@ -1289,7 +1377,8 @@
         const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
         
         trazabilidadFiltrada = trazabilidadList.filter(item => {
-            const strBusqueda = `${item.modelo} ${item.color} ${item.talla}`.toLowerCase();
+            // Buscamos ahora también por el SKU
+            const strBusqueda = `${item.modelo} ${item.color} ${item.talla} ${item.sku || ''}`.toLowerCase();
             return terminos.every(term => strBusqueda.includes(term));
         });
 
@@ -1592,189 +1681,182 @@
 
     let reporteMatchActual = []; // Variable global para guardar el reporte a descargar
 
-function generarMatchAuditoria() {
-    const input = document.getElementById('file-auditoria');
-    if(!input.files || !input.files[0]) return showToast("Sube el Excel o CSV del conteo físico.", "warning");
+    function generarMatchAuditoria() {
+        const input = document.getElementById('file-auditoria');
+        if(!input.files || !input.files[0]) return showToast("Sube el Excel o CSV del conteo físico.", "warning");
 
-    const btn = document.getElementById('btn-run-match');
-    btn.innerHTML = "🧠 Cruzando Datos y Sectorizando..."; btn.disabled = true;
+        const btn = document.getElementById('btn-run-match');
+        btn.innerHTML = "🧠 Cruzando Datos y Sectorizando..."; btn.disabled = true;
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            
-            // Leemos el archivo como una matriz pura para poder ignorar las filas vacías de arriba (típico en exportaciones)
-            const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-            let headerRowIndex = -1;
-            let colIdx = { m: -1, c: -1, t: -1, q: -1 };
-
-            // 1. Buscamos inteligentemente dónde empiezan realmente los encabezados
-            for (let i = 0; i < rowsRaw.length; i++) {
-                const row = rowsRaw[i];
-                if (!row || row.length === 0) continue;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
                 
-                row.forEach((cell, idx) => {
-                    if (typeof cell === 'string') {
-                        const upper = cell.toUpperCase().trim();
-                        if (upper.includes('MODELO')) colIdx.m = idx;
-                        if (upper.includes('COLOR')) colIdx.c = idx;
-                        if (upper.includes('TALLA')) colIdx.t = idx;
-                        if (upper.includes('CANTIDAD')) colIdx.q = idx;
+                const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                let headerRowIndex = -1;
+                let colIdx = { m: -1, c: -1, t: -1, q: -1 };
+
+                for (let i = 0; i < rowsRaw.length; i++) {
+                    const row = rowsRaw[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    row.forEach((cell, idx) => {
+                        if (typeof cell === 'string') {
+                            const upper = cell.toUpperCase().trim();
+                            if (upper.includes('MODELO')) colIdx.m = idx;
+                            if (upper.includes('COLOR')) colIdx.c = idx;
+                            if (upper.includes('TALLA')) colIdx.t = idx;
+                            if (upper.includes('CANTIDAD')) colIdx.q = idx;
+                        }
+                    });
+
+                    if (colIdx.m !== -1 && colIdx.c !== -1 && colIdx.t !== -1 && colIdx.q !== -1) {
+                        headerRowIndex = i;
+                        break;
+                    }
+                }
+
+                if (headerRowIndex === -1) {
+                    showToast("No se encontraron las columnas Modelo, Color, Talla y Cantidad.", "danger");
+                    btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false;
+                    return;
+                }
+
+                let fisicoMap = {};
+                let modelosAuditados = new Set();
+
+                for (let i = headerRowIndex + 1; i < rowsRaw.length; i++) {
+                    const row = rowsRaw[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    const m = String(row[colIdx.m] || '').trim().toUpperCase();
+                    const c = String(row[colIdx.c] || '').trim().toUpperCase();
+                    const t = String(row[colIdx.t] || '').trim().toUpperCase();
+                    const q = parseInt(row[colIdx.q]) || 0;
+
+                    if (m && c && t && m !== 'UNDEFINED') {
+                        const keyModeloColor = `${m}_${c}`;
+                        modelosAuditados.add(keyModeloColor); 
+                        
+                        const keyFull = `${m}_${c}_${t}`;
+                        fisicoMap[keyFull] = (fisicoMap[keyFull] || 0) + q;
+                    }
+                }
+
+                let sistemaMap = {};
+                rawKardexData.forEach(k => {
+                    const keyModeloColor = `${k.modelo}_${k.color}`;
+                    if (modelosAuditados.has(keyModeloColor)) {
+                        const keyFull = `${k.modelo}_${k.color}_${k.talla}`;
+                        sistemaMap[keyFull] = (sistemaMap[keyFull] || 0) + k.cantidad;
                     }
                 });
 
-                if (colIdx.m !== -1 && colIdx.c !== -1 && colIdx.t !== -1 && colIdx.q !== -1) {
-                    headerRowIndex = i;
-                    break;
-                }
-            }
+                reporteMatchActual = [];
+                let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
+                let hayDiferencias = false;
 
-            if (headerRowIndex === -1) {
-                showToast("No se encontraron las columnas Modelo, Color, Talla y Cantidad.", "danger");
-                btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false;
-                return;
-            }
-
-            // 2. Extraer conteos y saber QUÉ MODELOS exactos auditamos
-            let fisicoMap = {};
-            let modelosAuditados = new Set(); // El filtro sectorizado
-
-            for (let i = headerRowIndex + 1; i < rowsRaw.length; i++) {
-                const row = rowsRaw[i];
-                if (!row || row.length === 0) continue;
-                
-                const m = String(row[colIdx.m] || '').trim().toUpperCase();
-                const c = String(row[colIdx.c] || '').trim().toUpperCase();
-                const t = String(row[colIdx.t] || '').trim().toUpperCase();
-                const q = parseInt(row[colIdx.q]) || 0;
-
-                if (m && c && t && m !== 'UNDEFINED') {
-                    const keyModeloColor = `${m}_${c}`;
-                    modelosAuditados.add(keyModeloColor); // Registramos que este modelo SÍ se auditó
-                    
-                    const keyFull = `${m}_${c}_${t}`;
-                    fisicoMap[keyFull] = (fisicoMap[keyFull] || 0) + q;
-                }
-            }
-
-            // 3. Agrupar Kardex Vivo SOLO para los modelos auditados
-            let sistemaMap = {};
-            rawKardexData.forEach(k => {
-                const keyModeloColor = `${k.modelo}_${k.color}`;
-                // Si el modelo está en nuestra lista de auditados, lo tomamos en cuenta
-                if (modelosAuditados.has(keyModeloColor)) {
-                    const keyFull = `${k.modelo}_${k.color}_${k.talla}`;
-                    sistemaMap[keyFull] = (sistemaMap[keyFull] || 0) + k.cantidad;
-                }
-            });
-
-            // 4. Generar el Match
-            reporteMatchActual = [];
-            let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
-            let hayDiferencias = false;
-
-            let htmlTabla = `
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                    <thead>
-                        <tr>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px;">Producto</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Talla</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Físico</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Kardex</th>
-                            <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Dif.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            allKeys.forEach(k => {
-                const [mod, col, tal] = k.split('_');
-                const qFis = fisicoMap[k] || 0;
-                const qSis = sistemaMap[k] || 0;
-                const diff = qFis - qSis;
-                
-                // Si hay diferencia (o si todo cuadró perfecto), lo añadimos a la tabla
-                const bgRow = diff !== 0 ? 'background-color: #FFEBEB;' : ''; // Subrayado rojo claro
-                const colorDif = diff > 0 ? 'color: #28A745;' : (diff < 0 ? 'color: #FF3B30;' : 'color: #8E8E93;');
-                const signo = diff > 0 ? '+' : '';
-
-                if (diff !== 0) {
-                    hayDiferencias = true;
-                    reporteMatchActual.push({
-                        "Modelo": mod, "Color": col, "Talla": tal,
-                        "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
-                        "Diferencia": diff,
-                        "Estatus": diff > 0 ? "SOBRANTE" : "FALTANTE",
-                        "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
-                    });
-                }
-
-                htmlTabla += `
-                    <tr style="${bgRow} border-bottom: 1px solid #F2F2F7;">
-                        <td style="padding: 10px;"><b>${mod}</b><br><small style="color:var(--text-muted);">${col}</small></td>
-                        <td style="padding: 10px; text-align: center; font-weight: 800;">${tal}</td>
-                        <td style="padding: 10px; text-align: center;">${qFis}</td>
-                        <td style="padding: 10px; text-align: center;">${qSis}</td>
-                        <td style="padding: 10px; text-align: center; font-weight: 800; ${colorDif}">${signo}${diff}</td>
-                    </tr>
+                let htmlTabla = `
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px;">Producto</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Talla</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Físico</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Kardex</th>
+                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Dif.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
-            });
 
-            htmlTabla += `</tbody></table>`;
+                allKeys.forEach(k => {
+                    const [mod, col, tal] = k.split('_');
+                    const qFis = fisicoMap[k] || 0;
+                    const qSis = sistemaMap[k] || 0;
+                    const diff = qFis - qSis;
+                    
+                    const bgRow = diff !== 0 ? 'background-color: #FFEBEB;' : ''; 
+                    const colorDif = diff > 0 ? 'color: #28A745;' : (diff < 0 ? 'color: #FF3B30;' : 'color: #8E8E93;');
+                    const signo = diff > 0 ? '+' : '';
 
-            // 5. Inyectar la tabla en el Modal
-            const containerResultados = document.getElementById('match-resultados-container');
-            containerResultados.innerHTML = `
-                <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #E5E5EA;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: var(--brand-navy);">📊 Resultados del Cruce (${modelosAuditados.size} Modelos)</h4>
-                        ${hayDiferencias ? `<span class="tag tag-out">Con Diferencias</span>` : `<span class="tag tag-in">Inventario Cuadrado</span>`}
+                    if (diff !== 0) {
+                        hayDiferencias = true;
+                        reporteMatchActual.push({
+                            "Modelo": mod, "Color": col, "Talla": tal,
+                            "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
+                            "Diferencia": diff,
+                            "Estatus": diff > 0 ? "SOBRANTE" : "FALTANTE",
+                            "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
+                        });
+                    }
+
+                    htmlTabla += `
+                        <tr style="${bgRow} border-bottom: 1px solid #F2F2F7;">
+                            <td style="padding: 10px;"><b>${mod}</b><br><small style="color:var(--text-muted);">${col}</small></td>
+                            <td style="padding: 10px; text-align: center; font-weight: 800;">${tal}</td>
+                            <td style="padding: 10px; text-align: center;">${qFis}</td>
+                            <td style="padding: 10px; text-align: center;">${qSis}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: 800; ${colorDif}">${signo}${diff}</td>
+                        </tr>
+                    `;
+                });
+
+                htmlTabla += `</tbody></table>`;
+
+                const containerResultados = document.getElementById('match-resultados-container');
+                containerResultados.innerHTML = `
+                    <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #E5E5EA;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: var(--brand-navy);">📊 Resultados del Cruce (${modelosAuditados.size} Modelos)</h4>
+                            ${hayDiferencias ? `<span class="tag tag-out">Con Diferencias</span>` : `<span class="tag tag-in">Inventario Cuadrado</span>`}
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            ${htmlTabla}
+                        </div>
+                        ${hayDiferencias ? `
+                        <button class="btn btn-navy" style="width: 100%; padding: 15px; font-size: 15px; margin-top: 15px;" onclick="descargarReporteMatch()">
+                            📥 Descargar Diferencias en Excel
+                        </button>` : ''}
                     </div>
-                    <div style="max-height: 250px; overflow-y: auto;">
-                        ${htmlTabla}
-                    </div>
-                    ${hayDiferencias ? `
-                    <button class="btn btn-navy" style="width: 100%; padding: 15px; font-size: 15px; margin-top: 15px;" onclick="descargarReporteMatch()">
-                        📥 Descargar Diferencias en Excel
-                    </button>` : ''}
-                </div>
-            `;
-            containerResultados.style.display = 'block';
+                `;
+                containerResultados.style.display = 'block';
 
-            if(hayDiferencias) {
-                showToast(`Se auditaron ${modelosAuditados.size} modelos. Se encontraron diferencias.`, "warning");
-            } else {
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
-                showToast(`¡Excelente! Los ${modelosAuditados.size} modelos auditados están 100% cuadrados.`, "success");
+                if(hayDiferencias) {
+                    showToast(`Se auditaron ${modelosAuditados.size} modelos. Se encontraron diferencias.`, "warning");
+                } else {
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+                    showToast(`¡Excelente! Los ${modelosAuditados.size} modelos auditados están 100% cuadrados.`, "success");
+                }
+
+            } catch (error) { 
+                showToast("Error procesando el cruce.", "danger"); 
+                console.error(error); 
+            } finally { 
+                btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false; 
             }
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
 
-        } catch (error) { 
-            showToast("Error procesando el cruce.", "danger"); 
-            console.error(error); 
-        } finally { 
-            btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false; 
-        }
-    };
-    reader.readAsArrayBuffer(input.files[0]);
-}
+    function descargarReporteMatch() {
+        if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
+        const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
+        XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
+    }
 
-// Función auxiliar para descargar solo las diferencias
-function descargarReporteMatch() {
-    if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
-    const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
-    XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
-}
-
+    // === AGREGADO DE SKU AL EXCEL ===
     async function descargarStockExcel(){
         if(rawKardexData.length === 0) return showToast("No hay stock para descargar.", "warning");
         showToast("Generando Excel...", "info");
         const ws = XLSX.utils.json_to_sheet(rawKardexData.map(k => ({
+            "SKU": k.sku || "N/A",
             "Llave Sistema": k.llave, "Modelo": k.modelo, "Color": k.color, "Talla": k.talla,
             "Lote": k.lote, "Cantidad Fija": k.cantidad, "Última Modificación": k.ultimaActualizacion
         })));
@@ -1834,33 +1916,34 @@ function descargarReporteMatch() {
             }
         }
     }
-// ==========================================
-    // NUEVO: DESCARGA DE INVENTARIO CÍCLICO
-    // ==========================================
-    async function getBase64ImageFromUrl(url) {
-        try {
-            const res = await fetch(url);
-            const blob = await res.blob();
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch(e) { return null; }
-    }
-async function descargarInventarioCiclico() {
+
+    // ==========================================
+    // DESCARGA DE INVENTARIO CÍCLICO
+    // ==========================================
+    async function getBase64ImageFromUrl(url) {
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch(e) { return null; }
+    }
+
+    async function descargarInventarioCiclico() {
         const seleccionados = Array.from(document.querySelectorAll('.chk-kardex-row:checked')).map(cb => cb.value);
         if (seleccionados.length === 0) return showToast("Por favor selecciona al menos un producto del Kardex.", "warning");
 
         showToast("Generando Excel con plantilla pro...", "info");
 
         try {
-            // === ESTILOS EXACTOS IMPORTADOS DE SUPERVISOR ===
             const EXCEL_STYLES = {
                 colWidth: 13.57,
                 headerFont: { name: 'Calibri', family: 2, size: 12, bold: true, color: { argb: 'FFFFFFFF' } },
-                headerFill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } }, // Fondo negro
+                headerFill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } }, 
                 dataFont: { name: 'Calibri', family: 2, size: 11 },
                 alignmentCenter: { vertical: 'middle', horizontal: 'center' },
                 borderThin: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
@@ -1869,30 +1952,25 @@ async function descargarInventarioCiclico() {
             const workbook = new ExcelJS.Workbook();
             const ws = workbook.addWorksheet('Inventario Ciclico', {
                 views: [{ zoomScale: 100 }],
-                // === CONFIGURACIÓN DE PÁGINA (CONTEO, MÁRGENES Y REPETIR ENCABEZADOS) ===
                 pageSetup: { 
                     paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, 
                     printTitlesRow: '1:6', 
                     margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } 
                 },
-                headerFooter: { oddFooter: "&CPágina &P" } // Paginación automática abajo al centro
+                headerFooter: { oddFooter: "&CPágina &P" }
             });
 
-            // Aplicar ancho exacto a las columnas
             for (let i = 1; i <= 8; i++) { ws.getColumn(i).width = EXCEL_STYLES.colWidth; }
 
-            // Insertar Logo flotante
             const logoBase64 = await getBase64ImageFromUrl('/logo.png');
             if (logoBase64) {
                 const logoId = workbook.addImage({ base64: logoBase64, extension: 'png' });
                 ws.addImage(logoId, { tl: { col: 0.1, row: 0.1 }, ext: { width: 220, height: 90 }, editAs: 'absolute' });
             }
 
-            // Alturas de filas para dar espacio al logo
             ws.getRow(1).height = 30; ws.getRow(2).height = 30; ws.getRow(3).height = 30; 
             ws.getRow(4).height = 10; ws.getRow(5).height = 10;
 
-            // Fila 6: Encabezados con formato Supervisor
             const headerRow = ws.getRow(6); headerRow.height = 25;
             const titulos = ['ID', 'FECHA', 'MODELO', 'COLOR', 'OPERADOR', 'TALLA', 'STOCK', 'FISICO'];
 
@@ -1905,7 +1983,6 @@ async function descargarInventarioCiclico() {
                 cell.border = EXCEL_STYLES.borderThin;
             }
 
-            // Procesar los datos seleccionados del Kardex
             const fechaHoy = new Date().toLocaleDateString('es-MX', {day: '2-digit', month: '2-digit', year: 'numeric'});
             let startRow = 7;
             let idCounter = 1;
@@ -1931,8 +2008,8 @@ async function descargarInventarioCiclico() {
                         color,
                         "", 
                         talla,
-                        agrupadoPorTalla[talla], // STOCK REAL
-                        ""  // FÍSICO VACÍO
+                        agrupadoPorTalla[talla],
+                        ""  
                     ];
 
                     for (let i = 0; i < rowData.length; i++) {
@@ -1946,14 +2023,12 @@ async function descargarInventarioCiclico() {
                 });
             });
 
-            // Descargar el archivo procesado
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
             a.download = `Inventario_Ciclico_${fechaHoy.replace(/\//g, '-')}.xlsx`;
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
 
-            // Limpiar las casillas de la tabla
             document.querySelectorAll('.chk-kardex-row').forEach(cb => cb.checked = false);
             const chkAll = document.getElementById('chkAllKardex');
             if(chkAll) chkAll.checked = false;
@@ -1963,7 +2038,7 @@ async function descargarInventarioCiclico() {
             console.error(error); 
         }
     }
-    
+    
     // Init General
     window.onload = () => { cargarKardex(); cargarHistorial(); cargarPrestamos(); setInterval(cargarPedidosWMS, 20000); };
 </script>
