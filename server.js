@@ -146,7 +146,7 @@ app.post('/api/victoria-chat', async (req, res) => {
         }
 
         // Usamos Gemini 3 Flash, que es el modelo que tienes activo en tu panel
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `
         Eres Victoria, asistente virtual del sistema WMS.
