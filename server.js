@@ -136,7 +136,8 @@ const Pedido = mongoose.model('Pedido', PedidoSchema);
 // ==========================================
 // 🤖 ENDPOINT DE VICTORIA AI (GEMINI)
 // ==========================================
-// --- CONFIGURACIÓN LIMPIA Y ACTUALIZADA 2026 ---
+
+// --- CONFIGURACIÓN ESTABLE ---
 app.post('/api/victoria-chat', async (req, res) => {
     try {
         const { pregunta, contextoKardex } = req.body;
@@ -145,8 +146,12 @@ app.post('/api/victoria-chat', async (req, res) => {
             return res.status(400).json({ respuesta: "Por favor, hazme una pregunta." });
         }
 
-        // Usamos Gemini 3 Flash, que es el modelo que tienes activo en tu panel
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Usamos el nombre estándar "gemini-1.5-flash" y forzamos la versión "v1"
+        // Esto soluciona el error 404 que aparece en Render
+        const model = genAI.getGenerativeModel(
+            { model: "gemini-1.5-flash" },
+            { apiVersion: 'v1' }
+        );
 
         const prompt = `
         Eres Victoria, asistente virtual del sistema WMS.
@@ -163,7 +168,7 @@ app.post('/api/victoria-chat', async (req, res) => {
     } catch (error) {
         console.error("Error en Victoria AI:", error);
         res.status(500).json({ 
-            respuesta: "Ups, sigo teniendo un detalle con mi núcleo. Revisa que la API KEY en Render sea la correcta. 🔌" 
+            respuesta: "Ups, sigo teniendo un detalle técnico. Revisa los logs de Render para ver si el error cambió. 🔌" 
         });
     }
 });
