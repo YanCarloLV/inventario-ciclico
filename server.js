@@ -210,7 +210,8 @@ app.get('/api/stock-general', async (req, res) => {
             {
                 $group: {
                     _id: { modelo: "$modelo", color: "$color", talla: "$talla" },
-                    cantidad: { $sum: "$cantidad" }
+                    cantidad: { $sum: "$cantidad" },
+                    sku: { $first: "$sku" } // 🚀 AQUI AGREGAMOS EL SKU AL GROUP
                 }
             },
             {
@@ -219,7 +220,8 @@ app.get('/api/stock-general', async (req, res) => {
                     modelo: "$_id.modelo",
                     color: "$_id.color",
                     talla: "$_id.talla",
-                    cantidad: 1
+                    cantidad: 1,
+                    sku: 1 // 🚀 AQUI LE DECIMOS QUE SÍ LO ENVÍE AL HTML
                 }
             }
         ]);
