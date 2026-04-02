@@ -18,7 +18,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 🤖 CONFIGURACIÓN DE VICTORIA (GEMINI AI) ---
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'MI_LLAVE_GEMINI';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // --- 🔔 CONFIGURACIÓN DE NOTIFICACIONES PUSH (VAPID KEYS) ---
