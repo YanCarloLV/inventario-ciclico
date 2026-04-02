@@ -705,18 +705,21 @@ let rawKardexData = [];
     // ==========================================
     // 2. KARDEX Y PANEL LATERAL
     // ==========================================
-    async function cargarKardex(){
+async function cargarKardex(){
         const res = await fetch('/api/kardex'); 
         rawKardexData = await res.json();
         kardexAgrupado = {};
 
+        // AQUI ESTÁ EL FILTRO MÁGICO: Solo mostramos en Stock Consolidado los que tienen > 0
         rawKardexData.forEach(item => {
-            const key = `${item.modelo}|${item.color}`;
-            if(!kardexAgrupado[key]) kardexAgrupado[key] = { modelo: item.modelo, color: item.color, total: 0, lotes: {}, tallasArray: [] };
-            kardexAgrupado[key].total += item.cantidad;
-            kardexAgrupado[key].tallasArray.push(item.talla);
-            if(!kardexAgrupado[key].lotes[item.lote]) kardexAgrupado[key].lotes[item.lote] = [];
-            kardexAgrupado[key].lotes[item.lote].push(item);
+            if (item.cantidad > 0) {
+                const key = `${item.modelo}|${item.color}`;
+                if(!kardexAgrupado[key]) kardexAgrupado[key] = { modelo: item.modelo, color: item.color, total: 0, lotes: {}, tallasArray: [] };
+                kardexAgrupado[key].total += item.cantidad;
+                kardexAgrupado[key].tallasArray.push(item.talla);
+                if(!kardexAgrupado[key].lotes[item.lote]) kardexAgrupado[key].lotes[item.lote] = [];
+                kardexAgrupado[key].lotes[item.lote].push(item);
+            }
         });
 
         const tbody = document.querySelector('#tablaKardex tbody'); 
@@ -1046,7 +1049,7 @@ async function cargarHistorial(){
         m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
-    function buscarStockParaPrestamo(texto) {
+function buscarStockParaPrestamo(texto) {
         const contenedor = document.getElementById('pm-resultados');
         const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
         
@@ -1054,7 +1057,9 @@ async function cargarHistorial(){
             contenedor.style.display = 'none'; return;
         }
 
+        // Filtramos para ignorar los ceros en las sugerencias de préstamo
         const resultados = rawKardexData.filter(item => {
+            if (item.cantidad <= 0) return false; 
             const strBusqueda = `${item.modelo} ${item.color} ${item.talla} ${item.lote}`.toLowerCase();
             return terminos.every(term => strBusqueda.includes(term));
         }).slice(0, 15);
@@ -1966,13 +1971,18 @@ async function cargarHistorial(){
     }
 
 async function descargarStockExcel(){
-        if(rawKardexData.length === 0) return showToast("No hay stock para descargar.", "warning");
+        // Filtramos para que el Excel solo lleve las existencias reales (>0)
+        const stockReal = rawKardexData.filter(k => k.cantidad > 0);
+        
+        if(stockReal.length === 0) return showToast("No hay stock para descargar.", "warning");
         showToast("Generando Excel...", "info");
-        const ws = XLSX.utils.json_to_sheet(rawKardexData.map(k => ({
+        
+        const ws = XLSX.utils.json_to_sheet(stockReal.map(k => ({
             "SKU": k.sku || "N/A",
             "Modelo": k.modelo, "Color": k.color, "Talla": k.talla,
             "Lote": k.lote, "Cantidad Fija": k.cantidad
         })));
+        
         const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "StockKardex");
         XLSX.writeFile(wb, `Stock_Kardex_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
     }
