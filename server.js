@@ -136,49 +136,34 @@ const Pedido = mongoose.model('Pedido', PedidoSchema);
 // ==========================================
 // 🤖 ENDPOINT DE VICTORIA AI (GEMINI)
 // ==========================================
+// --- CONFIGURACIÓN LIMPIA Y ACTUALIZADA 2026 ---
 app.post('/api/victoria-chat', async (req, res) => {
     try {
         const { pregunta, contextoKardex } = req.body;
 
-        // Validar que exista la pregunta
         if (!pregunta) {
             return res.status(400).json({ respuesta: "Por favor, hazme una pregunta." });
         }
 
-        // Configurar el modelo de Gemini (usamos flash por ser rápido y eficiente)
-      const model = genAI.getGenerativeModel(
-    { model: "gemini-1.5-flash" },
-    { apiVersion: 'v1' }
-);
+        // Usamos Gemini 3 Flash, que es el modelo que tienes activo en tu panel
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
 
-        // Construir el prompt de sistema dándole personalidad a Victoria y el contexto del Kardex
         const prompt = `
-        Eres Victoria, una asistente virtual amigable, profesional y supereficiente diseñada para ayudar a los operadores y supervisores del sistema WMS (Warehouse Management System).
-        Tu tono debe ser resolutivo, amable y directo.
-        
-        A continuación, te proporciono los datos en tiempo real del Kardex (inventario actual):
-        ${JSON.stringify(contextoKardex)}
-
-        El usuario te hace la siguiente pregunta o petición: "${pregunta}"
-        
-        Instrucciones:
-        1. Responde a la pregunta basándote ÚNICAMENTE en la información del Kardex proporcionada.
-        2. Si te preguntan por stock de un modelo, suma las piezas si están en diferentes lotes y da un total claro.
-        3. Si la información solicitada no está en el contexto del Kardex, indica amablemente que no tienes esos datos en este momento.
-        4. Mantén tus respuestas concisas, fáciles de leer y profesionales. Puedes usar emojis relacionados al almacén (📦, 👔, 🔍).
+        Eres Victoria, asistente virtual del sistema WMS.
+        Inventario Actual (Kardex): ${JSON.stringify(contextoKardex)}
+        Usuario pregunta: "${pregunta}"
+        Responde basándote solo en el Kardex. Sé breve, amable y usa emojis. 📦
         `;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        const textoRespuesta = response.text();
-
-        // Devolvemos el JSON exacto que espera tu frontend almacen.html
-        res.json({ respuesta: textoRespuesta });
+        
+        res.json({ respuesta: response.text() });
 
     } catch (error) {
         console.error("Error en Victoria AI:", error);
         res.status(500).json({ 
-            respuesta: "Ups, tuve un problema de conexión con mi núcleo de procesamiento. Por favor, intenta de nuevo en un momento. 🔌" 
+            respuesta: "Ups, sigo teniendo un detalle con mi núcleo. Revisa que la API KEY en Render sea la correcta. 🔌" 
         });
     }
 });
