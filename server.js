@@ -1,7 +1,10 @@
+
+
 // ==========================================
 // server.js - Versión 7.0 (Integración con Victoria - Gemini AI)
 // ==========================================
 
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
@@ -15,7 +18,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 🤖 CONFIGURACIÓN DE VICTORIA (GEMINI AI) ---
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyChgaHjKI3smKwkjuq9cEHOToFwq0f3o0M';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'MI_LLAVE_GEMINI';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // --- 🔔 CONFIGURACIÓN DE NOTIFICACIONES PUSH (VAPID KEYS) ---
