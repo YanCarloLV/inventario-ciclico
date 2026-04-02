@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría Operativa | Nivel Partida</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .drag-active { border-color: #3b82f6 !important; background-color: #eff6ff !important; transform: scale(1.02); transition: all 0.2s; }
+        .timer-red { color: #ef4444; font-weight: 800; animation: pulse 2s infinite; }
+        .timer-yellow { color: #d97706; font-weight: 700; }
+        .timer-green { color: #16a34a; font-weight: 700; }
+        
+        /* Semáforos de Auditoría (Botones) */
+        .match-perfecto { background-color: #ecfdf5; border: 1px solid #10b981; color: #047857; }
+        .match-diferencia { background-color: #fff7ed; border: 1px solid #f97316; color: #c2410c; }
+        .match-excedente { background-color: #fef2f2; border: 1px solid #ef4444; color: #b91c1c; }
+        .match-pendiente { background-color: #f3f4f6; border: 1px solid #d1d5db; color: #4b5563; }
+        
+        /* Colores de Fila Completa */
+        .fila-verde { background-color: #f0fdf4 !important; } 
+        .fila-roja { background-color: #fef2f2 !important; }  
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-800 flex items-center gap-3">
+                    <i data-lucide="scan-search" class="text-indigo-600 w-8 h-8"></i>
+                    Auditoría Operativa 3.0
+                </h1>
+                <p class="text-slate-500 mt-1 font-medium">Conciliación a nivel Partida / SLA 24 Hrs</p>
+            </div>
+            <div class="mt-4 md:mt-0">
+                <button onclick="exportarExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition shadow-lg shadow-indigo-200">
+                    <i data-lucide="download-cloud" class="w-5 h-5"></i> Exportar Auditoría
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 col-span-1 flex flex-col justify-center">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="plus-square" class="w-4 h-4"></i> Nuevo Pedido</h2>
+                <div class="flex gap-2">
+                    <input type="number" id="inputPedido" placeholder="Folio (Ej. 20629)" class="border-2 border-slate-200 p-3 rounded-xl w-full focus:border-indigo-500 focus:ring-0 outline-none font-bold text-slate-700">
+                    <button onclick="agregarPedido()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 rounded-xl transition">
+                        Crear
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 col-span-2">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="file-search" class="w-4 h-4"></i> Motor de Extracción PDF</h2>
+                <div id="dropzone" class="border-2 border-dashed border-indigo-300 rounded-xl h-20 flex items-center justify-center bg-indigo-50/50 transition cursor-pointer hover:bg-indigo-50">
+                    <p class="text-indigo-600 font-bold flex items-center gap-2 text-lg">
+                        <i data-lucide="arrow-down-circle" class="w-6 h-6"></i> Arrastra Facturas y Remisiones aquí
+                    </p>
+                    <input type="file" id="fileInput" multiple accept="application/pdf" class="hidden">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
+                            <th class="p-4 font-bold text-center border-b">Pedido</th>
+                            <th class="p-4 font-bold text-center border-b">Reloj 24H</th>
+                            <th class="p-4 font-bold border-b">Documentos</th>
+                            <th class="p-4 font-bold text-center border-b">Auditoría (Match)</th>
+                            <th class="p-4 font-bold border-b">Comentarios</th>
+                            <th class="p-4 font-bold text-center border-b">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaPedidos" class="divide-y divide-gray-100">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDetalle" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden transform transition-all">
+            <div class="bg-slate-800 p-5 flex justify-between items-center">
+                <h3 class="text-white font-bold text-xl flex items-center gap-2"><i data-lucide="microscope" class="w-6 h-6"></i> Análisis de Partidas | Pedido <span id="modalPedidoNum" class="text-indigo-400"></span></h3>
+                <button onclick="cerrarModal()" class="text-slate-400 hover:text-white"><i data-lucide="x-circle" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 gap-4 mb-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">
+                    <div class="bg-slate-50 p-3 rounded-lg border">Facturado: <span id="modTotFac" class="text-slate-800 text-lg">0</span> pzas</div>
+                    <div class="bg-slate-50 p-3 rounded-lg border">Entregado: <span id="modTotEnt" class="text-slate-800 text-lg">0</span> pzas</div>
+                </div>
+                <div class="max-h-96 overflow-y-auto border rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 sticky top-0">
+                            <tr>
+                                <th class="p-3 font-bold text-slate-600">Código SKU</th>
+                                <th class="p-3 font-bold text-slate-600">Desc. Factura</th>
+                                <th class="p-3 font-bold text-slate-600">Desc. Remisión</th>
+                                <th class="p-3 font-bold text-slate-600 text-center">Cant. Fac</th>
+                                <th class="p-3 font-bold text-slate-600 text-center">Cant. Rem</th>
+                                <th class="p-3 font-bold text-slate-600 text-center">Dif</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaSkus" class="divide-y">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        
+        let pedidos = JSON.parse(localStorage.getItem('pedidos_v3')) || [];
+        const SLA_HOURS = 24;
+
+        function renderizarTabla() {
+            const tbody = document.getElementById('tablaPedidos');
+            tbody.innerHTML = '';
+
+            pedidos.sort((a, b) => (b.fechaCreacion || 0) - (a.fechaCreacion || 0));
+
+            pedidos.forEach(p => {
+                const tr = document.createElement('tr');
+                
+                // --- LÓGICA DE COLOR DE FILA Y RELOJ ---
+                let relojHTML = `<span class="text-slate-300 font-bold">-</span>`;
+                let rowColorClass = 'hover:bg-slate-50/50 transition';
+
+                if(p.completado) {
+                    relojHTML = `<span class="text-green-600 font-bold text-sm"><i data-lucide="check-circle" class="w-4 h-4 inline"></i> Cerrado</span>`;
+                    
+                    if(p.totalFacturado === p.totalEntregado && p.totalFacturado > 0) {
+                        rowColorClass = 'fila-verde transition';
+                    } else {
+                        rowColorClass = 'fila-roja transition';
+                    }
+                } else if(p.fechaSalida) {
+                    relojHTML = calcularReloj(p.fechaSalida);
+                }
+                
+                tr.className = rowColorClass;
+
+                // --- LÓGICA DEL SEMÁFORO (Botón) ---
+                let badgeAuditoria = `<div class="px-3 py-1.5 rounded-lg text-xs font-bold match-pendiente inline-block w-full">Esperando Datos...</div>`;
+                
+                if (p.totalFacturado > 0 || p.totalEntregado > 0) {
+                    if (p.totalFacturado === p.totalEntregado) {
+                        badgeAuditoria = `<button onclick="verDetalle('${p.pedido}')" class="px-3 py-1.5 rounded-lg text-sm font-bold match-perfecto hover:shadow-md transition w-full shadow-sm">
+                            <i data-lucide="shield-check" class="w-4 h-4 inline mr-1"></i> ${p.totalEntregado} / ${p.totalFacturado} Perfecto
+                        </button>`;
+                    } else if (p.totalEntregado < p.totalFacturado) {
+                        badgeAuditoria = `<button onclick="verDetalle('${p.pedido}')" class="px-3 py-1.5 rounded-lg text-sm font-bold match-diferencia hover:shadow-md transition w-full shadow-sm cursor-pointer">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 inline mr-1"></i> ${p.totalEntregado} / ${p.totalFacturado} Faltante
+                        </button>`;
+                    } else {
+                        badgeAuditoria = `<button onclick="verDetalle('${p.pedido}')" class="px-3 py-1.5 rounded-lg text-sm font-bold match-excedente hover:shadow-md transition w-full shadow-sm cursor-pointer">
+                            <i data-lucide="alert-octagon" class="w-4 h-4 inline mr-1"></i> ${p.totalEntregado} / ${p.totalFacturado} Excedente
+                        </button>`;
+                    }
+                }
+
+                // Diseño dinámico para el campo "Documentos" si es Traslado a Collection
+                let badgeFacturaHTML = p.esTraslado 
+                    ? `<span class="text-purple-700 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-200">🏢 TRASLADO INT.</span>`
+                    : `<span class="${p.factura ? 'text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-200' : 'text-slate-400'}">📄 FAC: ${p.factura || 'Pendiente'}</span>`;
+
+                tr.innerHTML = `
+                    <td class="p-4 text-center">
+                        <span class="font-black text-slate-800 text-xl">#${p.pedido}</span><br>
+                        ${!p.fechaSalida ? `<button onclick="darSalida('${p.pedido}')" class="mt-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white text-xs px-3 py-1 rounded-full font-bold transition">Dar Salida</button>` : ''}
+                    </td>
+                    <td class="p-4 text-center text-lg timer-cell" data-id="${p.pedido}" data-salida="${p.fechaSalida || ''}">${relojHTML}</td>
+                    <td class="p-4">
+                        <div class="flex flex-col gap-1 text-sm font-mono">
+                            ${badgeFacturaHTML}
+                            <span class="${p.remision ? 'text-blue-700 font-bold bg-blue-50 px-2 py-1 rounded border border-blue-200' : 'text-slate-400'}">📦 REM: ${p.remision || 'Pendiente'}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">${badgeAuditoria}</td>
+                    <td class="p-4">
+                        <div class="text-sm text-slate-600 font-medium bg-white/50 p-2 rounded-lg min-h-[40px] border border-dashed flex items-center justify-between group cursor-pointer hover:bg-white transition" onclick="editarNota('${p.pedido}')">
+                            <span class="${!p.comentario ? 'italic text-slate-400' : ''}">${p.comentario || 'Clic para agregar nota...'}</span>
+                            <i data-lucide="edit-3" class="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100"></i>
+                        </div>
+                    </td>
+                    <td class="p-4 flex gap-2 justify-center">
+                        <button onclick="toggleTraslado('${p.pedido}')" title="Marcar como Traslado (Tienda Collection)" class="p-2 ${p.esTraslado ? 'text-purple-600 bg-purple-100' : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'} rounded-lg transition"><i data-lucide="store" class="w-5 h-5"></i></button>
+                        <button onclick="eliminarPedido('${p.pedido}')" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+            localStorage.setItem('pedidos_v3', JSON.stringify(pedidos));
+        }
+
+        function agregarPedido() {
+            const num = document.getElementById('inputPedido').value.trim();
+            if(!num) return;
+            if(pedidos.find(p => p.pedido === num)) return Swal.fire('Hey', 'El pedido ya está en la lista', 'info');
+            
+            pedidos.push({
+                pedido: num, fechaCreacion: Date.now(), fechaSalida: null, factura: '', remision: '',
+                comentario: '', itemsFactura: {}, itemsRemision: {}, totalFacturado: 0, totalEntregado: 0, completado: false, esTraslado: false
+            });
+            document.getElementById('inputPedido').value = '';
+            renderizarTabla();
+        }
+
+        function darSalida(id) {
+            const p = pedidos.find(x => x.pedido === id);
+            if(p) { p.fechaSalida = Date.now(); renderizarTabla(); }
+        }
+
+        // --- FUNCIÓN NUEVA: Marcar como Tienda Collection ---
+        function toggleTraslado(id) {
+            const p = pedidos.find(x => x.pedido === id);
+            if(p) {
+                p.esTraslado = !p.esTraslado;
+                if(p.esTraslado) {
+                    // Si se marca como traslado, emulamos la factura para que no estorbe
+                    p.factura = 'TRASLADO INT.';
+                    // Si ya tenía remisión, igualamos los datos automáticamente
+                    if (p.totalEntregado > 0) {
+                        p.totalFacturado = p.totalEntregado;
+                        p.itemsFactura = JSON.parse(JSON.stringify(p.itemsRemision));
+                    }
+                } else {
+                    // Si se desmarca, limpiamos la factura simulada
+                    p.factura = '';
+                    p.totalFacturado = 0;
+                    p.itemsFactura = {};
+                }
+                evaluarCompletado(p);
+                renderizarTabla();
+            }
+        }
+
+        async function editarNota(id) {
+            const p = pedidos.find(x => x.pedido === id);
+            const { value: texto } = await Swal.fire({
+                title: 'Nota de Auditoría',
+                input: 'textarea',
+                inputLabel: 'Escribe el motivo de la diferencia, rechazo o estatus:',
+                inputValue: p.comentario,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Nota',
+                confirmButtonColor: '#4f46e5'
+            });
+            if (texto !== undefined) { p.comentario = texto; renderizarTabla(); }
+        }
+
+        function eliminarPedido(id) {
+            Swal.fire({ title: '¿Borrar?', text: "Se perderá el cruce.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
+            .then(res => { if(res.isConfirmed) { pedidos = pedidos.filter(x => x.pedido !== id); renderizarTabla(); }});
+        }
+
+        function evaluarCompletado(p) {
+            // Evaluamos el cierre. Si es traslado, solo requiere la remisión. Si no, requiere ambas.
+            if(p.esTraslado && p.remision) {
+                p.completado = true;
+            } else if (!p.esTraslado && p.factura && p.remision) {
+                p.completado = true;
+            } else {
+                p.completado = false;
+            }
+        }
+
+        function extraerSKUs(texto) {
+            let items = {};
+            let total = 0;
+            const regexSKU = /\b(104\d{6}|240\d{7}|\d{9,10})\b/g; 
+            let match;
+            
+            while ((match = regexSKU.exec(texto)) !== null) {
+                let sku = match[1];
+                
+                // 🛡️ ESCUDO ANTI-BASURA DEFINITIVO:
+                if (sku.startsWith("0")) continue; 
+                if (sku.startsWith("2025") || sku.startsWith("2026") || sku.startsWith("2027")) continue; 
+                
+                let vicinity = texto.substring(Math.max(0, match.index - 30), match.index + sku.length + 80);
+                let matchDesc = vicinity.match(/TRAJE\s+[A-Z0-9\-\s]+/i);
+                let descLimpia = "Sin descripción legible";
+
+                if(matchDesc) {
+                    descLimpia = matchDesc[0];
+                    descLimpia = descLimpia.split(/\b(104\d{6}|240\d{7}|\d{9,10})\b/)[0];
+                    descLimpia = descLimpia.replace(/\s+\d*\s*(pza|H87).*/i, ''); 
+                    descLimpia = descLimpia.replace(/[^a-zA-Z0-9\-\s]/g, ' ').replace(/\s+/g, ' ').trim();
+                    descLimpia = descLimpia.replace(/\s+-\s*$/, '').replace(/\s+\d+\s*$/, '').trim();
+                    descLimpia = descLimpia.replace(/\s+-\s*$/, '').replace(/\s+\d+\s*$/, '').trim();
+
+                    if(descLimpia.length > 55) { descLimpia = descLimpia.substring(0, 55).trim(); }
+                }
+                
+                if(!items[sku]) { items[sku] = { cant: 0, desc: descLimpia }; }
+                
+                items[sku].cant += 1;
+                if(descLimpia.length > items[sku].desc.length && descLimpia !== "Sin descripción legible") {
+                    items[sku].desc = descLimpia;
+                }
+                total++;
+            }
+            return { items, total };
+        }
+
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-active'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-active'));
+        dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('drag-active'); procesarArchivos(e.dataTransfer.files); });
+        fileInput.addEventListener('change', (e) => procesarArchivos(e.target.files));
+
+        async function procesarArchivos(archivos) {
+            Swal.fire({ title: 'Analizando Partidas...', text: 'Limpiando descripciones y cruzando datos', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+            let procesados = 0;
+
+            for(let file of archivos) {
+                if(file.type !== "application/pdf") continue;
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let textoPDF = "";
+                for(let i=1; i<=pdf.numPages; i++){ textoPDF += (await (await pdf.getPage(i)).getTextContent()).items.map(it => it.str).join(" "); }
+
+                const regexPedido = /N[°ºo]?\s*de\s*Pedido\s*(\d+)/i;
+                const matchFac = textoPDF.match(/FACTURA\s*No\.\s*([A-Z0-9]+)/i);
+                const matchRem = textoPDF.match(/Remisi[oó]n\s*N[°ºo]?\s*(\d+)/i);
+                let numPedido = (textoPDF.match(regexPedido) || [])[1];
+
+                if(!numPedido && (matchFac || matchRem)) {
+                    const tipo = matchFac ? `Factura ${matchFac[1]}` : `Remisión ${matchRem[1]}`;
+                    const { value: pedManual } = await Swal.fire({ title: `${tipo} detectada`, text: 'PDF sin N° Pedido visible. Ingresa a qué pedido pertenece:', input: 'number', showCancelButton: true });
+                    if(!pedManual) continue;
+                    numPedido = pedManual;
+                }
+                
+                if(numPedido) {
+                    let p = pedidos.find(x => x.pedido === numPedido);
+                    if(!p) { p = { pedido: numPedido, fechaCreacion: Date.now(), fechaSalida: null, factura: '', remision: '', comentario: '', itemsFactura: {}, itemsRemision: {}, totalFacturado: 0, totalEntregado: 0, completado: false, esTraslado: false }; pedidos.push(p); }
+                    
+                    const extraccion = extraerSKUs(textoPDF);
+
+                    if(matchFac) { 
+                        p.factura = matchFac[1]; 
+                        p.itemsFactura = extraccion.items; 
+                        p.totalFacturado = extraccion.total;
+                        if(!p.fechaSalida) p.fechaSalida = Date.now();
+                        procesados++; 
+                    }
+                    if(matchRem) { 
+                        p.remision = matchRem[1]; 
+                        p.itemsRemision = extraccion.items;
+                        p.totalEntregado = extraccion.total;
+                        
+                        // Si era un traslado a Collection, igualamos la factura fantasma automáticamente
+                        if(p.esTraslado) {
+                            p.itemsFactura = JSON.parse(JSON.stringify(extraccion.items));
+                            p.totalFacturado = extraccion.total;
+                        }
+                        procesados++; 
+                    }
+                    evaluarCompletado(p);
+                }
+            }
+            renderizarTabla();
+            Swal.fire('Auditoría Lista', `Se procesaron ${procesados} documentos.`, 'success');
+        }
+
+        function verDetalle(id) {
+            const p = pedidos.find(x => x.pedido === id);
+            if(!p) return;
+            
+            document.getElementById('modalPedidoNum').innerText = id + (p.esTraslado ? ' (TRASLADO)' : '');
+            document.getElementById('modTotFac').innerText = p.totalFacturado;
+            document.getElementById('modTotEnt').innerText = p.totalEntregado;
+            
+            const tbody = document.getElementById('tablaSkus');
+            tbody.innerHTML = '';
+            
+            const skusUnicos = new Set([...Object.keys(p.itemsFactura), ...Object.keys(p.itemsRemision)]);
+            
+            skusUnicos.forEach(sku => {
+                const facObj = p.itemsFactura[sku] || { cant: 0, desc: '-' };
+                const remObj = p.itemsRemision[sku] || { cant: 0, desc: '-' };
+                
+                const facCant = facObj.cant;
+                const remCant = remObj.cant;
+                const dif = remCant - facCant;
+                
+                let difHtml = `<span class="text-slate-400 font-bold">-</span>`;
+                let rowBg = '';
+                
+                if(dif < 0) { difHtml = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md font-bold">${Math.abs(dif)} Falta</span>`; rowBg = 'bg-red-50/50'; }
+                else if(dif > 0) { difHtml = `<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-md font-bold">+${dif} Sobra</span>`; rowBg = 'bg-orange-50/50'; }
+                else { difHtml = `<span class="text-green-600 font-bold"><i data-lucide="check" class="w-5 h-5 inline"></i></span>`; }
+
+                let txtColorFac = 'text-slate-600';
+                let txtColorRem = 'text-slate-600';
+                if(facObj.desc !== '-' && remObj.desc !== '-' && facObj.desc.toLowerCase() !== remObj.desc.toLowerCase()) {
+                    txtColorFac = 'text-orange-600 font-bold';
+                    txtColorRem = 'text-orange-600 font-bold';
+                }
+
+                tbody.innerHTML += `
+                    <tr class="${rowBg}">
+                        <td class="p-3 font-mono font-bold text-slate-800 border-b">${sku}</td>
+                        <td class="p-3 ${txtColorFac} border-b text-xs truncate max-w-[150px]" title="${facObj.desc}">${p.esTraslado ? '(Interno)' : facObj.desc}</td>
+                        <td class="p-3 ${txtColorRem} border-b text-xs truncate max-w-[150px]" title="${remObj.desc}">${remObj.desc}</td>
+                        <td class="p-3 text-center text-slate-800 font-bold border-b bg-white/50">${facCant}</td>
+                        <td class="p-3 text-center text-slate-800 font-bold border-b bg-white/50">${remCant}</td>
+                        <td class="p-3 text-center border-b">${difHtml}</td>
+                    </tr>
+                `;
+            });
+            
+            lucide.createIcons();
+            document.getElementById('modalDetalle').classList.remove('hidden');
+        }
+
+        function cerrarModal() { document.getElementById('modalDetalle').classList.add('hidden'); }
+
+        function calcularReloj(salida) {
+            const res = salida + (SLA_HOURS * 3600 * 1000) - Date.now();
+            if(res <= 0) return `<span class="timer-red">VENCIDO</span>`;
+            const h = Math.floor(res / 3600000), m = Math.floor((res % 3600000) / 60000), s = Math.floor((res % 60000) / 1000);
+            return `<span class="${h > 12 ? 'timer-green' : 'timer-yellow'} font-mono">${h}h ${m}m ${s}s</span>`;
+        }
+        setInterval(() => {
+            document.querySelectorAll('.timer-cell').forEach(c => {
+                const s = parseInt(c.dataset.salida);
+                if(s && !c.innerHTML.includes('Cerrado')) c.innerHTML = calcularReloj(s);
+            });
+        }, 1000);
+
+        function exportarExcel() {
+            const data = pedidos.map(p => {
+                let estadoAuditoria = "Pendiente";
+                
+                // Lógica de Estado para Excel adaptada a Tienda Collection
+                if (p.esTraslado) {
+                    if (p.remision) estadoAuditoria = "Traslado Interno (Collection)";
+                    else estadoAuditoria = "Match Incompleto (Falta Remisión)";
+                } else if (p.factura && p.remision) {
+                    if (p.totalFacturado === p.totalEntregado) {
+                        estadoAuditoria = "Procesado correctamente";
+                    } else {
+                        estadoAuditoria = "Procesado con diferencias";
+                    }
+                } else if (p.totalFacturado > 0 || p.totalEntregado > 0) {
+                    estadoAuditoria = "Match Incompleto (Faltan Documentos)";
+                }
+
+                return {
+                    "Pedido": p.pedido, 
+                    "SLA Estatus": p.completado ? 'Cerrado' : 'Abierto',
+                    "Estado Auditoría": estadoAuditoria, 
+                    "Factura": p.factura, 
+                    "Remisión": p.remision, 
+                    "Pzas Facturadas": p.totalFacturado, 
+                    "Pzas Entregadas": p.totalEntregado, 
+                    "Diferencia": p.totalEntregado - p.totalFacturado, 
+                    "Comentarios": p.comentario
+                };
+            });
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Auditoria_Partidas");
+            XLSX.writeFile(wb, `Auditoria_Mercancia_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        renderizarTabla();
+    </script>
+</body>
+</html>

@@ -249,13 +249,14 @@
 
     <div id="vista-historial" class="card reveal" style="display: none;">
         <h2>Trazabilidad Global (SAP Log)</h2>
-        <input type="text" id="buscarHistorial" class="search-box" placeholder="🔍 Buscar por Folio, Modelo, Responsable o Referencia..." onkeyup="filtrarTablaInteligente('tablaHistorial', this.value)">
+        <input type="text" id="buscarHistorial" class="search-box" placeholder="🔍 Buscar por SKU, Folio, Modelo o Referencia..." onkeyup="filtrarHistorialMemoria(this.value)">
         <div style="overflow-x: auto;">
             <table id="tablaHistorial">
                 <thead><tr><th>Folio</th><th>Fecha</th><th>Tipo</th><th>Producto & Lote</th><th>Cant.</th><th>Referencia</th><th>Responsable</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
+        <div id="paginacionHistorial" style="display: flex; justify-content: center; gap: 8px; margin-top: 25px; flex-wrap: wrap; align-items: center;"></div>
     </div>
 
     <div id="vista-kardexTotal" class="card reveal" style="display: none;">
@@ -540,21 +541,23 @@
     </div>
 </div>
 <script>
-    let rawKardexData = []; 
+let rawKardexData = []; 
     let kardexAgrupado = {}; 
     let datosMasivosGlobales = null; 
     let activeSelection = null; 
     let rawHistorialData = []; 
 
-    // VARIABLES PARA OPTIMIZACIÓN KARDEX TOTAL
-    let trazabilidadList = []; 
-    let trazabilidadFiltrada = []; 
-    let ktCurrentPage = 1;
-    const ktItemsPerPage = 50;
-    let kardexTotalGenerado = false; 
+    // VARIABLES PARA OPTIMIZACIÓN BITÁCORA GENERAL (HISTORIAL)
+    let historialFiltrado = [];
+    let histCurrentPage = 1;
+    const histItemsPerPage = 40;
 
-    // VARIABLES CARRITO PRÉSTAMOS
-    let carritoPrestamos = [];
+// VARIABLES PARA OPTIMIZACIÓN KARDEX TOTAL
+    let trazabilidadList = []; 
+    let trazabilidadFiltrada = [];
+    let ktCurrentPage = 1;              
+    const ktItemsPerPage = 40;          
+    let kardexTotalGenerado = false;    
 
     // ==========================================
     // NUEVAS VARIABLES: CARRITO DEVOLUCIONES
@@ -586,9 +589,27 @@
 
     function filtrarTablaInteligente(id, texto){
         const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
-        document.querySelectorAll(`#${id} tbody tr`).forEach(r => {
+        const textoLimpio = texto.trim().toLowerCase();
+        const filas = document.querySelectorAll(`#${id} tbody tr`);
+        
+        let hayMatchExactoGlobal = false;
+        
+        // Primera pasada: detectar si hay un SKU o palabra exacta
+        filas.forEach(r => {
+            if(r.innerText.toLowerCase().split(/\s+/).includes(textoLimpio)) hayMatchExactoGlobal = true;
+        });
+
+        filas.forEach(r => {
             const rowText = r.innerText.toLowerCase();
-            const coincide = terminos.every(term => rowText.includes(term));
+            let coincide = false;
+            
+            if (hayMatchExactoGlobal && textoLimpio.length > 0) {
+                // Modo estricto: Solo muestra la coincidencia exacta (SKU)
+                coincide = rowText.split(/\s+/).includes(textoLimpio);
+            } else {
+                // Modo normal: Muestra si contiene el texto
+                coincide = terminos.every(term => rowText.includes(term));
+            }
             r.style.display = coincide ? '' : 'none';
         });
     }
@@ -708,10 +729,10 @@
             const data = kardexAgrupado[key];
             const cntLotes = Object.keys(data.lotes).length;
             const cntTallasUnicas = [...new Set(data.tallasArray)].length;
-            const infoOculta = data.tallasArray.join(' ') + ' ' + Object.keys(data.lotes).join(' ');
+            const skusUnicos = [...new Set(Object.values(data.lotes).flat().map(i => i.sku).filter(Boolean))];
+            const infoOculta = data.tallasArray.join(' ') + ' ' + Object.keys(data.lotes).join(' ') + ' ' + skusUnicos.join(' ');
 
-            tbody.innerHTML += `
-            <tr>
+            tbody.innerHTML += `            <tr>
                 <td style="text-align: center;" onclick="event.stopPropagation()">
                     <input type="checkbox" class="chk-tabla chk-kardex-row" value="${key}">
                 </td>
@@ -915,19 +936,92 @@
     // ==========================================
     // 3. TABLAS SECUNDARIAS E HISTORIAL
     // ==========================================
-    async function cargarHistorial(){
+async function cargarHistorial(){
         const res = await fetch('/api/historial-almacen'); 
         rawHistorialData = await res.json();
-        
-        const tbody = document.querySelector('#tablaHistorial tbody'); 
-        tbody.innerHTML = '';
-        rawHistorialData.forEach(m => {
-            let color = m.tipo.includes('Entrada')?'tag-in':(m.tipo.includes('Salida')?'tag-out':(m.tipo.includes('Préstamo')?'tag-loan':(m.tipo.includes('Positivo')?'tag-in':'tag-out')));
-            tbody.innerHTML += `<tr><td><b>${m.folio}</b></td><td><small>${m.fecha}</small></td><td><span class="tag ${color}">${m.tipo}</span></td><td><b>${m.modelo}</b> (${m.talla})<br><small style="color:var(--text-muted);">Lote: ${m.lote}</small></td><td><b>${m.cantidad}</b></td><td><small>${m.referencia}</small></td><td>${m.responsable}</td></tr>`;
-        });
+        historialFiltrado = [...rawHistorialData];
+        histCurrentPage = 1;
+        renderHistorialPaginado();
 
         kardexTotalGenerado = false;
         if(document.getElementById('vista-kardexTotal').style.display === 'block') construirKardexTotalMemoria();
+    }
+
+    function renderHistorialPaginado() {
+        const tbody = document.querySelector('#tablaHistorial tbody');
+        tbody.innerHTML = '';
+        
+        const start = (histCurrentPage - 1) * histItemsPerPage;
+        const end = start + histItemsPerPage;
+        const itemsToShow = historialFiltrado.slice(start, end);
+
+        if(itemsToShow.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color:#8E8E93;">No hay registros.</td></tr>';
+            document.getElementById('paginacionHistorial').innerHTML = '';
+            return;
+        }
+
+        itemsToShow.forEach(m => {
+            let color = m.tipo.includes('Entrada')?'tag-in':(m.tipo.includes('Salida')?'tag-out':(m.tipo.includes('Préstamo')?'tag-loan':(m.tipo.includes('Positivo')?'tag-in':'tag-out')));
+            let skuOculto = m.sku ? `<span style="display:none;">${m.sku}</span>` : '';
+            
+            tbody.innerHTML += `<tr><td><b>${m.folio}</b></td><td><small>${m.fecha}</small></td><td><span class="tag ${color}">${m.tipo}</span></td><td><b>${m.modelo}</b> (${m.talla}) ${skuOculto}<br><small style="color:var(--text-muted);">Lote: ${m.lote}</small></td><td><b>${m.cantidad}</b></td><td><small>${m.referencia}</small></td><td>${m.responsable}</td></tr>`;
+        });
+
+        renderPaginacionHistorial();
+    }
+
+    function renderPaginacionHistorial() {
+        const container = document.getElementById('paginacionHistorial');
+        container.innerHTML = '';
+        const totalPages = Math.ceil(historialFiltrado.length / histItemsPerPage);
+        
+        if (totalPages <= 1) return;
+
+        let html = `<div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 13px; font-weight: 600; margin-bottom: 10px;">Mostrando ${historialFiltrado.length} resultados</div>`;
+        if (histCurrentPage > 1) html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaHist(${histCurrentPage - 1})">◀ Ant</button>`;
+
+        let startPage = Math.max(1, histCurrentPage - 2);
+        let endPage = Math.min(totalPages, histCurrentPage + 2);
+
+        if (startPage > 1) html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaHist(1)">1</button>${startPage > 2 ? '<span style="color:var(--text-muted); padding:0 5px;">...</span>' : ''}`;
+
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === histCurrentPage) html += `<button class="btn btn-navy btn-page">${i}</button>`;
+            else html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaHist(${i})">${i}</button>`;
+        }
+
+        if (endPage < totalPages) html += `${endPage < totalPages - 1 ? '<span style="color:var(--text-muted); padding:0 5px;">...</span>' : ''}<button class="btn btn-outline btn-page" onclick="cambiarPaginaHist(${totalPages})">${totalPages}</button>`;
+
+        if (histCurrentPage < totalPages) html += `<button class="btn btn-outline btn-page" onclick="cambiarPaginaHist(${histCurrentPage + 1})">Sig ▶</button>`;
+
+        container.innerHTML = html;
+    }
+
+    function cambiarPaginaHist(page) {
+        histCurrentPage = page;
+        renderHistorialPaginado();
+    }
+
+    function filtrarHistorialMemoria(texto) {
+        const terminos = texto.toLowerCase().trim().split(' ').filter(t => t !== '');
+        const textoLimpio = texto.trim().toLowerCase();
+
+        const hayMatchExactoGlobal = rawHistorialData.some(m => {
+            const str = `${m.folio} ${m.modelo} ${m.talla} ${m.lote} ${m.referencia} ${m.responsable} ${m.sku || ''}`.toLowerCase();
+            return str.split(/\s+/).includes(textoLimpio);
+        });
+
+        historialFiltrado = rawHistorialData.filter(m => {
+            const strBusqueda = `${m.folio} ${m.modelo} ${m.talla} ${m.lote} ${m.referencia} ${m.responsable} ${m.sku || ''}`.toLowerCase();
+            
+            if (hayMatchExactoGlobal && textoLimpio.length > 0) {
+                return strBusqueda.split(/\s+/).includes(textoLimpio);
+            }
+            return terminos.every(term => strBusqueda.includes(term));
+        });
+        histCurrentPage = 1;
+        renderHistorialPaginado();
     }
 
     async function cargarPrestamos(){
@@ -1375,17 +1469,24 @@
 
     function filtrarKardexTotalMemoria(texto) {
         const terminos = texto.toLowerCase().split(' ').filter(t => t.trim() !== '');
+        const textoLimpio = texto.trim().toLowerCase();
+
+        const hayMatchExactoGlobal = trazabilidadList.some(item => {
+            const str = `${item.modelo} ${item.color} ${item.talla} ${item.sku || ''}`.toLowerCase();
+            return str.split(/\s+/).includes(textoLimpio);
+        });
         
         trazabilidadFiltrada = trazabilidadList.filter(item => {
-            // Buscamos ahora también por el SKU
             const strBusqueda = `${item.modelo} ${item.color} ${item.talla} ${item.sku || ''}`.toLowerCase();
+            if(hayMatchExactoGlobal && textoLimpio.length > 0) {
+                return strBusqueda.split(/\s+/).includes(textoLimpio);
+            }
             return terminos.every(term => strBusqueda.includes(term));
         });
 
         ktCurrentPage = 1;
         renderKardexTotalPaginado();
     }
-
     // === ACTUALIZACIÓN: SKUS EN EL EXCEL DE TRAZABILIDAD INDIVIDUAL ===
     async function descargarTrazabilidadExcel(key) {
         const hRes = await fetch(`/api/historial-almacen?llave=${key}`);
@@ -1864,13 +1965,13 @@
         XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
     }
 
-    async function descargarStockExcel(){
+async function descargarStockExcel(){
         if(rawKardexData.length === 0) return showToast("No hay stock para descargar.", "warning");
         showToast("Generando Excel...", "info");
         const ws = XLSX.utils.json_to_sheet(rawKardexData.map(k => ({
             "SKU": k.sku || "N/A",
-            "Llave Sistema": k.llave, "Modelo": k.modelo, "Color": k.color, "Talla": k.talla,
-            "Lote": k.lote, "Cantidad Fija": k.cantidad, "Última Modificación": k.ultimaActualizacion
+            "Modelo": k.modelo, "Color": k.color, "Talla": k.talla,
+            "Lote": k.lote, "Cantidad Fija": k.cantidad
         })));
         const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "StockKardex");
         XLSX.writeFile(wb, `Stock_Kardex_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
@@ -2059,7 +2160,13 @@
     }
     
     // Init General
-    window.onload = () => { cargarKardex(); cargarHistorial(); cargarPrestamos(); setInterval(cargarPedidosWMS, 20000); };
+    window.onload = () => { 
+    cargarKardex(); 
+    cargarHistorial(); 
+    cargarPrestamos(); 
+    cargarPedidosWMS(); // <-- Llama a la función inmediatamente al abrir
+    setInterval(cargarPedidosWMS, 20000); 
+};
 </script>
 </body>
 </html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conciliador Maestro V3.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a; 
+            --secondary: #3b82f6;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #1f2937;
+            --danger: #fee2e2;
+            --danger-text: #b91c1c;
+            --success: #dcfce7;
+            --success-text: #15803d;
+            --warning: #fef3c7;
+            --warning-text: #b45309;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1300px; margin: 0 auto; background: var(--surface); padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary); text-align: center; border-bottom: 2px solid var(--secondary); padding-bottom: 10px; }
+        
+        /* Dashboard Stats */
+        .dashboard { display: none; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+        .stat-card { padding: 20px; border-radius: 8px; text-align: center; font-weight: bold; border: 1px solid #e5e7eb; }
+        .stat-total { background-color: #f8fafc; color: #334155; }
+        .stat-ok { background-color: var(--success); color: var(--success-text); }
+        .stat-diff { background-color: var(--danger); color: var(--danger-text); }
+        .stat-number { font-size: 2em; display: block; margin-top: 10px; }
+
+        /* Upload Grid */
+        .upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+        .upload-card { background: var(--bg); padding: 15px; border-radius: 8px; border: 2px dashed var(--secondary); text-align: center; }
+        .upload-card h3 { margin: 0 0 5px 0; color: var(--primary); }
+        .help-text { font-size: 0.75em; color: #6b7280; margin-bottom: 10px; display: block; }
+        input[type="file"] { display: block; margin: 0 auto; font-size: 13px; }
+
+        /* Controles (Buscar y Filtros) */
+        .controls { display: none; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8fafc; padding: 15px; border-radius: 8px; }
+        .search-box { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; width: 300px; font-size: 15px; }
+        .filter-btns button { padding: 8px 15px; margin-left: 5px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-all { background: var(--secondary); color: white; }
+        .btn-diff { background: var(--danger-text); color: white; }
+        .btn-ok { background: var(--success-text); color: white; }
+
+        /* Botones Principales */
+        .main-btn { background-color: var(--primary); color: white; border: none; padding: 15px 24px; font-size: 18px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; }
+        .main-btn:hover { background-color: #152b65; }
+        .export-btn { background-color: #10b981; margin-top: 15px; display: none; }
+        .export-btn:hover { background-color: #059669; }
+
+        /* Tabla */
+        .table-container { overflow-x: auto; max-height: 600px; display: none; border: 1px solid #e5e7eb; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        th { background-color: var(--primary); color: white; position: sticky; top: 0; z-index: 10; }
+        td.sku { font-weight: bold; text-align: left; }
+        td.desc { text-align: left; font-size: 0.9em; color: #4b5563; }
+        .row-mismatch { background-color: var(--danger); }
+        .row-match { background-color: var(--success); }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.85em; font-weight: bold; color: white;}
+        .badge-mismatch { background: var(--danger-text); }
+        .badge-match { background: var(--success-text); }
+        .cell-na { color: #9ca3af; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Conciliador Maestro de Inventarios V3.0</h1>
+    
+    <div class="upload-grid">
+        <div class="upload-card">
+            <h3>1. OPERAM</h3>
+            <span class="help-text">Esperado: Columna C (ID de stock) | Columna F (TEORICO)</span>
+            <input type="file" id="fileOperam" accept=".csv, .xlsx, .xls">
+        </div>
+        <div class="upload-card">
+            <h3>2. Odoo</h3>
+            <span class="help-text">Esperado: Columna A (Referencia interna) | Columna C (Cantidad)</span>
+            <input type="file" id="fileOdoo" accept=".csv, .xlsx, .xls">
+        </div>
+        <div class="upload-card">
+            <h3>3. Almacén Personal</h3>
+            <span class="help-text">Esperado: Columna A (SKU) | Columna G (Cantidad Fija)</span>
+            <input type="file" id="fileAlmacen" accept=".csv, .xlsx, .xls">
+        </div>
+    </div>
+
+    <button id="btnConciliar" class="main-btn" onclick="iniciarProceso()">🔍 Cruzar Inventarios</button>
+
+    <div class="dashboard" id="dashboard">
+        <div class="stat-card stat-total">
+            Total Analizados
+            <span class="stat-number" id="countTotal">0</span>
+        </div>
+        <div class="stat-card stat-ok">
+            SKUs Cuadrados
+            <span class="stat-number" id="countOk">0</span>
+        </div>
+        <div class="stat-card stat-diff">
+            Con Diferencias
+            <span class="stat-number" id="countDiff">0</span>
+        </div>
+    </div>
+
+    <div class="controls" id="controls">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar SKU o Modelo..." onkeyup="filtrarTabla()">
+        <div class="filter-btns">
+            <button class="btn-all" onclick="aplicarFiltro('todos')">Mostrar Todos</button>
+            <button class="btn-diff" onclick="aplicarFiltro('diff')">Solo Diferencias</button>
+            <button class="btn-ok" onclick="aplicarFiltro('ok')">Solo Cuadrados</button>
+        </div>
+    </div>
+
+    <div class="table-container" id="tableContainer">
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Descripción</th>
+                    <th id="thOperam">OPERAM</th>
+                    <th id="thOdoo">Odoo</th>
+                    <th id="thAlmacen">Almacén (Tú)</th>
+                    <th>Estatus</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <button id="btnExportar" class="main-btn export-btn" onclick="exportarExcel()">📥 Exportar Diferencias a Excel</button>
+</div>
+
+<script>
+    let inventarioMaestro = {};
+    let activos = { operam: false, odoo: false, almacen: false };
+    let archivosPendientes = 0;
+    let filtroActual = 'todos';
+
+    function leerArchivoExcel(file, callback) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let data = new Uint8Array(e.target.result);
+            let workbook = XLSX.read(data, {type: 'array'});
+            let firstSheet = workbook.SheetNames[0];
+            let jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {header: 1, defval: ""});
+            callback(jsonData);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function registrarSKU(sku, descripcion) {
+        if (!sku || sku.toString().trim() === "" || sku.toString().trim() === "N/A" || sku === "ID de stock" || sku === "Referencia interna") return false;
+        let skuLimpio = sku.toString().trim();
+        
+        if (!inventarioMaestro[skuLimpio]) {
+            // Si el archivo no se subió, su valor es null. Si se subió, empieza en 0.
+            inventarioMaestro[skuLimpio] = {
+                desc: descripcion || "Sin descripción",
+                operam: activos.operam ? 0 : null,
+                odoo: activos.odoo ? 0 : null,
+                almacen: activos.almacen ? 0 : null
+            };
+        } else if (descripcion && inventarioMaestro[skuLimpio].desc === "Sin descripción") {
+            inventarioMaestro[skuLimpio].desc = descripcion;
+        }
+        return skuLimpio;
+    }
+
+    function esArchivoValido(data, keyword) {
+        // Busca una palabra clave en las primeras 15 filas para evitar cruces erróneos
+        for(let i=0; i < Math.min(15, data.length); i++) {
+            if(data[i].join("").includes(keyword)) return true;
+        }
+        return false;
+    }
+
+    function procesarOperam(data) {
+        if(!esArchivoValido(data, "TEORICO") && !esArchivoValido(data, "ID de stock")) {
+            alert("⚠️ ERROR: El archivo en el cajón 1 no parece ser de OPERAM. Verifica que no los hayas intercambiado.");
+            reiniciarUI(); return;
+        }
+        let startRow = 0;
+        for (let i = 0; i < data.length; i++) { if (data[i][2] === "ID de stock") { startRow = i + 1; break; } }
+        for (let i = startRow; i < data.length; i++) {
+            if (!data[i] || data[i].length < 6) continue;
+            let sku = data[i][2]; let desc = data[i][3]; let qty = parseFloat(data[i][5]) || 0;
+            let skuKey = registrarSKU(sku, desc);
+            if (skuKey) inventarioMaestro[skuKey].operam += qty;
+        }
+        verificarProgreso();
+    }
+
+    function procesarOdoo(data) {
+        if(!esArchivoValido(data, "Referencia interna")) {
+            alert("⚠️ ERROR: El archivo en el cajón 2 no parece ser de Odoo. Verifica que no los hayas intercambiado.");
+            reiniciarUI(); return;
+        }
+        for (let i = 1; i < data.length; i++) {
+            if (!data[i] || data[i].length < 3) continue;
+            let sku = data[i][0]; let desc = data[i][1]; let qty = parseFloat(data[i][2]) || 0;
+            let skuKey = registrarSKU(sku, desc);
+            if (skuKey) inventarioMaestro[skuKey].odoo += qty;
+        }
+        verificarProgreso();
+    }
+
+    function procesarAlmacen(data) {
+        if(!esArchivoValido(data, "Cantidad Fija") && !esArchivoValido(data, "Llave Sistema")) {
+            alert("⚠️ ERROR: El archivo en el cajón 3 no parece ser de tu Almacén Personal. Verifica que no los hayas intercambiado.");
+            reiniciarUI(); return;
+        }
+        for (let i = 1; i < data.length; i++) {
+            if (!data[i] || data[i].length < 7) continue;
+            let sku = data[i][0]; let desc = data[i][2] + " " + data[i][3] + " " + data[i][4]; let qty = parseFloat(data[i][6]) || 0;
+            let skuKey = registrarSKU(sku, desc);
+            if (skuKey) inventarioMaestro[skuKey].almacen += qty;
+        }
+        verificarProgreso();
+    }
+
+    function reiniciarUI() {
+        document.getElementById('btnConciliar').innerText = "🔍 Cruzar Inventarios";
+        archivosPendientes = 0;
+    }
+
+    function iniciarProceso() {
+        let fileOperam = document.getElementById('fileOperam').files[0];
+        let fileOdoo = document.getElementById('fileOdoo').files[0];
+        let fileAlmacen = document.getElementById('fileAlmacen').files[0];
+
+        activos.operam = !!fileOperam;
+        activos.odoo = !!fileOdoo;
+        activos.almacen = !!fileAlmacen;
+
+        let totalSubidos = (activos.operam ? 1 : 0) + (activos.odoo ? 1 : 0) + (activos.almacen ? 1 : 0);
+
+        if (totalSubidos < 2) {
+            alert("Para hacer un cruce, necesitas subir al menos 2 archivos (Ej. Odoo y Almacén).");
+            return;
+        }
+
+        document.getElementById('btnConciliar').innerText = "⏳ Procesando datos...";
+        inventarioMaestro = {};
+        archivosPendientes = totalSubidos;
+
+        // Visualmente oscurecemos las columnas que no se van a usar
+        document.getElementById('thOperam').style.opacity = activos.operam ? "1" : "0.4";
+        document.getElementById('thOdoo').style.opacity = activos.odoo ? "1" : "0.4";
+        document.getElementById('thAlmacen').style.opacity = activos.almacen ? "1" : "0.4";
+
+        if(activos.operam) leerArchivoExcel(fileOperam, procesarOperam);
+        if(activos.odoo) leerArchivoExcel(fileOdoo, procesarOdoo);
+        if(activos.almacen) leerArchivoExcel(fileAlmacen, procesarAlmacen);
+    }
+
+    function verificarProgreso() {
+        archivosPendientes--;
+        if (archivosPendientes === 0) {
+            dibujarTabla();
+            document.getElementById('btnConciliar').innerText = "✅ Cruce Terminado - Actualizar Nuevos Archivos";
+            document.getElementById('dashboard').style.display = 'grid';
+            document.getElementById('controls').style.display = 'flex';
+            document.getElementById('tableContainer').style.display = 'block';
+            document.getElementById('btnExportar').style.display = 'block';
+        }
+    }
+
+    function evaluarMatch(data) {
+        let valoresAnalizar = [];
+        if(activos.operam) valoresAnalizar.push(data.operam);
+        if(activos.odoo) valoresAnalizar.push(data.odoo);
+        if(activos.almacen) valoresAnalizar.push(data.almacen);
+        
+        // Compara si todos los valores recolectados son exactamente iguales al primero
+        return valoresAnalizar.every(v => v === valoresAnalizar[0]);
+    }
+
+    function dibujarTabla() {
+        let tbody = document.getElementById('tableBody');
+        tbody.innerHTML = "";
+        
+        let conteoOk = 0; let conteoDiff = 0; let conteoTotal = 0;
+        let skus = Object.keys(inventarioMaestro).sort();
+
+        skus.forEach(sku => {
+            let data = inventarioMaestro[sku];
+            let isMatch = evaluarMatch(data);
+            
+            conteoTotal++;
+            if(isMatch) conteoOk++; else conteoDiff++;
+
+            let tr = document.createElement('tr');
+            tr.className = isMatch ? "row-match item-row" : "row-mismatch item-row";
+            tr.setAttribute("data-status", isMatch ? "ok" : "diff");
+
+            let statusHtml = isMatch 
+                ? '<span class="status-badge badge-match">OK</span>' 
+                : '<span class="status-badge badge-mismatch">DIFERENCIA</span>';
+
+            let valOp = data.operam !== null ? data.operam : '<span class="cell-na">-</span>';
+            let valOd = data.odoo !== null ? data.odoo : '<span class="cell-na">-</span>';
+            let valAl = data.almacen !== null ? data.almacen : '<span class="cell-na">-</span>';
+
+            tr.innerHTML = `
+                <td class="sku">${sku}</td>
+                <td class="desc">${data.desc}</td>
+                <td>${valOp}</td>
+                <td>${valOd}</td>
+                <td>${valAl}</td>
+                <td>${statusHtml}</td>
+            `;
+            
+            if(isMatch) tbody.appendChild(tr); else tbody.insertBefore(tr, tbody.firstChild); 
+        });
+
+        document.getElementById('countTotal').innerText = conteoTotal;
+        document.getElementById('countOk').innerText = conteoOk;
+        document.getElementById('countDiff').innerText = conteoDiff;
+    }
+
+    function aplicarFiltro(tipo) {
+        filtroActual = tipo;
+        let filas = document.querySelectorAll('.item-row');
+        filas.forEach(fila => {
+            let status = fila.getAttribute("data-status");
+            if(tipo === 'todos') fila.style.display = '';
+            else if(tipo === 'diff' && status === 'diff') fila.style.display = '';
+            else if(tipo === 'ok' && status === 'ok') fila.style.display = '';
+            else fila.style.display = 'none';
+        });
+        // Limpiar búsqueda al usar botones
+        document.getElementById('searchInput').value = "";
+    }
+
+    function filtrarTabla() {
+        let input = document.getElementById('searchInput').value.toLowerCase();
+        let filas = document.querySelectorAll('.item-row');
+        
+        filas.forEach(fila => {
+            let textoFila = fila.innerText.toLowerCase();
+            let status = fila.getAttribute("data-status");
+            
+            let cumpleFiltroStatus = (filtroActual === 'todos') || (filtroActual === status);
+            let cumpleBusqueda = textoFila.includes(input);
+
+            if (cumpleFiltroStatus && cumpleBusqueda) {
+                fila.style.display = '';
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+    }
+
+    function exportarExcel() {
+        let fecha = new Date();
+        let fechaStr = fecha.toISOString().split('T')[0] + "_" + fecha.getHours() + fecha.getMinutes();
+        
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+        csvContent += "SKU,Descripcion,OPERAM,Odoo,Almacen,Estatus\n";
+        
+        let skus = Object.keys(inventarioMaestro);
+        skus.forEach(sku => {
+            let data = inventarioMaestro[sku];
+            let isMatch = evaluarMatch(data);
+            let status = isMatch ? "OK" : "DIFERENCIA";
+            
+            let safeDesc = data.desc.replace(/,/g, " "); 
+            let vOp = data.operam !== null ? data.operam : "N/A";
+            let vOd = data.odoo !== null ? data.odoo : "N/A";
+            let vAl = data.almacen !== null ? data.almacen : "N/A";
+            
+            let row = `${sku},${safeDesc},${vOp},${vOd},${vAl},${status}`;
+            csvContent += row + "\n";
+        });
+
+        let encodedUri = encodeURI(csvContent);
+        let link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Auditoria_Inventario_${fechaStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
