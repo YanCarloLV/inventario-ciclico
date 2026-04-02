@@ -530,7 +530,7 @@
         }
     }
 
-    // Renderizar tarjetas en la cuadrícula (ACTUALIZADO CON BÚSQUEDA INTELIGENTE)
+// Renderizar tarjetas en la cuadrícula (ACTUALIZADO CON BÚSQUEDA INTELIGENTE Y SKU)
     function renderCatalogo(filtro = '') {
         const grid = document.getElementById('catalogo-grid');
         grid.innerHTML = '';
@@ -539,12 +539,10 @@
         const terminos = filtro.toLowerCase().trim().split(/\s+/);
 
         const filtrados = stockGlobal.filter(p => {
-            const strBusqueda = `${p.modelo} ${p.color} ${p.talla}`.toLowerCase();
+            // 🚀 MAGIA: Se agrega p.sku al string de búsqueda invisible
+            const strBusqueda = `${p.modelo} ${p.color} ${p.talla} ${p.sku || ''}`.toLowerCase();
             
-            // Si no escribió nada, lo mostramos todo
             if (terminos.length === 1 && terminos[0] === "") return true;
-
-            // Verificar que TODAS las palabras buscadas existan en alguna parte del producto
             return terminos.every(termino => strBusqueda.includes(termino));
         });
 
@@ -564,7 +562,6 @@
                 claseStock = 'stock-bajo'; textoStock = `¡Solo ${p.cantidad}!`;
             }
 
-            // Validar si ya está en el carrito para deshabilitar botón temporalmente o cambiar texto
             const enCarrito = carritoPedidos.find(c => c.modelo === p.modelo && c.color === p.color && c.talla === p.talla);
             let btnTexto = "➕ Agregar";
             if(enCarrito) {
@@ -572,15 +569,21 @@
                 btnTexto = "✔ En Carrito";
             }
 
+            // 🏷️ PASTILLA VISUAL DEL SKU EN EL CATÁLOGO
+            const badgeSku = p.sku 
+                ? `<div style="font-size:11px; color:#8E8E93; background:#F2F2F7; display:inline-block; padding:2px 6px; border-radius:4px; margin-bottom:8px; font-weight:700;">SKU: ${p.sku}</div>` 
+                : '';
+
             const card = document.createElement('div');
             card.className = 'producto-card';
             card.innerHTML = `
                 <div>
                     <h3 class="p-modelo">${p.modelo}</h3>
+                    ${badgeSku}
                     <p class="p-detalles">${p.color} | Talla: <b style="color:var(--brand-navy); font-size:14px;">${p.talla}</b></p>
                     <div class="p-stock ${claseStock}">${textoStock}</div>
                 </div>
-                <button class="btn-add-cart" ${disableBtn} onclick="agregarAlCarrito('${p.modelo}', '${p.color}', '${p.talla}', ${p.cantidad})">${btnTexto}</button>
+                <button class="btn-add-cart" ${disableBtn} onclick="agregarAlCarrito('${p.modelo}', '${p.color}', '${p.talla}', ${p.cantidad}, '${p.sku || ''}')">${btnTexto}</button>
             `;
             grid.appendChild(card);
         });
@@ -591,8 +594,8 @@
         renderCatalogo(texto);
     }
 
-    // Lógica del Carrito
-    function agregarAlCarrito(modelo, color, talla, maxStock) {
+    // Lógica del Carrito (AHORA RECIBE EL SKU)
+    function agregarAlCarrito(modelo, color, talla, maxStock, sku = '') {
         const index = carritoPedidos.findIndex(c => c.modelo === modelo && c.color === color && c.talla === talla);
         
         if(index > -1) {
@@ -602,11 +605,12 @@
                 showToast(`No hay más stock disponible de ${modelo} - ${talla}`, "warning");
             }
         } else {
-            carritoPedidos.push({ modelo, color, talla, cant: 1, maxStock });
+            // Guardamos el SKU en el carrito
+            carritoPedidos.push({ modelo, color, talla, cant: 1, maxStock, sku });
         }
         
         renderCarrito();
-        renderCatalogo(document.getElementById('buscador-catalogo').value); // Actualiza estado de botones
+        renderCatalogo(document.getElementById('buscador-catalogo').value); 
     }
 
     function eliminarDelCarrito(index) {
@@ -650,10 +654,15 @@
 
         carritoPedidos.forEach((item, index) => {
             totalPz += item.cant;
+            
+            // 🏷️ MOSTRAMOS EL SKU DEBAJO DEL MODELO EN EL CARRITO
+            const cartSkuHtml = item.sku ? `<div style="font-size:11px; color:#8E8E93; font-weight:700; margin-bottom:2px;">SKU: ${item.sku}</div>` : '';
+
             cartList.innerHTML += `
                 <div class="cart-item">
                     <div class="cart-info">
                         <b>${item.modelo}</b>
+                        ${cartSkuHtml}
                         <div>${item.color} | Talla: <span style="color:var(--brand-orange)">${item.talla}</span></div>
                     </div>
                     <div class="cart-controls">
@@ -667,7 +676,7 @@
         totalLbl.innerText = totalPz;
     }
 
-    // 🔔 LÓGICA DE WEB PUSH INTEGRADA AQUÍ
+    // 🔔 LÓGICA DE WEB PUSH INTEGRADA Y ENVÍO DE SKU AL WMS
     async function lanzarPedidoCart() {
         if(carritoPedidos.length === 0) return showToast("El carrito está vacío.", "warning");
         
@@ -680,14 +689,14 @@
         const btn = document.getElementById('btn-lanzar-pedido');
         btn.innerHTML = "⌛ Enviando..."; btn.disabled = true;
 
-        // Formatear items para el backend
+        // Formatear items para el backend (AHORA INCLUYE EL SKU REAL)
         const itemsParaWMS = carritoPedidos.map(c => ({
             modelo: c.modelo,
             color: c.color,
             talla: c.talla,
             cantidadSolicitada: c.cant,
             surtido: 0,
-            sku: ""
+            sku: c.sku || "" // 🚀 El SKU viaja a la base de datos
         }));
 
         const payload = {
