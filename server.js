@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.8 (Integración WMS, Web Push, Seguridad de Lotes, Etiquetado y SKUs)
+// server.js - Versión 6.9 (SKUs persistentes, sin borrado en 0)
 // ==========================================
 
 const express = require('express');
@@ -211,7 +211,7 @@ app.get('/api/stock-general', async (req, res) => {
                 $group: {
                     _id: { modelo: "$modelo", color: "$color", talla: "$talla" },
                     cantidad: { $sum: "$cantidad" },
-                    sku: { $first: "$sku" } // 🚀 AQUI AGREGAMOS EL SKU AL GROUP
+                    sku: { $first: "$sku" } // 🚀 AGREGAMOS EL SKU AL GROUP
                 }
             },
             {
@@ -221,7 +221,7 @@ app.get('/api/stock-general', async (req, res) => {
                     color: "$_id.color",
                     talla: "$_id.talla",
                     cantidad: 1,
-                    sku: 1 // 🚀 AQUI LE DECIMOS QUE SÍ LO ENVÍE AL HTML
+                    sku: 1 // 🚀 ENVIAMOS EL SKU AL HTML
                 }
             }
         ]);
@@ -305,8 +305,8 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
                 if (kardexItem) {
                     kardexItem.cantidad -= cantSurtida;
                     kardexItem.ultimaActualizacion = fechaMty;
-                    if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); 
-                    else await kardexItem.save();
+                    // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
+                    await kardexItem.save();
                 }
 
                 if (docTeorico) {
@@ -487,8 +487,8 @@ app.post('/api/movimiento', async (req, res) => {
         } else if (tipo === 'Salida' || tipo === 'Ajuste Negativo' || tipo === 'Préstamo') {
             if (!kardexItem || kardexItem.cantidad < cantFloat) return res.status(400).json({ error: "Stock insuficiente en el lote especificado." });
             kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-            if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); 
-            else await kardexItem.save();
+            // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
+            await kardexItem.save();
             let nuevoTeorico = actualTeorico - cantFloat; 
             docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
         }
@@ -549,8 +549,8 @@ app.post('/api/movimiento-masivo', async (req, res) => {
             } else if (tipo.includes('Salida')) {
                 if (!kardexItem || kardexItem.cantidad < cantFloat) { errores.push(`Sin stock: ${llave} en Lote: ${loteSeguro}`); continue; }
                 kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-                if (kardexItem.cantidad <= 0) await Kardex.findByIdAndDelete(kardexItem._id); 
-                else await kardexItem.save();
+                // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
+                await kardexItem.save();
                 let nuevoTeorico = actualTeorico - cantFloat; 
                 docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
                 await nuevoMov.save(); procesados++;
