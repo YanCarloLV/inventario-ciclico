@@ -1,17 +1,22 @@
 // ==========================================
-// server.js - Versión 6.9 (SKUs persistentes, sin borrado en 0)
+// server.js - Versión 7.0 (Integración con Victoria - Gemini AI)
 // ==========================================
 
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const webpush = require('web-push'); // 🔔 LIBRERÍA PARA NOTIFICACIONES
+const { GoogleGenerativeAI } = require('@google/generative-ai'); // 🤖 LIBRERÍA PARA GEMINI AI
 
 const app = express();
 const PORT = process.env.PORT || 10000; 
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// --- 🤖 CONFIGURACIÓN DE VICTORIA (GEMINI AI) ---
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyChgaHjKI3smKwkjuq9cEHOToFwq0f3o0M';
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // --- 🔔 CONFIGURACIÓN DE NOTIFICACIONES PUSH (VAPID KEYS) ---
 const publicVapidKey = process.env.PUBLIC_VAPID_KEY || 'Reemplaza_Esto_Con_Tu_Clave_Publica';
@@ -70,7 +75,6 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // 3. MODELOS DE ALMACÉN, WMS PEDIDOS, PUSH Y ETIQUETADO
 // ==========================================
 
-// --- NUEVO ESQUEMA: PROYECTO DE ETIQUETADO EN NUBE ---
 const EtiquetadoSchema = new mongoose.Schema({
     idProyecto: { type: String, default: "global" },
     datos: { type: Array, default: [] }
@@ -84,7 +88,6 @@ const SuscripcionPushSchema = new mongoose.Schema({
 });
 const SuscripcionPush = mongoose.model('SuscripcionPush', SuscripcionPushSchema);
 
-// ACTUALIZACIÓN: Se agregó el campo sku al Kardex
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
     cantidad: { type: Number, default: 0 }, ultimaActualizacion: String,
@@ -125,6 +128,54 @@ const PedidoSchema = new mongoose.Schema({
     }]
 });
 const Pedido = mongoose.model('Pedido', PedidoSchema);
+
+
+// ==========================================
+// 🤖 ENDPOINT DE VICTORIA AI (GEMINI)
+// ==========================================
+app.post('/api/victoria-chat', async (req, res) => {
+    try {
+        const { pregunta, contextoKardex } = req.body;
+
+        // Validar que exista la pregunta
+        if (!pregunta) {
+            return res.status(400).json({ respuesta: "Por favor, hazme una pregunta." });
+        }
+
+        // Configurar el modelo de Gemini (usamos flash por ser rápido y eficiente)
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // Construir el prompt de sistema dándole personalidad a Victoria y el contexto del Kardex
+        const prompt = `
+        Eres Victoria, una asistente virtual amigable, profesional y supereficiente diseñada para ayudar a los operadores y supervisores del sistema WMS (Warehouse Management System).
+        Tu tono debe ser resolutivo, amable y directo.
+        
+        A continuación, te proporciono los datos en tiempo real del Kardex (inventario actual):
+        ${JSON.stringify(contextoKardex)}
+
+        El usuario te hace la siguiente pregunta o petición: "${pregunta}"
+        
+        Instrucciones:
+        1. Responde a la pregunta basándote ÚNICAMENTE en la información del Kardex proporcionada.
+        2. Si te preguntan por stock de un modelo, suma las piezas si están en diferentes lotes y da un total claro.
+        3. Si la información solicitada no está en el contexto del Kardex, indica amablemente que no tienes esos datos en este momento.
+        4. Mantén tus respuestas concisas, fáciles de leer y profesionales. Puedes usar emojis relacionados al almacén (📦, 👔, 🔍).
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const textoRespuesta = response.text();
+
+        // Devolvemos el JSON exacto que espera tu frontend almacen.html
+        res.json({ respuesta: textoRespuesta });
+
+    } catch (error) {
+        console.error("Error en Victoria AI:", error);
+        res.status(500).json({ 
+            respuesta: "Ups, tuve un problema de conexión con mi núcleo de procesamiento. Por favor, intenta de nuevo en un momento. 🔌" 
+        });
+    }
+});
 
 
 // ==========================================
@@ -211,7 +262,7 @@ app.get('/api/stock-general', async (req, res) => {
                 $group: {
                     _id: { modelo: "$modelo", color: "$color", talla: "$talla" },
                     cantidad: { $sum: "$cantidad" },
-                    sku: { $first: "$sku" } // 🚀 AGREGAMOS EL SKU AL GROUP
+                    sku: { $first: "$sku" }
                 }
             },
             {
@@ -221,7 +272,7 @@ app.get('/api/stock-general', async (req, res) => {
                     color: "$_id.color",
                     talla: "$_id.talla",
                     cantidad: 1,
-                    sku: 1 // 🚀 ENVIAMOS EL SKU AL HTML
+                    sku: 1
                 }
             }
         ]);
@@ -258,7 +309,6 @@ app.post('/api/actualizar-pedido', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛡️ CANDADO DE SEGURIDAD WMS IMPLEMENTADO AQUÍ 🛡️
 app.post('/api/finalizar-pedido-wms', async (req, res) => {
     try {
         const { folio, items, operador } = req.body;
@@ -305,7 +355,6 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
                 if (kardexItem) {
                     kardexItem.cantidad -= cantSurtida;
                     kardexItem.ultimaActualizacion = fechaMty;
-                    // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
                     await kardexItem.save();
                 }
 
@@ -407,7 +456,6 @@ app.delete('/api/eliminar-todos-finalizados', async (req, res) => {
 // ENDPOINTS DE ALMACÉN (KARDEX VIVO)
 // ==========================================
 
-// ACTUALIZACIÓN: Nuevo Endpoint de subida de SKUs
 app.post('/api/cargar-skus', async (req, res) => {
     try {
         const { skus } = req.body;
@@ -415,7 +463,6 @@ app.post('/api/cargar-skus', async (req, res) => {
             return res.status(400).json({ error: "Datos inválidos. Se esperaba un arreglo de SKUs." });
         }
 
-        // Usamos bulkWrite para actualizar todos los registros rápidamente
         let bulkOps = skus.map(item => ({
             updateMany: {
                 filter: { llave: item.llave },
@@ -451,12 +498,10 @@ app.get('/api/prestamos', async (req, res) => {
     try { res.json(await Prestamo.find({ estatus: "Activo" }).sort({ _id: -1 })); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛡️ CANDADO DE LOTES: MOVIMIENTO INDIVIDUAL
 app.post('/api/movimiento', async (req, res) => {
     try {
         const { tipo, modelo, color, talla, lote, cantidad, referencia, responsable } = req.body;
         
-        // PADLOCK: Normalización estricta de todos los campos para evitar clones
         const modSeguro = modelo ? modelo.trim().toUpperCase() : '';
         const colSeguro = color ? color.trim().toUpperCase() : '';
         const talSeguro = talla ? talla.trim().toUpperCase() : '';
@@ -487,7 +532,6 @@ app.post('/api/movimiento', async (req, res) => {
         } else if (tipo === 'Salida' || tipo === 'Ajuste Negativo' || tipo === 'Préstamo') {
             if (!kardexItem || kardexItem.cantidad < cantFloat) return res.status(400).json({ error: "Stock insuficiente en el lote especificado." });
             kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-            // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
             await kardexItem.save();
             let nuevoTeorico = actualTeorico - cantFloat; 
             docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
@@ -507,12 +551,10 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 🛡️ CANDADO DE LOTES: MOVIMIENTO MASIVO (CARGA Y DEVOLUCIONES)
 app.post('/api/movimiento-masivo', async (req, res) => {
     try {
         const { tipo, loteGlobal, referenciaGlobal, responsable, items } = req.body;
         
-        // PADLOCK GLOBAL: El lote se convierte estrictamente a mayúsculas y sin espacios
         const loteSeguro = loteGlobal ? loteGlobal.trim().toUpperCase() : 'GENERAL';
 
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
@@ -549,7 +591,6 @@ app.post('/api/movimiento-masivo', async (req, res) => {
             } else if (tipo.includes('Salida')) {
                 if (!kardexItem || kardexItem.cantidad < cantFloat) { errores.push(`Sin stock: ${llave} en Lote: ${loteSeguro}`); continue; }
                 kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-                // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
                 await kardexItem.save();
                 let nuevoTeorico = actualTeorico - cantFloat; 
                 docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
@@ -561,9 +602,6 @@ app.post('/api/movimiento-masivo', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// ==========================================
-// ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO (MODO INTELIGENTE)
-// ==========================================
 app.post('/api/renombrar-producto', async (req, res) => {
     try {
         const { modeloViejo, colorViejo, tallaVieja, modeloNuevo, colorNuevo } = req.body;
@@ -580,11 +618,9 @@ app.post('/api/renombrar-producto', async (req, res) => {
         let filtro = { modelo: modV, color: colV };
         if (talV) filtro.talla = talV;
 
-        // 1. Actualizar Kardex con FUSIÓN DE DUPLICADOS
         const kardexItems = await Kardex.find(filtro);
         for(let item of kardexItems) {
             const nuevaLlave = `${modN}_${colN}_${item.talla}`;
-            
             let itemExistente = await Kardex.findOne({ llave: nuevaLlave, lote: item.lote });
             
             if (itemExistente && itemExistente._id.toString() !== item._id.toString()) {
@@ -600,7 +636,6 @@ app.post('/api/renombrar-producto', async (req, res) => {
             }
         }
 
-        // 2. Actualizar Historial de Movimientos
         const movimientos = await Movimiento.find(filtro);
         for(let mov of movimientos) {
             mov.modelo = modN;
@@ -609,7 +644,6 @@ app.post('/api/renombrar-producto', async (req, res) => {
             await mov.save();
         }
 
-        // 3. Actualizar Préstamos Activos
         const prestamos = await Prestamo.find(filtro);
         for(let pres of prestamos) {
             pres.modelo = modN;
@@ -618,7 +652,6 @@ app.post('/api/renombrar-producto', async (req, res) => {
             await pres.save();
         }
 
-        // 4. Actualizar Pedidos WMS
         let filtroPedidos = { "items.modelo": modV, "items.color": colV };
         if (talV) filtroPedidos["items.talla"] = talV;
         
@@ -638,7 +671,6 @@ app.post('/api/renombrar-producto', async (req, res) => {
             if(changed) await ped.save();
         }
 
-        // 5. Actualizar Base Teórica con FUSIÓN
         let docTeorico = await Teorico.findById('teorico_maestro');
         if(docTeorico) {
             let mapUpdated = false;
