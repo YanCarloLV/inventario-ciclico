@@ -146,7 +146,10 @@ app.post('/api/victoria-chat', async (req, res) => {
         }
 
         // Configurar el modelo de Gemini (usamos flash por ser rápido y eficiente)
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel(
+    { model: "gemini-3-flash" }, 
+    { apiVersion: 'v1' } 
+);
 
         // Construir el prompt de sistema dándole personalidad a Victoria y el contexto del Kardex
         const prompt = `
