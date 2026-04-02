@@ -1,10 +1,10 @@
-
+require('dotenv').config();
 
 // ==========================================
 // server.js - Versión 7.0 (Integración con Victoria - Gemini AI)
 // ==========================================
 
-require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
@@ -146,9 +146,9 @@ app.post('/api/victoria-chat', async (req, res) => {
         }
 
         // Configurar el modelo de Gemini (usamos flash por ser rápido y eficiente)
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-    { model: "gemini-1.5-flash" }, 
-    { apiVersion: 'v1' } 
+      const model = genAI.getGenerativeModel(
+    { model: "gemini-1.5-flash" },
+    { apiVersion: 'v1' }
 );
 
         // Construir el prompt de sistema dándole personalidad a Victoria y el contexto del Kardex
