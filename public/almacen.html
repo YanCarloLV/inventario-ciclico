@@ -747,31 +747,48 @@ let rawKardexData = [];
         reader.readAsText(input.files[0]);
     }
 
-// ==========================================
-    // NUEVO MÓDULO: AUDITORÍA Y CONCILIACIÓN (3-WAY MATCH)
-    // ==========================================
-    let pedidosConciliacion = [];
-    const SLA_HOURS = 24;
+     // ==========================================
+    // NUEVO MÓDULO: AUDITORÍA Y CONCILIACIÓN (3-WAY MATCH)
+    // ==========================================
+    let pedidosConciliacion = [];
+    const SLA_HOURS = 24;
 
-    // 1. Conexión Backend
-    async function cargarConciliacion() {
-        try {
-            const res = await fetch('/api/conciliacion');
-            if(res.ok) {
-                pedidosConciliacion = await res.json();
-                renderizarTablaConciliacion();
-            }
-        } catch(e) { console.error("Error cargando conciliación:", e); }
-    }
+    // 1. Conexión Backend (¡VERSIÓN BLINDADA!)
+    async function cargarConciliacion() {
+        try {
+            // El parámetro ?t= evoca un número aleatorio para obligar al navegador a NUNCA usar caché y siempre pedir los datos frescos a Mongo
+            const res = await fetch('/api/conciliacion?t=' + Date.now(), { cache: 'no-store' });
+            if(res.ok) {
+                pedidosConciliacion = await res.json();
+                renderizarTablaConciliacion();
+            }
+        } catch(e) { console.error("Error cargando conciliación:", e); }
+    }
 
-    async function guardarConciliacionBackend(p) {
-        try {
-            await fetch('/api/conciliacion', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(p)
-            });
-        } catch(e) { console.error("Error guardando:", e); }
-    }
+    async function guardarConciliacionBackend(p) {
+        try {
+            // IMPORTANTE: Clonamos el objeto y le borramos el _id para evitar el error "Immutable field _id" de MongoDB
+            const payload = { ...p };
+            delete payload._id;
+            delete payload.__v;
+
+            const res = await fetch('/api/conciliacion', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            // Si MongoDB rechaza guardar, ahora te mostrará una alerta roja en la esquina para saber por qué
+            if(!res.ok) {
+                const errorMongo = await res.json();
+                console.error("Error Base de Datos:", errorMongo);
+                showToast("BD Error: " + (errorMongo.error || "Revisa la consola"), "danger");
+            }
+        } catch(e) { 
+            console.error("Error de red guardando:", e); 
+            showToast("Error de red al intentar guardar en Mongo.", "danger");
+        }
+    }
 
     function renderizarTablaConciliacion() {
         const tbody = document.querySelector('#tablaConciliacion tbody');
