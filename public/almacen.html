@@ -1750,7 +1750,15 @@ function previsualizarExcelMasivo() {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                // 🔥 NUEVO: Diccionario Agrupador
+                // 🔥 MAGIA 1: Diccionario Rápido de SKUs (Buscamos en Kardex e Historial)
+                const diccionarioSKU = {};
+                rawKardexData.forEach(item => {
+                    if (item.sku) diccionarioSKU[item.sku.trim()] = { m: item.modelo, c: item.color, t: item.talla };
+                });
+                rawHistorialData.forEach(item => { // Buscamos también aquí por si es un producto agotado (0 stock)
+                    if (item.sku) diccionarioSKU[item.sku.trim()] = { m: item.modelo, c: item.color, t: item.talla };
+                });
+
                 let agrupador = {};
                 let totalPz = 0;
 
@@ -1765,19 +1773,34 @@ function previsualizarExcelMasivo() {
                         if (skuInput) {
                             // 1. Agrupación por SKU (Prioridad Máxima)
                             const skuClean = String(skuInput).trim();
+                            
+                            // 🔥 MAGIA 2: AUTO-COMPLETAR 🔥
+                            let finalM = m ? String(m).trim().toUpperCase() : null;
+                            let finalC = c ? String(c).trim().toUpperCase() : null;
+                            let finalT = t ? String(t).trim().toUpperCase() : null;
+
+                            // Si el Excel viene vacío en Modelo/Color/Talla, le preguntamos a la base de datos
+                            if ((!finalM || !finalC || !finalT) && diccionarioSKU[skuClean]) {
+                                finalM = finalM || diccionarioSKU[skuClean].m;
+                                finalC = finalC || diccionarioSKU[skuClean].c;
+                                finalT = finalT || diccionarioSKU[skuClean].t;
+                            }
+
                             if(!agrupador[skuClean]) {
                                 agrupador[skuClean] = { 
                                     sku: skuClean,
-                                    modelo: m ? String(m).trim().toUpperCase() : "SKU-ITEM", 
-                                    color: c ? String(c).trim().toUpperCase() : "N/A", 
-                                    talla: t ? String(t).trim().toUpperCase() : "N/A", 
+                                    // Si no existe en la BD y no lo escribieron en el Excel, mandamos un aviso
+                                    modelo: finalM || "⚠️ SKU DESCONOCIDO", 
+                                    color: finalC || "---", 
+                                    talla: finalT || "---", 
                                     cantidad: 0 
                                 };
                             }
                             agrupador[skuClean].cantidad += qty;
                             totalPz += qty;
+                            
                         } else if (m && c && t) {
-                            // 2. Agrupación Clásica (Respaldo si no hay SKU)
+                            // 2. Agrupación Clásica (Por si suben un archivo antiguo sin SKU)
                             const keyClassica = `${m}_${c}_${t}`.toUpperCase();
                             if(!agrupador[keyClassica]) {
                                 agrupador[keyClassica] = { 
@@ -1793,29 +1816,27 @@ function previsualizarExcelMasivo() {
                     }
                 });
 
-                // Convertimos el diccionario de nuevo a un Array para enviarlo al backend
                 datosMasivosGlobales = Object.values(agrupador);
 
                 if(datosMasivosGlobales.length === 0) {
-                    showToast("No se encontraron datos válidos. Revisa las columnas (MODELO, COLOR, TALLA o SKU).", "danger");
+                    showToast("No se encontraron datos válidos. Revisa las columnas (SKU o MODELO/COLOR/TALLA).", "danger");
                     btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
                     return;
                 }
 
-                // Actualizamos el contador visual con las filas ya agrupadas
                 document.getElementById('lbl-preview-total').innerText = `(${datosMasivosGlobales.length} registros únicos, ${totalPz} piezas totales)`;
                 
                 const tbody = document.querySelector('#tabla-preview-masivo tbody');
-                
-                // 🔥 NUEVA LÓGICA DE ALTO RENDIMIENTO (MUESTRA TODO SIN LÍMITE) 🔥
-                let filasHTML = ''; // Creamos un contenedor en memoria
+                let filasHTML = ''; 
                 
                 datosMasivosGlobales.forEach(d => {
                     const infoProducto = d.sku ? `<span style="color:var(--brand-gold)">[SKU: ${d.sku}]</span> ${d.modelo}` : d.modelo;
-                    filasHTML += `<tr><td><b>${infoProducto}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
+                    // Resaltar en rojo si subieron un SKU que no existe en la base y no llenaron el resto de celdas
+                    const colorPeligro = d.modelo === "⚠️ SKU DESCONOCIDO" ? "background-color: #FFEBEB; color: #FF3B30;" : "";
+                    
+                    filasHTML += `<tr style="${colorPeligro}"><td><b>${infoProducto}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
                 });
                 
-                // Pegamos todo de un solo golpe (súper rápido, sin importar si son 2,000 registros)
                 tbody.innerHTML = filasHTML;
 
                 document.getElementById('form-masivo-inputs').style.display = 'none';
