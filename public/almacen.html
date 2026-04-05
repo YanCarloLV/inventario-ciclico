@@ -1688,6 +1688,7 @@ function buscarStockParaPrestamo(texto) {
         const m = document.getElementById('modalMasivo'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
     }
 
+
     function previsualizarExcelMasivo() {
         const input = document.getElementById('file-masivo');
         if(!input.files || !input.files[0]) return showToast("Por favor selecciona un archivo Excel/CSV.", "warning");
@@ -1702,34 +1703,70 @@ function buscarStockParaPrestamo(texto) {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                datosMasivosGlobales = [];
+                // 🔥 NUEVO: Diccionario Agrupador
+                let agrupador = {};
                 let totalPz = 0;
+
                 rows.forEach(r => {
+                    const skuInput = r.SKU || r.sku || r.Sku;
                     const m = r.MODELO || r.Modelo || r.modelo;
                     const c = r.COLOR || r.Color || r.color;
                     const t = r.TALLA || r.Talla || r.talla;
                     const qty = parseInt(r.CANTIDAD || r.Cantidad || r.cantidad || 0);
                     
-                    if(m && c && t && qty > 0) {
-                        datosMasivosGlobales.push({ modelo: String(m).trim().toUpperCase(), color: String(c).trim().toUpperCase(), talla: String(t).trim().toUpperCase(), cantidad: qty });
-                        totalPz += qty;
+                    if(qty > 0) {
+                        if (skuInput) {
+                            // 1. Agrupación por SKU (Prioridad Máxima)
+                            const skuClean = String(skuInput).trim();
+                            if(!agrupador[skuClean]) {
+                                agrupador[skuClean] = { 
+                                    sku: skuClean,
+                                    modelo: m ? String(m).trim().toUpperCase() : "SKU-ITEM", 
+                                    color: c ? String(c).trim().toUpperCase() : "N/A", 
+                                    talla: t ? String(t).trim().toUpperCase() : "N/A", 
+                                    cantidad: 0 
+                                };
+                            }
+                            agrupador[skuClean].cantidad += qty;
+                            totalPz += qty;
+                        } else if (m && c && t) {
+                            // 2. Agrupación Clásica (Respaldo si no hay SKU)
+                            const keyClassica = `${m}_${c}_${t}`.toUpperCase();
+                            if(!agrupador[keyClassica]) {
+                                agrupador[keyClassica] = { 
+                                    modelo: String(m).trim().toUpperCase(), 
+                                    color: String(c).trim().toUpperCase(), 
+                                    talla: String(t).trim().toUpperCase(), 
+                                    cantidad: 0 
+                                };
+                            }
+                            agrupador[keyClassica].cantidad += qty;
+                            totalPz += qty;
+                        }
                     }
                 });
 
+                // Convertimos el diccionario de nuevo a un Array para enviarlo al backend
+                datosMasivosGlobales = Object.values(agrupador);
+
                 if(datosMasivosGlobales.length === 0) {
-                    showToast("No se encontraron datos válidos. Revisa las columnas.", "danger");
+                    showToast("No se encontraron datos válidos. Revisa las columnas (MODELO, COLOR, TALLA o SKU).", "danger");
                     btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
                     return;
                 }
 
-                document.getElementById('lbl-preview-total').innerText = `(${datosMasivosGlobales.length} filas, ${totalPz} piezas totales)`;
+                // Actualizamos el contador visual con las filas ya agrupadas
+                document.getElementById('lbl-preview-total').innerText = `(${datosMasivosGlobales.length} SKUs únicos, ${totalPz} piezas totales)`;
                 
                 const tbody = document.querySelector('#tabla-preview-masivo tbody');
                 tbody.innerHTML = '';
+                
                 datosMasivosGlobales.slice(0, 100).forEach(d => {
-                    tbody.innerHTML += `<tr><td><b>${d.modelo}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
+                    const infoProducto = d.sku ? `<span style="color:var(--brand-gold)">[SKU: ${d.sku}]</span> ${d.modelo}` : d.modelo;
+                    tbody.innerHTML += `<tr><td><b>${infoProducto}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
                 });
-                if(datosMasivosGlobales.length > 100) tbody.innerHTML += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:10px;">... y ${datosMasivosGlobales.length - 100} filas más</td></tr>`;
+                
+                if(datosMasivosGlobales.length > 100) tbody.innerHTML += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:10px;">... y ${datosMasivosGlobales.length - 100} registros más</td></tr>`;
 
                 document.getElementById('form-masivo-inputs').style.display = 'none';
                 document.getElementById('btn-preview-masivo').style.display = 'none';
@@ -1739,6 +1776,7 @@ function buscarStockParaPrestamo(texto) {
 
             } catch (error) {
                 showToast("Error procesando el archivo. Asegúrate que sea un Excel válido.", "danger");
+                console.error(error);
             } finally {
                 btn.innerHTML = "👁️ Leer y Previsualizar Archivo"; btn.disabled = false;
             }
