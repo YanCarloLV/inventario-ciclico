@@ -581,25 +581,18 @@ app.get('/api/conciliacion', async (req, res) => {
 });
 
 app.post('/api/conciliacion', async (req, res) => {
-    try {
-        const data = req.body;
-
-        // 🛡️ LIMPIEZA CRÍTICA: Eliminamos los campos internos de Mongo
-        // Esto evita el error de "field _id is immutable"
-        delete data._id;
-        delete data.__v;
-
-        // Upsert: Si ya existe el pedido lo actualiza, si no, lo crea.
-        await Conciliacion.findOneAndUpdate(
-            { pedido: data.pedido },
-            { $set: data }, // Usamos $set para asegurar una actualización limpia
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
-        res.json({ success: true });
-    } catch (e) {
-        console.error("Error en Mongo Conciliación:", e.message);
-        res.status(500).json({ error: e.message });
-    }
+    try {
+        const data = req.body;
+        // Upsert: Si ya existe el pedido lo actualiza, si no, lo crea.
+        await Conciliacion.findOneAndUpdate(
+            { pedido: data.pedido },
+            data,
+            { upsert: true, new: true }
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.delete('/api/conciliacion/:pedido', async (req, res) => {
