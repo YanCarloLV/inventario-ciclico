@@ -584,20 +584,24 @@
     </div>
 </div>
 <div class="modal-overlay" id="modalDetalleConciliacion">
-    <div class="modal-box" style="max-width: 900px;">
+    <div class="modal-box" style="max-width: 950px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">🔬 Análisis de Partidas | Pedido <span id="modalPedidoNum" style="color:var(--brand-orange)"></span></h2>
+            <h2 style="margin:0;">🔬 Análisis (Match de 3 Vías) | Pedido <span id="modalPedidoNum" style="color:var(--brand-orange)"></span></h2>
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalDetalleConciliacion')">❌</button>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; text-align: center;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; text-align: center;">
             <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; border: 1px solid #E5E5EA;">
-                <span style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Facturado</span><br>
-                <span id="modTotFac" style="font-size: 24px; font-weight: 800; color: var(--brand-navy);">0</span> <small>pzas</small>
+                <span style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Solicitado (Pedido)</span><br>
+                <span id="modTotSol" style="font-size: 24px; font-weight: 800; color: var(--brand-navy);">0</span> <small>pzas</small>
             </div>
-            <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; border: 1px solid #E5E5EA;">
-                <span style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Entregado</span><br>
-                <span id="modTotEnt" style="font-size: 24px; font-weight: 800; color: var(--brand-navy);">0</span> <small>pzas</small>
+            <div style="background: #FFF4E5; padding: 15px; border-radius: 12px; border: 1px solid #FF8C00;">
+                <span style="font-size: 12px; font-weight: 800; color: #FF8C00; text-transform: uppercase;">Facturado (Acumulado)</span><br>
+                <span id="modTotFac" style="font-size: 24px; font-weight: 800; color: #FF8C00;">0</span> <small>pzas</small>
+            </div>
+            <div style="background: #E8F2FF; padding: 15px; border-radius: 12px; border: 1px solid #007AFF;">
+                <span style="font-size: 12px; font-weight: 800; color: #007AFF; text-transform: uppercase;">Entregado (Acumulado)</span><br>
+                <span id="modTotEnt" style="font-size: 24px; font-weight: 800; color: #007AFF;">0</span> <small>pzas</small>
             </div>
         </div>
 
@@ -605,12 +609,11 @@
             <table id="tablaSkusConciliacion" style="margin: 0;">
                 <thead style="position: sticky; top: 0; background: white; z-index: 10;">
                     <tr>
-                        <th>SKU</th>
-                        <th>Desc. Factura</th>
-                        <th>Desc. Remisión</th>
-                        <th style="text-align:center;">Fac</th>
-                        <th style="text-align:center;">Rem</th>
-                        <th style="text-align:center;">Dif</th>
+                        <th>SKU / Modelo</th>
+                        <th style="text-align:center; background:#F2F2F7;">Sol</th>
+                        <th style="text-align:center; background:#FFF4E5;">Fac</th>
+                        <th style="text-align:center; background:#E8F2FF;">Rem</th>
+                        <th style="text-align:center;">Auditoría</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -745,10 +748,30 @@ let rawKardexData = [];
     }
 
 // ==========================================
-    // NUEVO MÓDULO: AUDITORÍA Y CONCILIACIÓN
+    // NUEVO MÓDULO: AUDITORÍA Y CONCILIACIÓN (3-WAY MATCH)
     // ==========================================
-    let pedidosConciliacion = JSON.parse(localStorage.getItem('pedidos_v3')) || [];
+    let pedidosConciliacion = [];
     const SLA_HOURS = 24;
+
+    // 1. Conexión Backend
+    async function cargarConciliacion() {
+        try {
+            const res = await fetch('/api/conciliacion');
+            if(res.ok) {
+                pedidosConciliacion = await res.json();
+                renderizarTablaConciliacion();
+            }
+        } catch(e) { console.error("Error cargando conciliación:", e); }
+    }
+
+    async function guardarConciliacionBackend(p) {
+        try {
+            await fetch('/api/conciliacion', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(p)
+            });
+        } catch(e) { console.error("Error guardando:", e); }
+    }
 
     function renderizarTablaConciliacion() {
         const tbody = document.querySelector('#tablaConciliacion tbody');
@@ -764,99 +787,117 @@ let rawKardexData = [];
 
             if(p.completado) {
                 relojHTML = `<span style="color:var(--success); font-weight:bold; font-size:13px;">✅ Cerrado</span>`;
-                if(p.totalFacturado === p.totalEntregado && p.totalFacturado > 0) rowStyle = 'background-color: #F0FDF4;';
-                else rowStyle = 'background-color: #FEF2F2;';
+                rowStyle = 'background-color: #F0FDF4;';
             } else if(p.fechaSalida) {
                 relojHTML = calcularReloj(p.fechaSalida);
             }
             
             tr.style = rowStyle;
 
-            let badgeAuditoria = `<button class="btn" style="background:#F2F2F7; color:#8E8E93; width:100%; font-size:12px;">Esperando Datos...</button>`;
-            if (p.totalFacturado > 0 || p.totalEntregado > 0) {
-                if (p.totalFacturado === p.totalEntregado) {
-                    badgeAuditoria = `<button onclick="verDetalleConciliacion('${p.pedido}')" class="btn" style="background:#E5F9E7; color:#28A745; border:1px solid #28A745; width:100%; font-size:12px;">✅ ${p.totalEntregado} / ${p.totalFacturado} Perfecto</button>`;
-                } else if (p.totalEntregado < p.totalFacturado) {
-                    badgeAuditoria = `<button onclick="verDetalleConciliacion('${p.pedido}')" class="btn" style="background:#FFF4E5; color:#FF8C00; border:1px solid #FF8C00; width:100%; font-size:12px;">⚠️ ${p.totalEntregado} / ${p.totalFacturado} Faltante</button>`;
+            // Determinar la "Meta". Si subieron PDF Pedido manda él, si no manda lo Facturado.
+            let meta = p.totalSolicitado > 0 ? p.totalSolicitado : (p.totalFacturado > 0 ? p.totalFacturado : '??');
+            let txtAuditoria = `Entregado: ${p.totalEntregado} / ${meta}`;
+            let btnClass = "background:#F2F2F7; color:#8E8E93;";
+
+            if (p.totalSolicitado > 0 || p.totalFacturado > 0 || p.totalEntregado > 0) {
+                if (p.totalEntregado >= meta && meta !== '??') {
+                    btnClass = "background:#E5F9E7; color:#28A745; border:1px solid #28A745;";
+                    txtAuditoria = `✅ ${p.totalEntregado} / ${meta} Completo`;
                 } else {
-                    badgeAuditoria = `<button onclick="verDetalleConciliacion('${p.pedido}')" class="btn" style="background:#FFEBEB; color:#FF3B30; border:1px solid #FF3B30; width:100%; font-size:12px;">🚨 ${p.totalEntregado} / ${p.totalFacturado} Excedente</button>`;
+                    btnClass = "background:#FFF4E5; color:#FF8C00; border:1px solid #FF8C00;";
+                    txtAuditoria = `⚠️ ${p.totalEntregado} / ${meta} Parcial`;
                 }
+            } else {
+                txtAuditoria = "Esperando PDFs...";
             }
 
-            let badgeFacturaHTML = p.esTraslado 
-                ? `<span class="tag" style="background:#F3E8FF; color:#7E22CE;">🏢 TRASLADO INT.</span>`
-                : `<span class="tag ${p.factura ? 'tag-in' : 'tag-adj'}">📄 FAC: ${p.factura || 'Pendiente'}</span>`;
+            let docsBadge = `
+                <div style="font-size:11px; margin-bottom:3px; color:var(--brand-navy);"><b>PEDIDO:</b> ${p.totalSolicitado > 0 ? '✅ Cargado' : '❌ Falta PDF'}</div>
+                <div style="font-size:11px; margin-bottom:3px; color:#FF8C00;"><b>FAC:</b> ${p.factura || 'Pendiente'}</div>
+                <div style="font-size:11px; color:#007AFF;"><b>REM:</b> ${p.remision || 'Pendiente'}</div>
+            `;
 
             tr.innerHTML = `
                 <td style="text-align: center;">
                     <b style="font-size:18px; color:var(--brand-navy);">#${p.pedido}</b><br>
-                    ${!p.fechaSalida ? `<button onclick="darSalidaConciliacion('${p.pedido}')" class="btn btn-outline" style="padding:4px 8px; font-size:10px; margin-top:5px; border-color:#007AFF; color:#007AFF;">Dar Salida</button>` : ''}
+                    ${!p.fechaSalida && !p.completado ? `<button onclick="darSalidaConciliacion('${p.pedido}')" class="btn btn-outline" style="padding:4px 8px; font-size:10px; margin-top:5px; border-color:#007AFF; color:#007AFF;">Iniciar Reloj Salida</button>` : ''}
                 </td>
                 <td style="text-align: center; font-size:15px;" class="timer-cell" data-id="${p.pedido}" data-salida="${p.fechaSalida || ''}">${relojHTML}</td>
                 <td>
-                    <div style="display:flex; flex-direction:column; gap:5px; font-size:12px; align-items: flex-start;">
-                        ${badgeFacturaHTML}
-                        <span class="tag ${p.remision ? 'tag-info' : 'tag-adj'}" style="background:${p.remision?'#E8F2FF':'#E5E5EA'}; color:${p.remision?'#007AFF':'#1C1C1E'};">📦 REM: ${p.remision || 'Pendiente'}</span>
+                    <div style="display:flex; flex-direction:column; gap:2px; font-size:12px; align-items: flex-start;">
+                        ${docsBadge}
                     </div>
                 </td>
-                <td style="text-align: center; padding-top:20px;">${badgeAuditoria}</td>
+                <td style="text-align: center; padding-top:15px;">
+                    <button onclick="verDetalleConciliacion('${p.pedido}')" class="btn" style="${btnClass} width:100%; font-size:12px;">${txtAuditoria}</button>
+                    ${!p.completado ? `<div style="margin-top:8px;"><a href="#" onclick="forzarCierreConciliacion('${p.pedido}')" style="font-size:11px; color:#FF3B30; text-decoration:underline; font-weight:bold;">🔒 Forzar Cierre (Short-close)</a></div>` : ''}
+                </td>
                 <td>
                     <div style="font-size:12px; color:var(--text-muted); background:rgba(255,255,255,0.5); padding:8px; border-radius:8px; border:1px dashed #E5E5EA; cursor:pointer;" onclick="editarNotaConciliacion('${p.pedido}')">
                         ${p.comentario ? `<b>Nota:</b> ${p.comentario}` : '<i>Clic para agregar nota...</i>'}
                     </div>
                 </td>
                 <td style="text-align: center;">
-                    <button onclick="toggleTrasladoConciliacion('${p.pedido}')" class="btn btn-outline" style="padding:6px; font-size:14px; ${p.esTraslado ? 'background:#F3E8FF; border-color:#7E22CE;' : ''}" title="Marcar como Traslado">🏢</button>
                     <button onclick="eliminarPedidoConciliacion('${p.pedido}')" class="btn btn-outline" style="padding:6px; font-size:14px; border-color:var(--danger);" title="Eliminar">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
-        localStorage.setItem('pedidos_v3', JSON.stringify(pedidosConciliacion));
     }
 
-    function agregarPedidoConciliacion() {
+    async function agregarPedidoConciliacion() {
         const num = document.getElementById('inputPedidoConciliacion').value.trim();
         if(!num) return;
         if(pedidosConciliacion.find(p => p.pedido === num)) return Swal.fire('Hey', 'El pedido ya está en la lista', 'info');
         
-        pedidosConciliacion.push({ pedido: num, fechaCreacion: Date.now(), fechaSalida: null, factura: '', remision: '', comentario: '', itemsFactura: {}, itemsRemision: {}, totalFacturado: 0, totalEntregado: 0, completado: false, esTraslado: false });
+        let nuevoP = { pedido: num, fechaCreacion: Date.now(), fechaSalida: null, factura: '', remision: '', comentario: '', itemsPedido: {}, itemsFactura: {}, itemsRemision: {}, totalSolicitado: 0, totalFacturado: 0, totalEntregado: 0, completado: false, esTraslado: false };
+        pedidosConciliacion.push(nuevoP);
         document.getElementById('inputPedidoConciliacion').value = '';
         renderizarTablaConciliacion();
+        await guardarConciliacionBackend(nuevoP);
     }
 
-    function darSalidaConciliacion(id) {
+    async function darSalidaConciliacion(id) {
         const p = pedidosConciliacion.find(x => x.pedido === id);
-        if(p) { p.fechaSalida = Date.now(); renderizarTablaConciliacion(); }
+        if(p) { p.fechaSalida = Date.now(); renderizarTablaConciliacion(); await guardarConciliacionBackend(p); }
     }
 
-    function toggleTrasladoConciliacion(id) {
+    async function forzarCierreConciliacion(id) {
         const p = pedidosConciliacion.find(x => x.pedido === id);
-        if(p) {
-            p.esTraslado = !p.esTraslado;
-            if(p.esTraslado) {
-                p.factura = 'TRASLADO INT.';
-                if (p.totalEntregado > 0) { p.totalFacturado = p.totalEntregado; p.itemsFactura = JSON.parse(JSON.stringify(p.itemsRemision)); }
-            } else { p.factura = ''; p.totalFacturado = 0; p.itemsFactura = {}; }
-            evaluarCompletadoConciliacion(p); renderizarTablaConciliacion();
-        }
+        if(p) { p.completado = true; renderizarTablaConciliacion(); await guardarConciliacionBackend(p); showToast("Pedido cerrado como entrega parcial."); }
     }
 
     async function editarNotaConciliacion(id) {
         const p = pedidosConciliacion.find(x => x.pedido === id);
-        const { value: texto } = await Swal.fire({ title: 'Nota de Auditoría', input: 'textarea', inputLabel: 'Escribe el motivo o estatus:', inputValue: p.comentario, showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#001A33' });
-        if (texto !== undefined) { p.comentario = texto; renderizarTablaConciliacion(); }
+        const { value: texto } = await Swal.fire({ title: 'Nota de Auditoría', input: 'textarea', inputLabel: 'Escribe motivo de sustitución o falta:', inputValue: p.comentario, showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#001A33' });
+        if (texto !== undefined) { p.comentario = texto; renderizarTablaConciliacion(); await guardarConciliacionBackend(p); }
     }
 
-    function eliminarPedidoConciliacion(id) {
+    async function eliminarPedidoConciliacion(id) {
         Swal.fire({ title: '¿Borrar?', text: "Se perderá el cruce.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#FF3B30' })
-        .then(res => { if(res.isConfirmed) { pedidosConciliacion = pedidosConciliacion.filter(x => x.pedido !== id); renderizarTablaConciliacion(); }});
+        .then(async res => { 
+            if(res.isConfirmed) { 
+                pedidosConciliacion = pedidosConciliacion.filter(x => x.pedido !== id); 
+                renderizarTablaConciliacion(); 
+                try { await fetch(`/api/conciliacion/${id}`, { method: 'DELETE' }); } catch(e){}
+            }
+        });
     }
 
     function evaluarCompletadoConciliacion(p) {
-        if(p.esTraslado && p.remision) p.completado = true;
-        else if (!p.esTraslado && p.factura && p.remision) p.completado = true;
-        else p.completado = false;
+        let meta = p.totalSolicitado > 0 ? p.totalSolicitado : p.totalFacturado;
+        if(meta > 0 && p.totalEntregado >= meta) p.completado = true;
+    }
+
+    // Helper para sumar piezas de múltiples facturas/remisiones
+    function fusionarItems(destino, origen) {
+        for(let sku in origen) {
+            if(!destino[sku]) destino[sku] = { cant: 0, desc: origen[sku].desc };
+            destino[sku].cant += origen[sku].cant;
+            if(origen[sku].desc !== "Sin descripción legible" && destino[sku].desc === "Sin descripción legible") {
+                destino[sku].desc = origen[sku].desc;
+            }
+        }
     }
 
     function extraerSKUsConciliacion(texto) {
@@ -885,7 +926,7 @@ let rawKardexData = [];
     }
 
     async function procesarArchivosPDF(archivos) {
-        Swal.fire({ title: 'Analizando Partidas...', text: 'Limpiando descripciones y cruzando datos', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Analizando Partidas...', text: 'Extrayendo y Acumulando Documentos...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let procesados = 0;
 
@@ -897,9 +938,12 @@ let rawKardexData = [];
             for(let i=1; i<=pdf.numPages; i++){ textoPDF += (await (await pdf.getPage(i)).getTextContent()).items.map(it => it.str).join(" "); }
 
             const regexPedido = /N[°ºo]?\s*de\s*Pedido\s*(\d+)/i;
-            const matchFac = textoPDF.match(/FACTURA\s*No\.\s*([A-Z0-9]+)/i);
+            const matchFac = textoPDF.match(/FACTURA\s*No\.\s*([A-Z0-9\-]+)/i);
             const matchRem = textoPDF.match(/Remisi[oó]n\s*N[°ºo]?\s*(\d+)/i);
             let numPedido = (textoPDF.match(regexPedido) || [])[1];
+            
+            // Si el texto trae "Representante de Ventas", es el formato de Pedido
+            const esPDFPedido = textoPDF.includes("Representante de Ventas") || textoPDF.match(/PEDIDO\s+N/i);
 
             if(!numPedido && (matchFac || matchRem)) {
                 const tipo = matchFac ? `Factura ${matchFac[1]}` : `Remisión ${matchRem[1]}`;
@@ -910,61 +954,86 @@ let rawKardexData = [];
             
             if(numPedido) {
                 let p = pedidosConciliacion.find(x => x.pedido === numPedido);
-                if(!p) { p = { pedido: numPedido, fechaCreacion: Date.now(), fechaSalida: null, factura: '', remision: '', comentario: '', itemsFactura: {}, itemsRemision: {}, totalFacturado: 0, totalEntregado: 0, completado: false, esTraslado: false }; pedidosConciliacion.push(p); }
+                if(!p) { 
+                    p = { pedido: numPedido, fechaCreacion: Date.now(), fechaSalida: null, factura: '', remision: '', comentario: '', itemsPedido: {}, itemsFactura: {}, itemsRemision: {}, totalSolicitado: 0, totalFacturado: 0, totalEntregado: 0, completado: false, esTraslado: false }; 
+                    pedidosConciliacion.push(p); 
+                }
                 
+                // Seguros por si la BD cargó objetos vacíos
+                if(!p.itemsPedido) p.itemsPedido = {};
+                if(p.totalSolicitado === undefined) p.totalSolicitado = 0;
+
                 const extraccion = extraerSKUsConciliacion(textoPDF);
 
-                if(matchFac) { p.factura = matchFac[1]; p.itemsFactura = extraccion.items; p.totalFacturado = extraccion.total; if(!p.fechaSalida) p.fechaSalida = Date.now(); procesados++; }
-                if(matchRem) { 
-                    p.remision = matchRem[1]; p.itemsRemision = extraccion.items; p.totalEntregado = extraccion.total; 
-                    if(p.esTraslado) { p.itemsFactura = JSON.parse(JSON.stringify(extraccion.items)); p.totalFacturado = extraccion.total; }
+                if(esPDFPedido && !matchFac && !matchRem) {
+                    fusionarItems(p.itemsPedido, extraccion.items);
+                    p.totalSolicitado += extraccion.total;
+                    procesados++;
+                } else if(matchFac) { 
+                    p.factura += (p.factura ? ', ' : '') + matchFac[1];
+                    fusionarItems(p.itemsFactura, extraccion.items); 
+                    p.totalFacturado += extraccion.total; 
+                    if(!p.fechaSalida) p.fechaSalida = Date.now(); 
+                    procesados++; 
+                } else if(matchRem) { 
+                    p.remision += (p.remision ? ', ' : '') + matchRem[1];
+                    fusionarItems(p.itemsRemision, extraccion.items); 
+                    p.totalEntregado += extraccion.total; 
                     procesados++; 
                 }
                 evaluarCompletadoConciliacion(p);
+                await guardarConciliacionBackend(p);
             }
         }
         renderizarTablaConciliacion();
-        Swal.fire('Auditoría Lista', `Se procesaron ${procesados} documentos.`, 'success');
+        Swal.fire('Auditoría Lista', `Se procesaron y acumularon ${procesados} documentos.`, 'success');
     }
 
     function verDetalleConciliacion(id) {
         const p = pedidosConciliacion.find(x => x.pedido === id);
         if(!p) return;
         
-        document.getElementById('modalPedidoNum').innerText = id + (p.esTraslado ? ' (TRASLADO)' : '');
-        document.getElementById('modTotFac').innerText = p.totalFacturado;
-        document.getElementById('modTotEnt').innerText = p.totalEntregado;
+        document.getElementById('modalPedidoNum').innerText = id;
+        document.getElementById('modTotSol').innerText = p.totalSolicitado || 0;
+        document.getElementById('modTotFac').innerText = p.totalFacturado || 0;
+        document.getElementById('modTotEnt').innerText = p.totalEntregado || 0;
         
         const tbody = document.getElementById('tablaSkusConciliacion').querySelector('tbody');
         tbody.innerHTML = '';
         
-        const skusUnicos = new Set([...Object.keys(p.itemsFactura), ...Object.keys(p.itemsRemision)]);
+        const skusUnicos = new Set([...Object.keys(p.itemsPedido || {}), ...Object.keys(p.itemsFactura || {}), ...Object.keys(p.itemsRemision || {})]);
         
         skusUnicos.forEach(sku => {
-            const facObj = p.itemsFactura[sku] || { cant: 0, desc: '-' };
-            const remObj = p.itemsRemision[sku] || { cant: 0, desc: '-' };
-            const dif = remObj.cant - facObj.cant;
+            const solObj = (p.itemsPedido && p.itemsPedido[sku]) ? p.itemsPedido[sku] : { cant: 0, desc: '-' };
+            const facObj = (p.itemsFactura && p.itemsFactura[sku]) ? p.itemsFactura[sku] : { cant: 0, desc: '-' };
+            const remObj = (p.itemsRemision && p.itemsRemision[sku]) ? p.itemsRemision[sku] : { cant: 0, desc: '-' };
+            
+            // Priorizamos mostrar la descripción del Pedido, si no Factura, si no Remisión
+            let descFinal = solObj.desc !== '-' ? solObj.desc : (facObj.desc !== '-' ? facObj.desc : remObj.desc);
+
+            // Determinar la meta a comparar
+            let meta = solObj.cant > 0 ? solObj.cant : facObj.cant;
+            const dif = remObj.cant - meta;
             
             let difHtml = `<span style="color:var(--text-muted); font-weight:bold;">-</span>`;
             let rowBg = '';
             
             if(dif < 0) { difHtml = `<span style="background:#FFEBEB; color:#FF3B30; padding:4px 8px; border-radius:6px; font-weight:bold;">${Math.abs(dif)} Falta</span>`; rowBg = 'background-color:#FFEBEB;'; }
             else if(dif > 0) { difHtml = `<span style="background:#FFF4E5; color:#FF8C00; padding:4px 8px; border-radius:6px; font-weight:bold;">+${dif} Sobra</span>`; rowBg = 'background-color:#FFF4E5;'; }
-            else { difHtml = `<span style="color:#28A745; font-weight:bold;">✅</span>`; }
+            else if(remObj.cant > 0) { difHtml = `<span style="color:#28A745; font-weight:bold;">✅ Match</span>`; }
 
-            let txtColorFac = 'color:var(--text-main);';
-            let txtColorRem = 'color:var(--text-main);';
-            if(facObj.desc !== '-' && remObj.desc !== '-' && facObj.desc.toLowerCase() !== remObj.desc.toLowerCase()) {
-                txtColorFac = 'color:#FF8C00; font-weight:bold;'; txtColorRem = 'color:#FF8C00; font-weight:bold;';
-            }
+            // Destacar sustituciones de modelo (Se facturó un SKU que no estaba en el pedido)
+            let sustitucionAlerta = (solObj.cant === 0 && facObj.cant > 0 && p.totalSolicitado > 0) ? `<br><span style="color:#FF3B30; font-size:10px; font-weight:bold;">⚠️ NO ESTABA EN PEDIDO</span>` : '';
 
             tbody.innerHTML += `
                 <tr style="${rowBg}">
-                    <td style="font-family:monospace; font-weight:bold; color:var(--brand-navy); border-bottom:1px solid #E5E5EA;">${sku}</td>
-                    <td style="${txtColorFac} border-bottom:1px solid #E5E5EA; font-size:12px;">${p.esTraslado ? '(Interno)' : facObj.desc}</td>
-                    <td style="${txtColorRem} border-bottom:1px solid #E5E5EA; font-size:12px;">${remObj.desc}</td>
-                    <td style="text-align:center; font-weight:bold; border-bottom:1px solid #E5E5EA;">${facObj.cant}</td>
-                    <td style="text-align:center; font-weight:bold; border-bottom:1px solid #E5E5EA;">${remObj.cant}</td>
+                    <td style="border-bottom:1px solid #E5E5EA;">
+                        <div style="font-family:monospace; font-weight:bold; color:var(--brand-navy); font-size:14px;">${sku}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">${descFinal} ${sustitucionAlerta}</div>
+                    </td>
+                    <td style="text-align:center; font-weight:bold; font-size:16px; background:#F2F2F7; border-bottom:1px solid #E5E5EA;">${solObj.cant}</td>
+                    <td style="text-align:center; font-weight:bold; font-size:16px; background:#FFF4E5; border-bottom:1px solid #E5E5EA;">${facObj.cant}</td>
+                    <td style="text-align:center; font-weight:bold; font-size:16px; background:#E8F2FF; border-bottom:1px solid #E5E5EA;">${remObj.cant}</td>
                     <td style="text-align:center; border-bottom:1px solid #E5E5EA;">${difHtml}</td>
                 </tr>
             `;
@@ -989,16 +1058,7 @@ let rawKardexData = [];
 
     function exportarExcelConciliacion() {
         const data = pedidosConciliacion.map(p => {
-            let estadoAuditoria = "Pendiente";
-            if (p.esTraslado) {
-                if (p.remision) estadoAuditoria = "Traslado Interno (Collection)";
-                else estadoAuditoria = "Match Incompleto (Falta Remisión)";
-            } else if (p.factura && p.remision) {
-                if (p.totalFacturado === p.totalEntregado) estadoAuditoria = "Procesado correctamente";
-                else estadoAuditoria = "Procesado con diferencias";
-            } else if (p.totalFacturado > 0 || p.totalEntregado > 0) estadoAuditoria = "Match Incompleto (Faltan Documentos)";
-
-            return { "Pedido": p.pedido, "SLA Estatus": p.completado ? 'Cerrado' : 'Abierto', "Estado Auditoría": estadoAuditoria, "Factura": p.factura, "Remisión": p.remision, "Pzas Facturadas": p.totalFacturado, "Pzas Entregadas": p.totalEntregado, "Diferencia": p.totalEntregado - p.totalFacturado, "Comentarios": p.comentario };
+            return { "Pedido": p.pedido, "SLA Estatus": p.completado ? 'Cerrado' : 'Abierto', "Facturas": p.factura, "Remisiones": p.remision, "Pzas Solicitadas": p.totalSolicitado, "Pzas Facturadas": p.totalFacturado, "Pzas Entregadas": p.totalEntregado, "Diferencia Rem-Fac": p.totalEntregado - p.totalFacturado, "Comentarios": p.comentario };
         });
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Auditoria_Partidas");
@@ -2580,12 +2640,12 @@ async function descargarStockExcel(){
     }
     
 // Init General
-    window.onload = () => { 
-        cargarKardex(); 
-        cargarHistorial(); 
-        cargarPrestamos(); 
-        renderizarTablaConciliacion();
-    };
+    window.onload = () => { 
+        cargarKardex(); 
+        cargarHistorial(); 
+        cargarPrestamos(); 
+        cargarConciliacion(); 
+    };
 </script>
 </body>
 </html>
