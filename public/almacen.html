@@ -501,12 +501,24 @@
             <h2 style="margin:0;">🚀 Carga Masiva (Excel/CSV)</h2>
             <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalMasivo')">❌</button>
         </div>
-        
         <div id="form-masivo-inputs">
-            <div class="form-grid">
-                <div class="form-group full"><label>Archivo Excel/CSV (Columnas: MODELO, COLOR, TALLA, CANTIDAD)</label><input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv"></div>
-                <div class="form-group full">
-                    <label>Tipo de Operación</label>
+                        <div style="background: #F9F9FB; border: 1px dashed var(--brand-gold); padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h4 style="margin: 0; color: var(--brand-navy); font-size: 14px;">📄 ¿No tienes el formato correcto?</h4>
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: var(--text-muted);">Descarga una plantilla oficial, llénala y súbela para evitar errores.</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-outline" style="border-color: #28A745; color: #28A745; padding: 8px 15px; font-size: 12px;" onclick="descargarPlantillaMasiva('Entrada')">📥 Plantilla Recepción</button>
+                    <button type="button" class="btn btn-outline" style="border-color: #FF3B30; color: #FF3B30; padding: 8px 15px; font-size: 12px;" onclick="descargarPlantillaMasiva('Salida')">📤 Plantilla Salidas</button>
+                </div>
+            </div>
+                        <div class="form-grid">
+                        <div class="form-group full">
+                            <label>Archivo Excel/CSV (Columnas: SKU, MODELO, COLOR, TALLA, CANTIDAD)</label>
+                            <input type="file" id="file-masivo" class="input-sap" accept=".xlsx, .csv">
+                        </div>
+                        <div class="form-group full">
+                            <label>Tipo de Operación</label>
                     <select id="mas-tipo" class="input-sap">
                         <option value="Entrada Inicial">📥 Entrada Inicial (Base KARDEX)</option>
                         <option value="Entrada Masiva">📥 Entrada Masiva (Proveedores)</option>
@@ -1672,9 +1684,44 @@ function buscarStockParaPrestamo(texto) {
     }
 
     // ==========================================
-    // 5. CARGA MASIVA Y AUDITORÍA
-    // ==========================================
-    function abrirModalMasivo() {
+    // 5. CARGA MASIVA Y AUDITORÍA
+    // ==========================================
+
+    // 🔥 NUEVA FUNCIÓN: Genera la plantilla de Excel al vuelo
+    function descargarPlantillaMasiva(tipo) {
+        const wb = XLSX.utils.book_new();
+        // Encabezados exactos que lee tu función de previsualización
+        const encabezados = [["SKU", "MODELO", "COLOR", "TALLA", "CANTIDAD"]];
+        
+        // Agregamos filas de ejemplo para guiar al usuario
+        if (tipo === 'Entrada') {
+            encabezados.push(["PROD-1234", "4040", "NEGRO", "38R", 100]);
+            encabezados.push(["", "4040", "NEGRO", "40R", 50]); // Ejemplo de fila sin SKU
+        } else {
+            encabezados.push(["PROD-1234", "4040", "NEGRO", "38R", 5]);
+            encabezados.push(["PROD-9999", "4642-M", "AZUL", "36C", 2]);
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(encabezados);
+
+        // Estilo para ajustar el ancho de las columnas
+        ws['!cols'] = [
+            { wch: 15 }, // SKU
+            { wch: 20 }, // MODELO
+            { wch: 15 }, // COLOR
+            { wch: 10 }, // TALLA
+            { wch: 12 }  // CANTIDAD
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Plantilla " + tipo);
+        
+        const fileName = tipo === 'Entrada' ? 'Plantilla_Recepcion_WMS.xlsx' : 'Plantilla_Salidas_WMS.xlsx';
+        XLSX.writeFile(wb, fileName);
+        
+        showToast(`Plantilla de ${tipo} descargada con éxito.`, "info");
+    }
+
+    function abrirModalMasivo() {
         document.getElementById('file-masivo').value = '';
         ['mas-lote', 'mas-responsable', 'mas-referencia'].forEach(id => document.getElementById(id).value = '');
         if(localStorage.getItem('almacen_resp')) document.getElementById('mas-responsable').value = localStorage.getItem('almacen_resp');
@@ -1689,7 +1736,7 @@ function buscarStockParaPrestamo(texto) {
     }
 
 
-    function previsualizarExcelMasivo() {
+function previsualizarExcelMasivo() {
         const input = document.getElementById('file-masivo');
         if(!input.files || !input.files[0]) return showToast("Por favor selecciona un archivo Excel/CSV.", "warning");
 
@@ -1756,17 +1803,20 @@ function buscarStockParaPrestamo(texto) {
                 }
 
                 // Actualizamos el contador visual con las filas ya agrupadas
-                document.getElementById('lbl-preview-total').innerText = `(${datosMasivosGlobales.length} SKUs únicos, ${totalPz} piezas totales)`;
+                document.getElementById('lbl-preview-total').innerText = `(${datosMasivosGlobales.length} registros únicos, ${totalPz} piezas totales)`;
                 
                 const tbody = document.querySelector('#tabla-preview-masivo tbody');
-                tbody.innerHTML = '';
                 
-                datosMasivosGlobales.slice(0, 100).forEach(d => {
+                // 🔥 NUEVA LÓGICA DE ALTO RENDIMIENTO (MUESTRA TODO SIN LÍMITE) 🔥
+                let filasHTML = ''; // Creamos un contenedor en memoria
+                
+                datosMasivosGlobales.forEach(d => {
                     const infoProducto = d.sku ? `<span style="color:var(--brand-gold)">[SKU: ${d.sku}]</span> ${d.modelo}` : d.modelo;
-                    tbody.innerHTML += `<tr><td><b>${infoProducto}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
+                    filasHTML += `<tr><td><b>${infoProducto}</b></td><td>${d.color}</td><td><b>${d.talla}</b></td><td><span style="color:var(--brand-orange); font-weight:800;">${d.cantidad}</span></td></tr>`;
                 });
                 
-                if(datosMasivosGlobales.length > 100) tbody.innerHTML += `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:10px;">... y ${datosMasivosGlobales.length - 100} registros más</td></tr>`;
+                // Pegamos todo de un solo golpe (súper rápido, sin importar si son 2,000 registros)
+                tbody.innerHTML = filasHTML;
 
                 document.getElementById('form-masivo-inputs').style.display = 'none';
                 document.getElementById('btn-preview-masivo').style.display = 'none';
