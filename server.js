@@ -1,5 +1,5 @@
 // ==========================================
-// server.js - Versión 6.9 (SKUs persistentes, sin borrado en 0)
+// server.js - Versión 7.0 (Conciliación y Auditoría 3.0)
 // ==========================================
 
 const express = require('express');
@@ -29,7 +29,9 @@ try {
 }
 
 // --- CONEXIÓN A BASE DE DATOS ---
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Autodesk1234@inventario-ciclico.6ntlqbn.mongodb.net/?appName=Inventario-Ciclico";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/tu_bd_local"; 
+// O simplemente:
+// const MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("🚀 Sistema de Datos Conectado - Zona: Monterrey, MX"))
@@ -70,7 +72,6 @@ const Ciclico = mongoose.model('Ciclico', CiclicoSchema);
 // 3. MODELOS DE ALMACÉN, WMS PEDIDOS, PUSH Y ETIQUETADO
 // ==========================================
 
-// --- NUEVO ESQUEMA: PROYECTO DE ETIQUETADO EN NUBE ---
 const EtiquetadoSchema = new mongoose.Schema({
     idProyecto: { type: String, default: "global" },
     datos: { type: Array, default: [] }
@@ -84,7 +85,6 @@ const SuscripcionPushSchema = new mongoose.Schema({
 });
 const SuscripcionPush = mongoose.model('SuscripcionPush', SuscripcionPushSchema);
 
-// ACTUALIZACIÓN: Se agregó el campo sku al Kardex
 const KardexSchema = new mongoose.Schema({
     llave: String, modelo: String, color: String, talla: String, lote: String,
     cantidad: { type: Number, default: 0 }, ultimaActualizacion: String,
@@ -125,6 +125,25 @@ const PedidoSchema = new mongoose.Schema({
     }]
 });
 const Pedido = mongoose.model('Pedido', PedidoSchema);
+
+// 🔥 NUEVO: MODELO DE CONCILIACIÓN
+    const ConciliacionSchema = new mongoose.Schema({
+    pedido: { type: String, required: true, unique: true },
+    fechaCreacion: { type: Number, default: Date.now },
+    fechaSalida: { type: Number, default: null },
+    factura: { type: String, default: '' },
+    remision: { type: String, default: '' },
+    comentario: { type: String, default: '' },
+    itemsPedido: { type: Object, default: {} },     // <--- NUEVO
+    totalSolicitado: { type: Number, default: 0 },  // <--- NUEVO
+    itemsFactura: { type: Object, default: {} },
+    itemsRemision: { type: Object, default: {} },
+    totalFacturado: { type: Number, default: 0 },
+    totalEntregado: { type: Number, default: 0 },
+    completado: { type: Boolean, default: false },
+    esTraslado: { type: Boolean, default: false }
+});
+const Conciliacion = mongoose.model('Conciliacion', ConciliacionSchema);
 
 
 // ==========================================
@@ -211,7 +230,7 @@ app.get('/api/stock-general', async (req, res) => {
                 $group: {
                     _id: { modelo: "$modelo", color: "$color", talla: "$talla" },
                     cantidad: { $sum: "$cantidad" },
-                    sku: { $first: "$sku" } // 🚀 AGREGAMOS EL SKU AL GROUP
+                    sku: { $first: "$sku" } 
                 }
             },
             {
@@ -221,7 +240,7 @@ app.get('/api/stock-general', async (req, res) => {
                     color: "$_id.color",
                     talla: "$_id.talla",
                     cantidad: 1,
-                    sku: 1 // 🚀 ENVIAMOS EL SKU AL HTML
+                    sku: 1 
                 }
             }
         ]);
@@ -258,7 +277,6 @@ app.post('/api/actualizar-pedido', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛡️ CANDADO DE SEGURIDAD WMS IMPLEMENTADO AQUÍ 🛡️
 app.post('/api/finalizar-pedido-wms', async (req, res) => {
     try {
         const { folio, items, operador } = req.body;
@@ -305,7 +323,6 @@ app.post('/api/finalizar-pedido-wms', async (req, res) => {
                 if (kardexItem) {
                     kardexItem.cantidad -= cantSurtida;
                     kardexItem.ultimaActualizacion = fechaMty;
-                    // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
                     await kardexItem.save();
                 }
 
@@ -407,7 +424,6 @@ app.delete('/api/eliminar-todos-finalizados', async (req, res) => {
 // ENDPOINTS DE ALMACÉN (KARDEX VIVO)
 // ==========================================
 
-// ACTUALIZACIÓN: Nuevo Endpoint de subida de SKUs
 app.post('/api/cargar-skus', async (req, res) => {
     try {
         const { skus } = req.body;
@@ -415,7 +431,6 @@ app.post('/api/cargar-skus', async (req, res) => {
             return res.status(400).json({ error: "Datos inválidos. Se esperaba un arreglo de SKUs." });
         }
 
-        // Usamos bulkWrite para actualizar todos los registros rápidamente
         let bulkOps = skus.map(item => ({
             updateMany: {
                 filter: { llave: item.llave },
@@ -451,12 +466,10 @@ app.get('/api/prestamos', async (req, res) => {
     try { res.json(await Prestamo.find({ estatus: "Activo" }).sort({ _id: -1 })); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 🛡️ CANDADO DE LOTES: MOVIMIENTO INDIVIDUAL
 app.post('/api/movimiento', async (req, res) => {
     try {
         const { tipo, modelo, color, talla, lote, cantidad, referencia, responsable } = req.body;
         
-        // PADLOCK: Normalización estricta de todos los campos para evitar clones
         const modSeguro = modelo ? modelo.trim().toUpperCase() : '';
         const colSeguro = color ? color.trim().toUpperCase() : '';
         const talSeguro = talla ? talla.trim().toUpperCase() : '';
@@ -487,7 +500,6 @@ app.post('/api/movimiento', async (req, res) => {
         } else if (tipo === 'Salida' || tipo === 'Ajuste Negativo' || tipo === 'Préstamo') {
             if (!kardexItem || kardexItem.cantidad < cantFloat) return res.status(400).json({ error: "Stock insuficiente en el lote especificado." });
             kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-            // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
             await kardexItem.save();
             let nuevoTeorico = actualTeorico - cantFloat; 
             docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
@@ -507,12 +519,10 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 🛡️ CANDADO DE LOTES: MOVIMIENTO MASIVO (CARGA Y DEVOLUCIONES)
 app.post('/api/movimiento-masivo', async (req, res) => {
     try {
         const { tipo, loteGlobal, referenciaGlobal, responsable, items } = req.body;
         
-        // PADLOCK GLOBAL: El lote se convierte estrictamente a mayúsculas y sin espacios
         const loteSeguro = loteGlobal ? loteGlobal.trim().toUpperCase() : 'GENERAL';
 
         const fechaMty = new Date().toLocaleString('es-MX', { timeZone: 'America/Monterrey' });
@@ -549,7 +559,6 @@ app.post('/api/movimiento-masivo', async (req, res) => {
             } else if (tipo.includes('Salida')) {
                 if (!kardexItem || kardexItem.cantidad < cantFloat) { errores.push(`Sin stock: ${llave} en Lote: ${loteSeguro}`); continue; }
                 kardexItem.cantidad -= cantFloat; kardexItem.ultimaActualizacion = fechaMty;
-                // 🚀 CAMBIO: YA NO SE BORRA SI LLEGA A 0
                 await kardexItem.save();
                 let nuevoTeorico = actualTeorico - cantFloat; 
                 docTeorico.datos.set(llave, nuevoTeorico < 0 ? 0 : nuevoTeorico);
@@ -560,6 +569,48 @@ app.post('/api/movimiento-masivo', async (req, res) => {
         res.json({ success: true, folio: folioMov, procesados, errores });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
+
+// 🔥 NUEVO: ENDPOINTS DE CONCILIACIÓN / AUDITORÍA 3.0
+// ==========================================
+app.get('/api/conciliacion', async (req, res) => {
+    try {
+        res.json(await Conciliacion.find().sort({ fechaCreacion: -1 }));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/conciliacion', async (req, res) => {
+    try {
+        const data = req.body;
+
+        // 🛡️ LIMPIEZA CRÍTICA: Eliminamos los campos internos de Mongo
+        // Esto evita el error de "field _id is immutable"
+        delete data._id;
+        delete data.__v;
+
+        // Upsert: Si ya existe el pedido lo actualiza, si no, lo crea.
+        await Conciliacion.findOneAndUpdate(
+            { pedido: data.pedido },
+            { $set: data }, // Usamos $set para asegurar una actualización limpia
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Error en Mongo Conciliación:", e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/conciliacion/:pedido', async (req, res) => {
+    try {
+        await Conciliacion.findOneAndDelete({ pedido: req.params.pedido });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 // ==========================================
 // ✏️ ENDPOINT DE MANTENIMIENTO: RENOMBRAR PRODUCTO (MODO INTELIGENTE)
