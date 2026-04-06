@@ -917,33 +917,39 @@ let rawKardexData = [];
         }
     }
 
-    function extraerSKUsConciliacion(texto) {
+function extraerSKUsConciliacion(texto) {
         let items = {}; let total = 0;
 
-        // 🚀 AJUSTE ESTRELLA 1: Cortar el texto antes de los sellos del SAT.
-        // EVITA LA DUPLICACIÓN ignorando el resumen fiscal al final de la factura.
+        // Cortamos el texto antes de los sellos del SAT (por si suben la factura fiscal por error)
         let textoUtil = texto.split(/Sello Digital|Cadena Original|Este documento es una representaci/i)[0];
         
         // Buscamos números de entre 8 y 13 dígitos
         const regexSKU = /\b\d{8,13}\b/g; 
         
         let match;
-        // Ojo: Ahora analizamos 'textoUtil' en lugar del 'texto' completo
         while ((match = regexSKU.exec(textoUtil)) !== null) {
             let sku = match[0];
 
-            // 🚀 AJUSTE ESTRELLA 2: Filtro anti-fechas mutantes.
-            // Si el "SKU" CONTIENE el año en cualquier parte, lo ignoramos. 
-            // Adiós al falso SKU "1520260318".
-            if (sku.includes("2025") || sku.includes("2026") || sku.includes("2027")) continue; 
+            // 🛡️ ESCUDO DEFINITIVO ANTI-BASURA:
+            // 1. Ignorar si contiene años actuales (evita mezclar fechas con SKUs)
+            // 2. Ignorar "01010101" (Clave universal del SAT)
+            // 3. Ignorar si son puros ceros
+            if (
+                sku.includes("2025") || 
+                sku.includes("2026") || 
+                sku.includes("2027") || 
+                sku === "01010101" ||
+                /^0+$/.test(sku)
+            ) {
+                continue;
+            }
             
-            // 🚀 AJUSTE 3: Búsqueda estricta hacia ADELANTE.
-            // Solo miramos los 80 caracteres que están INMEDIATAMENTE DESPUÉS del SKU.
-            let vicinity = textoUtil.substring(match.index, match.index + 80);
+            // Buscamos hacia adelante la descripción
+            let vicinity = textoUtil.substring(match.index, match.index + 100);
             
+            // Filtro para detectar solo trajes
             let matchDesc = vicinity.match(/TRAJE\s+[A-Z0-9\-\s]+/i);
 
-            // Si no dice "TRAJE" a ladito del SKU, es un folio o cantidad aleatoria. Lo ignoramos.
             if(!matchDesc) continue;
 
             let descLimpia = matchDesc[0]
@@ -953,6 +959,12 @@ let rawKardexData = [];
                 .trim();
 
             if(descLimpia.length > 55) descLimpia = descLimpia.substring(0, 55).trim();
+
+            // 🛠️ FIX PARA EL SKU CORTADO (Ej: 4009102413 vs 40091024133)
+            // Si el SKU que acabamos de leer es igual a uno que ya existe pero más corto, 
+            // significa que el PDF lo "partió" visualmente. Lo ignoramos para no duplicar.
+            let esUnSKUCortado = Object.keys(items).some(skuExistente => skuExistente.startsWith(sku) && skuExistente.length > sku.length);
+            if(esUnSKUCortado) continue;
 
             if(!items[sku]) items[sku] = { cant: 0, desc: descLimpia };
             items[sku].cant += 1;
