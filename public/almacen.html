@@ -930,10 +930,6 @@ function extraerSKUsConciliacion(texto) {
         while ((match = regexSKU.exec(textoUtil)) !== null) {
             let sku = match[0];
 
-            // 🛡️ ESCUDO DEFINITIVO ANTI-BASURA:
-            // 1. Ignorar si contiene años actuales (evita mezclar fechas con SKUs)
-            // 2. Ignorar "01010101" (Clave universal del SAT)
-            // 3. Ignorar si son puros ceros
             if (
                 sku.includes("2025") || 
                 sku.includes("2026") || 
@@ -960,9 +956,6 @@ function extraerSKUsConciliacion(texto) {
 
             if(descLimpia.length > 55) descLimpia = descLimpia.substring(0, 55).trim();
 
-            // 🛠️ FIX PARA EL SKU CORTADO (Ej: 4009102413 vs 40091024133)
-            // Si el SKU que acabamos de leer es igual a uno que ya existe pero más corto, 
-            // significa que el PDF lo "partió" visualmente. Lo ignoramos para no duplicar.
             let esUnSKUCortado = Object.keys(items).some(skuExistente => skuExistente.startsWith(sku) && skuExistente.length > sku.length);
             if(esUnSKUCortado) continue;
 
@@ -985,16 +978,37 @@ function extraerSKUsConciliacion(texto) {
             let textoPDF = "";
             for(let i=1; i<=pdf.numPages; i++){ textoPDF += (await (await pdf.getPage(i)).getTextContent()).items.map(it => it.str).join(" "); }
 
+            // 1. Extraer el N° de Pedido (Común en todos los documentos)
             const regexPedido = /N[°ºo]?\s*de\s*Pedido\s*(\d+)/i;
-            const matchFac = textoPDF.match(/FACTURA\s*No\.\s*([A-Z0-9\-]+)/i);
-            const matchRem = textoPDF.match(/Remisi[oó]n\s*N[°ºo]?\s*(\d+)/i);
             let numPedido = (textoPDF.match(regexPedido) || [])[1];
-            
-            // Si el texto trae "Representante de Ventas", es el formato de Pedido
-            const esPDFPedido = textoPDF.includes("Representante de Ventas") || textoPDF.match(/PEDIDO\s+N/i);
 
-            if(!numPedido && (matchFac || matchRem)) {
-                const tipo = matchFac ? `Factura ${matchFac[1]}` : `Remisión ${matchRem[1]}`;
+            // 2. Identificar si es FACTURA (Acepta formato SAT o formato ERP Interno)
+            let esFactura = false;
+            let folioFactura = "";
+            
+            let matchFacSAT = textoPDF.match(/FACTURA\s*No\.\s*([A-Z0-9\-]+)/i);
+            let matchFacERP = textoPDF.match(/FACTURA\s*DE\s*VENTA\s*N[°ºo]?\s*([A-Z0-9\-]+)/i);
+            
+            if (matchFacSAT) {
+                esFactura = true;
+                folioFactura = matchFacSAT[1];
+            } else if (matchFacERP || textoPDF.includes("Ver Factura de Ventas") || textoPDF.includes("FACTURA DE VENTA")) {
+                esFactura = true;
+                // Si es ERP interno, buscamos "Referencia" para sacar el folio MA...
+                let matchRef = textoPDF.match(/Referencia\s*([A-Z0-9\-]+)/i);
+                folioFactura = matchRef ? matchRef[1] : (matchFacERP ? matchFacERP[1] : "ERP");
+            }
+
+            // 3. Identificar si es REMISIÓN
+            const matchRem = textoPDF.match(/Remisi[oó]n\s*N[°ºo]?\s*(\d+)/i);
+            let esRemision = !!matchRem;
+            let folioRemision = matchRem ? matchRem[1] : "";
+
+            // 4. Si no es Factura ni Remisión, asumimos que es el PEDIDO
+            const esPDFPedido = !esFactura && !esRemision && (textoPDF.includes("Representante de Ventas") || textoPDF.match(/PEDIDO\s+N/i) || numPedido);
+
+            if(!numPedido && (esFactura || esRemision)) {
+                const tipo = esFactura ? `Factura ${folioFactura}` : `Remisión ${folioRemision}`;
                 const { value: pedManual } = await Swal.fire({ title: `${tipo} detectada`, text: 'PDF sin N° Pedido visible. Ingresa el pedido:', input: 'number', showCancelButton: true });
                 if(!pedManual) continue;
                 numPedido = pedManual;
@@ -1007,28 +1021,29 @@ function extraerSKUsConciliacion(texto) {
                     pedidosConciliacion.push(p); 
                 }
                 
-                // Seguros por si la BD cargó objetos vacíos
                 if(!p.itemsPedido) p.itemsPedido = {};
                 if(p.totalSolicitado === undefined) p.totalSolicitado = 0;
 
                 const extraccion = extraerSKUsConciliacion(textoPDF);
 
-                if(esPDFPedido && !matchFac && !matchRem) {
-                    fusionarItems(p.itemsPedido, extraccion.items);
-                    p.totalSolicitado += extraccion.total;
-                    procesados++;
-                } else if(matchFac) { 
-                    p.factura += (p.factura ? ', ' : '') + matchFac[1];
+                // Asignamos la extracción al balde correcto (Pedido, Factura o Remisión)
+                if(esFactura) { 
+                    p.factura += (p.factura ? ', ' : '') + folioFactura;
                     fusionarItems(p.itemsFactura, extraccion.items); 
                     p.totalFacturado += extraccion.total; 
                     if(!p.fechaSalida) p.fechaSalida = Date.now(); 
                     procesados++; 
-                } else if(matchRem) { 
-                    p.remision += (p.remision ? ', ' : '') + matchRem[1];
+                } else if(esRemision) { 
+                    p.remision += (p.remision ? ', ' : '') + folioRemision;
                     fusionarItems(p.itemsRemision, extraccion.items); 
                     p.totalEntregado += extraccion.total; 
                     procesados++; 
+                } else if(esPDFPedido) {
+                    fusionarItems(p.itemsPedido, extraccion.items);
+                    p.totalSolicitado += extraccion.total;
+                    procesados++;
                 }
+                
                 evaluarCompletadoConciliacion(p);
                 await guardarConciliacionBackend(p);
             }
