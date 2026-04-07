@@ -117,8 +117,28 @@
         .form-group { display: flex; flex-direction: column; gap: 8px; }
         .form-group.full { grid-column: span 2; }
         label { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
-        .input-sap { padding: 14px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: inherit; background: #F9F9FB; outline: none; }
-        .input-sap:focus { border-color: var(--brand-orange); background: white; }
+        .input-sap { 
+    padding: 14px; 
+    border: 2px solid #E5E5EA; 
+    border-radius: 12px; 
+    font-size: 15px; 
+    font-weight: 600; 
+    font-family: inherit; 
+    background: #F9F9FB; 
+    outline: none; 
+    box-sizing: border-box; /* Evita que el input se salga del contenedor */
+    width: 100%; /* Asegura que tome el ancho correcto */
+}
+.input-sap:focus { 
+    border-color: var(--brand-orange); 
+    background: white; 
+}
+
+/* Ajuste específico para que el botón de seleccionar archivo se vea centrado y estético */
+input[type="file"].input-sap {
+    padding: 10px 14px;
+    cursor: pointer;
+}
 
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
         .toast { background: white; border-left: 5px solid var(--success); padding: 18px 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); font-weight: 700; font-size: 14px; color: var(--brand-navy); animation: slideInRight 0.4s forwards; }
