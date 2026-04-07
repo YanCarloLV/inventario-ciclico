@@ -21,6 +21,13 @@
             --bg-body: #F4F7F6; --text-main: #1C1C1E; --text-muted: #8E8E93;
             --card-shadow: 0 10px 30px rgba(0,0,0,0.05);
             --success: #34C759; --danger: #FF3B30; --info: #007AFF;
+            }
+            /* Estilos extra para Conciliador */
+            .row-mismatch { background-color: #FFF0F0; }
+            .row-match { background-color: #F0FDF4; }
+            .badge-mismatch { background: #DC3545; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+            .badge-match { background: #28A745; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+
         }
 
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-body); margin: 0; padding: 0 0 40px 0; color: var(--text-main); }
@@ -463,23 +470,81 @@
 </div>
 
 <div class="modal-overlay" id="modalAuditoria">
-    <div class="modal-box" style="max-width: 800px;"> <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">⚖️ Auditoría Inteligente Sectorizada (Match)</h2>
-            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModal('modalAuditoria')">❌</button>
+    <div class="modal-box" style="max-width: 1000px; max-height: 95vh; display: flex; flex-direction: column;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;">
+            <h2 style="margin:0;">⚖️ Conciliador Maestro: Odoo vs Almacén</h2>
+            <button class="btn btn-outline" style="padding: 8px 15px;" onclick="cerrarModalAuditoria()">❌</button>
         </div>
-        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
-            Sube el archivo de Excel o CSV exportado del Panel de Supervisor.<br>
-            <b>El sistema identificará qué modelos auditaste y cruzará ÚNICAMENTE esos modelos</b> contra la base de datos viva del KARDEX.
-        </p>
-        <div class="form-grid">
-            <div class="form-group full">
-                <label>Sube el Reporte de Conteo Físico / Cíclico</label>
-                <input type="file" id="file-auditoria" class="input-sap" accept=".xlsx, .csv">
+
+        <div style="flex: 1; overflow-y: auto; padding-right: 10px;">
+            <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; border: 1px dashed var(--brand-navy); margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: var(--brand-navy);">1️⃣ Descarga las plantillas oficiales (Obligatorio)</h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 0;">Pega tu información en estos archivos para asegurar que el sistema lea las columnas sin errores.</p>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" style="border-color:#5E5CE6; color:#5E5CE6;" onclick="descargarPlantillaMatch('Odoo')">📥 Plantilla Odoo</button>
+                    <button class="btn btn-outline" style="border-color:#FF8C00; color:#FF8C00;" onclick="descargarPlantillaMatch('Almacen')">📥 Plantilla Almacén (Físico)</button>
+                </div>
+            </div>
+
+            <h4 style="margin: 0 0 10px 0; color: var(--brand-navy);">2️⃣ Sube los archivos con datos</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div style="background: white; padding: 15px; border-radius: 12px; border: 2px dashed #5E5CE6; text-align: center;">
+                    <h3 style="margin: 0 0 5px 0; color: #5E5CE6;">🟣 Reporte Odoo</h3>
+                    <input type="file" id="fileMatchOdoo" class="input-sap" accept=".csv, .xlsx, .xls" style="width: 100%; font-size: 12px; margin-top: 10px;">
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 12px; border: 2px dashed #FF8C00; text-align: center;">
+                    <h3 style="margin: 0 0 5px 0; color: #FF8C00;">🟠 Reporte Almacén</h3>
+                    <input type="file" id="fileMatchAlmacen" class="input-sap" accept=".csv, .xlsx, .xls" style="width: 100%; font-size: 12px; margin-top: 10px;">
+                </div>
+            </div>
+
+            <button class="btn btn-black" style="width: 100%; padding: 15px; font-size: 16px; margin-bottom: 20px;" onclick="ejecutarCruceMaestro()" id="btn-run-match">⚡ Cruzar Inventarios</button>
+
+            <div id="match-dashboard" style="display: none;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; text-align: center;">
+                    <div style="background: #F8FAFC; padding: 15px; border-radius: 12px; border: 1px solid #E5E5EA;">
+                        <span style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Total SKUs</span><br>
+                        <span id="match-tot" style="font-size: 24px; font-weight: 800; color: var(--brand-navy);">0</span>
+                    </div>
+                    <div style="background: #DCFCE7; padding: 15px; border-radius: 12px; border: 1px solid #28A745;">
+                        <span style="font-size: 12px; font-weight: 800; color: #15803D; text-transform: uppercase;">Cuadrados</span><br>
+                        <span id="match-ok" style="font-size: 24px; font-weight: 800; color: #15803D;">0</span>
+                    </div>
+                    <div style="background: #FEE2E2; padding: 15px; border-radius: 12px; border: 1px solid #DC3545;">
+                        <span style="font-size: 12px; font-weight: 800; color: #B91C1C; text-transform: uppercase;">Diferencias</span><br>
+                        <span id="match-diff" style="font-size: 24px; font-weight: 800; color: #B91C1C;">0</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #F9F9FB; padding: 10px; border-radius: 8px; flex-wrap: wrap; gap: 10px;">
+                    <input type="text" id="match-search" class="input-sap" placeholder="🔍 Buscar SKU..." style="width: 250px; padding: 8px;" onkeyup="filtrarTablaMatch()">
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn btn-outline" style="padding: 8px 12px; font-size: 12px;" onclick="aplicarFiltroMatch('todos')">Todos</button>
+                        <button class="btn btn-outline" style="padding: 8px 12px; font-size: 12px; border-color: var(--danger); color: var(--danger);" onclick="aplicarFiltroMatch('diff')">Diferencias</button>
+                        <button class="btn btn-outline" style="padding: 8px 12px; font-size: 12px; border-color: var(--success); color: var(--success);" onclick="aplicarFiltroMatch('ok')">Cuadrados</button>
+                    </div>
+                </div>
+
+                <div style="max-height: 300px; overflow-y: auto; border: 1px solid #E5E5EA; border-radius: 12px;">
+                    <table id="tablaMatchResultados" style="width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                            <tr>
+                                <th style="padding: 10px; border-bottom: 2px solid #E5E5EA;">SKU / Producto</th>
+                                <th style="padding: 10px; border-bottom: 2px solid #E5E5EA; text-align: center; color: #5E5CE6;">Odoo</th>
+                                <th style="padding: 10px; border-bottom: 2px solid #E5E5EA; text-align: center; color: #FF8C00;">Físico</th>
+                                <th style="padding: 10px; border-bottom: 2px solid #E5E5EA; text-align: center;">Estatus</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <button class="btn btn-green" style="width: 100%; padding: 15px; margin-top: 15px; font-size: 15px;" onclick="exportarDiferenciasExcel()">
+                    📥 Exportar Diferencias a Excel
+                </button>
             </div>
         </div>
-        <button class="btn btn-black" style="width: 100%; padding: 18px; font-size: 16px;" onclick="generarMatchAuditoria()" id="btn-run-match">⚡ Ejecutar Cruce</button>
-        
-        <div id="match-resultados-container" style="display: none;"></div>
     </div>
 </div>
 
@@ -2318,190 +2383,212 @@ function previsualizarExcelMasivo() {
         finally { btn.innerHTML = "💾 Confirmar y Ejecutar Movimientos"; btn.disabled = false; }
     }
 
-    // AUDITORÍA (MATCH)
-    function abrirModalAuditoria() {
-        document.getElementById('file-auditoria').value = '';
-        const m = document.getElementById('modalAuditoria'); m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+// ==========================================
+// NUEVO: CONCILIADOR MAESTRO ODOO VS ALMACÉN
+// ==========================================
+let matchMaestro = {};
+let filtroMatchActual = 'todos';
+
+function abrirModalAuditoria() {
+    document.getElementById('fileMatchOdoo').value = '';
+    document.getElementById('fileMatchAlmacen').value = '';
+    document.getElementById('match-dashboard').style.display = 'none';
+    document.getElementById('match-search').value = '';
+    const m = document.getElementById('modalAuditoria'); 
+    m.style.display = 'flex'; setTimeout(()=>m.classList.add('show'), 10);
+}
+
+function cerrarModalAuditoria() {
+    const m = document.getElementById('modalAuditoria');
+    m.classList.remove('show'); setTimeout(() => m.style.display = 'none', 300);
+}
+
+function descargarPlantillaMatch(tipo) {
+    const wb = XLSX.utils.book_new();
+    let headers = [];
+    
+    // Plantillas estrictas
+    if (tipo === 'Odoo') {
+        headers = [["Referencia interna", "Producto", "Cantidad"]];
+    } else {
+        headers = [["SKU", "Producto", "Cantidad"]];
     }
 
-    let reporteMatchActual = []; // Variable global para guardar el reporte a descargar
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    ws['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 15 }]; // Anchos de columna
+    
+    XLSX.utils.book_append_sheet(wb, ws, `Plantilla_${tipo}`);
+    XLSX.writeFile(wb, `Plantilla_Auditoria_${tipo}.xlsx`);
+    showToast(`Plantilla de ${tipo} descargada. Llénala y súbela.`, "info");
+}
 
-    function generarMatchAuditoria() {
-        const input = document.getElementById('file-auditoria');
-        if(!input.files || !input.files[0]) return showToast("Sube el Excel o CSV del conteo físico.", "warning");
-
-        const btn = document.getElementById('btn-run-match');
-        btn.innerHTML = "🧠 Cruzando Datos y Sectorizando..."; btn.disabled = true;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                
-                const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                let headerRowIndex = -1;
-                let colIdx = { m: -1, c: -1, t: -1, q: -1 };
-
-                for (let i = 0; i < rowsRaw.length; i++) {
-                    const row = rowsRaw[i];
-                    if (!row || row.length === 0) continue;
-                    
-                    row.forEach((cell, idx) => {
-                        if (typeof cell === 'string') {
-                            const upper = cell.toUpperCase().trim();
-                            if (upper.includes('MODELO')) colIdx.m = idx;
-                            if (upper.includes('COLOR')) colIdx.c = idx;
-                            if (upper.includes('TALLA')) colIdx.t = idx;
-                            if (upper.includes('CANTIDAD')) colIdx.q = idx;
-                        }
-                    });
-
-                    if (colIdx.m !== -1 && colIdx.c !== -1 && colIdx.t !== -1 && colIdx.q !== -1) {
-                        headerRowIndex = i;
-                        break;
-                    }
-                }
-
-                if (headerRowIndex === -1) {
-                    showToast("No se encontraron las columnas Modelo, Color, Talla y Cantidad.", "danger");
-                    btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false;
-                    return;
-                }
-
-                let fisicoMap = {};
-                let modelosAuditados = new Set();
-
-                for (let i = headerRowIndex + 1; i < rowsRaw.length; i++) {
-                    const row = rowsRaw[i];
-                    if (!row || row.length === 0) continue;
-                    
-                    const m = String(row[colIdx.m] || '').trim().toUpperCase();
-                    const c = String(row[colIdx.c] || '').trim().toUpperCase();
-                    const t = String(row[colIdx.t] || '').trim().toUpperCase();
-                    const q = parseInt(row[colIdx.q]) || 0;
-
-                    if (m && c && t && m !== 'UNDEFINED') {
-                        const keyModeloColor = `${m}_${c}`;
-                        modelosAuditados.add(keyModeloColor); 
-                        
-                        const keyFull = `${m}_${c}_${t}`;
-                        fisicoMap[keyFull] = (fisicoMap[keyFull] || 0) + q;
-                    }
-                }
-
-                let sistemaMap = {};
-                rawKardexData.forEach(k => {
-                    const keyModeloColor = `${k.modelo}_${k.color}`;
-                    if (modelosAuditados.has(keyModeloColor)) {
-                        const keyFull = `${k.modelo}_${k.color}_${k.talla}`;
-                        sistemaMap[keyFull] = (sistemaMap[keyFull] || 0) + k.cantidad;
-                    }
-                });
-
-                reporteMatchActual = [];
-                let allKeys = new Set([...Object.keys(fisicoMap), ...Object.keys(sistemaMap)]);
-                let hayDiferencias = false;
-
-                let htmlTabla = `
-                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                        <thead>
-                            <tr>
-                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px;">Producto</th>
-                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Talla</th>
-                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Físico</th>
-                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Kardex</th>
-                                <th style="border-bottom: 2px solid #E5E5EA; padding: 10px; text-align: center;">Dif.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                allKeys.forEach(k => {
-                    const [mod, col, tal] = k.split('_');
-                    const qFis = fisicoMap[k] || 0;
-                    const qSis = sistemaMap[k] || 0;
-                    const diff = qFis - qSis;
-                    
-                    const bgRow = diff !== 0 ? 'background-color: #FFEBEB;' : ''; 
-                    const colorDif = diff > 0 ? 'color: #28A745;' : (diff < 0 ? 'color: #FF3B30;' : 'color: #8E8E93;');
-                    const signo = diff > 0 ? '+' : '';
-
-                    if (diff !== 0) {
-                        hayDiferencias = true;
-                        
-                        // === ACTUALIZACIÓN: BUSCAR EL SKU PARA EL REPORTE DE MATCH ===
-                        const itemK = rawKardexData.find(kdx => kdx.modelo === mod && kdx.color === col && kdx.talla === tal);
-                        const skuVal = itemK && itemK.sku ? itemK.sku : "N/A";
-
-                        reporteMatchActual.push({
-                            "SKU": skuVal,
-                            "Modelo": mod, "Color": col, "Talla": tal,
-                            "Físico (Conteo)": qFis, "Sistema (SAP)": qSis,
-                            "Diferencia": diff,
-                            "Estatus": diff > 0 ? "SOBRANTE" : "FALTANTE",
-                            "Sugerencia de Ajuste": diff > 0 ? `AJUSTE POSITIVO de +${diff}` : `AJUSTE NEGATIVO de ${diff}`
-                        });
-                    }
-
-                    htmlTabla += `
-                        <tr style="${bgRow} border-bottom: 1px solid #F2F2F7;">
-                            <td style="padding: 10px;"><b>${mod}</b><br><small style="color:var(--text-muted);">${col}</small></td>
-                            <td style="padding: 10px; text-align: center; font-weight: 800;">${tal}</td>
-                            <td style="padding: 10px; text-align: center;">${qFis}</td>
-                            <td style="padding: 10px; text-align: center;">${qSis}</td>
-                            <td style="padding: 10px; text-align: center; font-weight: 800; ${colorDif}">${signo}${diff}</td>
-                        </tr>
-                    `;
-                });
-
-                htmlTabla += `</tbody></table>`;
-
-                const containerResultados = document.getElementById('match-resultados-container');
-                containerResultados.innerHTML = `
-                    <div style="background: #F9F9FB; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #E5E5EA;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h4 style="margin: 0; color: var(--brand-navy);">📊 Resultados del Cruce (${modelosAuditados.size} Modelos)</h4>
-                            ${hayDiferencias ? `<span class="tag tag-out">Con Diferencias</span>` : `<span class="tag tag-in">Inventario Cuadrado</span>`}
-                        </div>
-                        <div style="max-height: 250px; overflow-y: auto;">
-                            ${htmlTabla}
-                        </div>
-                        ${hayDiferencias ? `
-                        <button class="btn btn-navy" style="width: 100%; padding: 15px; font-size: 15px; margin-top: 15px;" onclick="descargarReporteMatch()">
-                            📥 Descargar Diferencias en Excel
-                        </button>` : ''}
-                    </div>
-                `;
-                containerResultados.style.display = 'block';
-
-                if(hayDiferencias) {
-                    showToast(`Se auditaron ${modelosAuditados.size} modelos. Se encontraron diferencias.`, "warning");
-                } else {
-                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
-                    showToast(`¡Excelente! Los ${modelosAuditados.size} modelos auditados están 100% cuadrados.`, "success");
-                }
-
-            } catch (error) { 
-                showToast("Error procesando el cruce.", "danger"); 
-                console.error(error); 
-            } finally { 
-                btn.innerHTML = "⚡ Ejecutar Cruce"; btn.disabled = false; 
-            }
+function leerExcelPromesa(file) {
+    return new Promise((resolve, reject) => {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let data = new Uint8Array(e.target.result);
+            let workbook = XLSX.read(data, {type: 'array'});
+            let firstSheet = workbook.SheetNames[0];
+            // defval: 0 asegura que si la celda está vacía, ponga un 0
+            let jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {defval: 0}); 
+            resolve(jsonData);
         };
-        reader.readAsArrayBuffer(input.files[0]);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+async function ejecutarCruceMaestro() {
+    const fileOdoo = document.getElementById('fileMatchOdoo').files[0];
+    const fileAlm = document.getElementById('fileMatchAlmacen').files[0];
+
+    if (!fileOdoo || !fileAlm) {
+        return showToast("⚠️ Debes subir ambos archivos (Odoo y Almacén) para cruzar.", "warning");
     }
 
-    // === ACTUALIZACIÓN: DESCARGA DE REPORTE DE MATCH AHORA INCLUYE SKU ===
-    function descargarReporteMatch() {
-        if(reporteMatchActual.length === 0) return showToast("No hay diferencias para descargar.", "info");
-        const ws = XLSX.utils.json_to_sheet(reporteMatchActual);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Discrepancias");
-        XLSX.writeFile(wb, `Discrepancias_Ciclico_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
+    const btn = document.getElementById('btn-run-match');
+    btn.innerHTML = "⏳ Procesando cruce..."; btn.disabled = true;
+    matchMaestro = {}; // Reiniciar
+
+    try {
+        const dataOdoo = await leerExcelPromesa(fileOdoo);
+        const dataAlm = await leerExcelPromesa(fileAlm);
+
+        // 1. Procesar Odoo (Busca "Referencia interna" y "Cantidad")
+        dataOdoo.forEach(row => {
+            let sku = String(row["Referencia interna"] || row["referencia interna"] || "").trim().toUpperCase();
+            let qty = parseFloat(row["Cantidad"] || row["cantidad"] || 0);
+            let desc = String(row["Producto"] || row["producto"] || "Sin Descripción");
+
+            if (sku && sku !== "0") {
+                if (!matchMaestro[sku]) matchMaestro[sku] = { desc: desc, odoo: 0, almacen: 0 };
+                matchMaestro[sku].odoo += qty;
+                if(desc !== "Sin Descripción") matchMaestro[sku].desc = desc;
+            }
+        });
+
+        // 2. Procesar Almacén Físico (Busca "SKU" y "Cantidad")
+        dataAlm.forEach(row => {
+            let sku = String(row["SKU"] || row["sku"] || "").trim().toUpperCase();
+            let qty = parseFloat(row["Cantidad"] || row["cantidad"] || 0);
+            let desc = String(row["Producto"] || row["producto"] || "Sin Descripción");
+
+            if (sku && sku !== "0") {
+                if (!matchMaestro[sku]) matchMaestro[sku] = { desc: desc, odoo: 0, almacen: 0 };
+                matchMaestro[sku].almacen += qty;
+                if(matchMaestro[sku].desc === "Sin Descripción" && desc !== "Sin Descripción") {
+                    matchMaestro[sku].desc = desc;
+                }
+            }
+        });
+
+        dibujarTablaMatch();
+        document.getElementById('match-dashboard').style.display = 'block';
+        showToast("¡Cruce finalizado exitosamente!");
+
+    } catch (error) {
+        showToast("Error al leer los archivos. Asegúrate de usar las plantillas.", "danger");
+        console.error(error);
+    } finally {
+        btn.innerHTML = "⚡ Cruzar Inventarios"; btn.disabled = false;
     }
+}
+
+function dibujarTablaMatch() {
+    const tbody = document.querySelector('#tablaMatchResultados tbody');
+    tbody.innerHTML = '';
+
+    let conteoOk = 0; let conteoDiff = 0; let conteoTotal = 0;
+    const skus = Object.keys(matchMaestro).sort();
+
+    skus.forEach(sku => {
+        let data = matchMaestro[sku];
+        let isMatch = (data.odoo === data.almacen);
+        
+        conteoTotal++;
+        if(isMatch) conteoOk++; else conteoDiff++;
+
+        let bgClass = isMatch ? "row-match" : "row-mismatch";
+        let statusBadge = isMatch ? '<span class="badge-match">OK</span>' : `<span class="badge-mismatch">DIF: ${data.almacen - data.odoo}</span>`;
+
+        let tr = document.createElement('tr');
+        tr.className = `match-row ${bgClass}`;
+        tr.setAttribute("data-status", isMatch ? "ok" : "diff");
+
+        tr.innerHTML = `
+            <td style="padding: 10px; border-bottom: 1px solid #E5E5EA;">
+                <b>${sku}</b><br><small style="color:var(--text-muted);">${data.desc}</small>
+            </td>
+            <td style="padding: 10px; border-bottom: 1px solid #E5E5EA; text-align: center; font-weight: bold; color: #5E5CE6;">${data.odoo}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E5E5EA; text-align: center; font-weight: bold; color: #FF8C00;">${data.almacen}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #E5E5EA; text-align: center;">${statusBadge}</td>
+        `;
+        
+        // Poner diferencias arriba, coincidencias abajo
+        if(isMatch) tbody.appendChild(tr); 
+        else tbody.insertBefore(tr, tbody.firstChild); 
+    });
+
+    document.getElementById('match-tot').innerText = conteoTotal;
+    document.getElementById('match-ok').innerText = conteoOk;
+    document.getElementById('match-diff').innerText = conteoDiff;
+}
+
+function aplicarFiltroMatch(tipo) {
+    filtroMatchActual = tipo;
+    let filas = document.querySelectorAll('.match-row');
+    filas.forEach(fila => {
+        let status = fila.getAttribute("data-status");
+        if(tipo === 'todos') fila.style.display = '';
+        else if(tipo === 'diff' && status === 'diff') fila.style.display = '';
+        else if(tipo === 'ok' && status === 'ok') fila.style.display = '';
+        else fila.style.display = 'none';
+    });
+    document.getElementById('match-search').value = ""; // Limpiar búsqueda
+}
+
+function filtrarTablaMatch() {
+    let input = document.getElementById('match-search').value.toLowerCase();
+    let filas = document.querySelectorAll('.match-row');
+    
+    filas.forEach(fila => {
+        let textoFila = fila.innerText.toLowerCase();
+        let status = fila.getAttribute("data-status");
+        
+        let cumpleFiltroStatus = (filtroMatchActual === 'todos') || (filtroMatchActual === status);
+        let cumpleBusqueda = textoFila.includes(input);
+
+        if (cumpleFiltroStatus && cumpleBusqueda) fila.style.display = '';
+        else fila.style.display = 'none';
+    });
+}
+
+function exportarDiferenciasExcel() {
+    let exportData = [];
+    
+    Object.keys(matchMaestro).forEach(sku => {
+        let d = matchMaestro[sku];
+        let diff = d.almacen - d.odoo;
+        
+        if (diff !== 0) {
+            exportData.push({
+                "SKU": sku,
+                "Producto": d.desc,
+                "Stock Odoo": d.odoo,
+                "Stock Físico": d.almacen,
+                "Diferencia": diff,
+                "Estatus": diff > 0 ? "Sobrante" : "Faltante"
+            });
+        }
+    });
+
+    if(exportData.length === 0) return showToast("No hay diferencias para exportar. ¡Todo cuadra!", "success");
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Diferencias");
+    XLSX.writeFile(wb, `Reporte_Diferencias_Odoo_${new Date().toLocaleDateString('es-MX').replace(/\//g, '-')}.xlsx`);
+}
 
 async function descargarStockExcel(){
         // Filtramos para que el Excel solo lleve las existencias reales (>0)
