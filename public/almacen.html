@@ -14,20 +14,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
      
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script> <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script> 
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
         :root {
             --brand-navy: #001A33; --brand-gold: #C5A059; --brand-orange: #FF8C00;
             --bg-body: #F4F7F6; --text-main: #1C1C1E; --text-muted: #8E8E93;
             --card-shadow: 0 10px 30px rgba(0,0,0,0.05);
             --success: #34C759; --danger: #FF3B30; --info: #007AFF;
-            }
-            /* Estilos extra para Conciliador */
-            .row-mismatch { background-color: #FFF0F0; }
-            .row-match { background-color: #F0FDF4; }
-            .badge-mismatch { background: #DC3545; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
-            .badge-match { background: #28A745; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
-
         }
 
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-body); margin: 0; padding: 0 0 40px 0; color: var(--text-main); }
@@ -147,6 +141,20 @@
         .search-results-prestamo { position: absolute; background: white; width: 100%; max-height: 200px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; z-index: 100; top: 100%; margin-top: 5px; border: 1px solid #E5E5EA; display: none; }
         .search-result-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #F2F2F7; transition: 0.2s; display: flex; justify-content: space-between; }
         .search-result-item:hover { background: #F9F9FB; }
+
+        /* ==============================================================
+           NUEVAS ACTUALIZACIONES: MÓDULO AUDITORÍA Y MATCH (Odoo vs Físico)
+           ============================================================== */
+        .row-match { background-color: #F8FAFC; }
+        .row-mismatch { background-color: #FEF2F2; }
+        .badge-match { 
+            background: #DCFCE7; color: #15803D; padding: 6px 12px; 
+            border-radius: 8px; font-weight: 800; font-size: 11px; 
+        }
+        .badge-mismatch { 
+            background: #FEE2E2; color: #B91C1C; padding: 6px 12px; 
+            border-radius: 8px; font-weight: 800; font-size: 11px; 
+        }
     </style>
 </head>
 <body>
