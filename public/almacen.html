@@ -918,43 +918,90 @@ async function agregarPedidoConciliacion() {
 
 
 // ==============================================================
-// NUEVO MOTOR ODOO: EXTRACCIÓN INTELIGENTE DE PIEZAS Y COSTOS
+// MOTOR ODOO V3: MÉTODO DE DESPEDAZAMIENTO ESTRUCTURAL (SPLIT)
 // ==============================================================
 
-// Función que lee los PDF de Odoo usando "Unidades" como ancla
 function extraerDatosOdoo(texto) {
     let items = {};
     let totalPzas = 0;
     let totalMonto = 0;
 
-    // MAGIA ODOO: 
-    // Los productos de almacén usan "Unidades". Los envíos usan "Actividad".
-    // Expresión Regular: Busca (Opcional SKU) + Descripción + QTY "Unidades" + PrecioUnitario
-    // Captura: Grupo 1 (SKU), Grupo 2 (Desc), Grupo 3 (Qty), Grupo 4 (Precio)
-    const regexOdoo = /(?:\[([A-Z0-9]+)\]\s*)?([A-Z0-9\-\s\(\),]+?)\s+(\d+\.\d{2})\s+Unidades\s+([\d,]+\.\d{2})/gi;
+    // 1. LIMPIEZA ABSOLUTA: Destruimos comillas y saltos de línea ocultos del PDF
+    let txt = texto.replace(/[\r\n]+/g, ' ').replace(/["']/g, '').replace(/\s{2,}/g, ' ');
 
-    let match;
-    while ((match = regexOdoo.exec(texto)) !== null) {
-        let sku = match[1] ? match[1].trim() : "S/N";
-        let desc = match[2].trim().replace(/\s+/g, ' '); // Limpiar saltos de línea
-        let qty = parseFloat(match[3]);
-        let precio = parseFloat(match[4].replace(/,/g, ''));
+    // 2. EL HACHA: Partimos el texto entero usando la palabra clave "Unidades"
+    // Esto crea bloques matemáticamente predecibles, ignorando "Actividad" (Envíos)
+    let partes = txt.split(/Unidades/i);
 
-        // Filtro de seguridad (ignorar explícitamente palabras de envío si se colaran)
-        if(desc.toLowerCase().includes("envío") || desc.toLowerCase().includes("delivery")) continue;
+    // Si el documento no tiene la palabra Unidades, salimos
+    if (partes.length < 2) return { items, totalPzas, totalMonto };
 
-        // Ancla: Odoo a veces no pone el SKU en la orden pero sí en la factura.
-        // Si el SKU es "S/N" usamos los primeros 30 caracteres de la descripción como llave para cruzar.
-        let llaveAncla = sku !== "S/N" ? sku : desc.substring(0, 30).trim();
+    // 3. Analizar bloque por bloque
+    for (let i = 0; i < partes.length - 1; i++) {
+        let bloqueActual = partes[i];
+        let bloqueSiguiente = partes[i + 1];
 
-        if(!items[llaveAncla]) {
-            items[llaveAncla] = { sku: sku, desc: desc, cant: 0, precio: precio };
+        // --- CANTIDAD --- 
+        // Es el último número decimal antes de la palabra "Unidades"
+        let matchQty = bloqueActual.match(/([\d,]+\.\d{2,3})[^\d]*$/);
+        if (!matchQty) continue; 
+        let qty = parseFloat(matchQty[1]);
+
+        // --- PRECIO --- 
+        // Es el primer número decimal después de la palabra "Unidades"
+        let matchPrecio = bloqueSiguiente.match(/^.*?([\d,]+\.\d{2})/);
+        let precio = matchPrecio ? parseFloat(matchPrecio[1].replace(/,/g, '')) : 0;
+
+        // --- DESCRIPCIÓN BRUTA --- 
+        // Cortamos el número de cantidad del final para quedarnos solo con el texto
+        let textoDesc = bloqueActual.substring(0, matchQty.index).trim();
+
+        // Filtro de seguridad por si se cuela un envío
+        if (textoDesc.toLowerCase().includes("envío") || textoDesc.toLowerCase().includes("delivery")) {
+            continue;
+        }
+
+        // --- SKU ---
+        let sku = "S/N";
+        let matchSku = textoDesc.match(/\[([a-zA-Z0-9\-_]+)\]/);
+        if (matchSku) {
+            sku = matchSku[1];
+        }
+
+        // --- LLAVE MAESTRA (EL NOMBRE EXACTO DEL PRODUCTO) ---
+        let llaveAncla = "";
+        
+        // Esta fórmula busca estrictamente una frase en mayúsculas que termine en paréntesis.
+        // Ignorará cualquier repetición y toda la descripción de "65% poliéster..."
+        let regexTitulo = /([A-Z0-9][A-Z0-9\-\s/.,]+?\([^)]+\))/; 
+        let matchTitulo = textoDesc.match(regexTitulo);
+
+        if (matchTitulo) {
+            // Resultado perfecto: "TRAJE 67901-2B MARINO MF (46, REGULAR)"
+            llaveAncla = matchTitulo[1].trim().toUpperCase();
+        } else {
+            // Respaldo por si el producto no tiene talla en paréntesis
+            let fragmentos = textoDesc.split(' ');
+            llaveAncla = fragmentos.slice(Math.max(fragmentos.length - 5, 0)).join(' ').toUpperCase().substring(0, 35);
+        }
+
+        llaveAncla = llaveAncla.replace(/\s+/g, ' '); // Normalizar espacios por seguridad
+
+        // --- GUARDAR Y CONCILIAR ---
+        if (!items[llaveAncla]) {
+            items[llaveAncla] = { sku: sku, desc: llaveAncla, cant: 0, precio: precio };
         }
         items[llaveAncla].cant += qty;
         
+        // Si este ciclo detectó un SKU (Factura), se lo inyectamos al registro
+        if (sku !== "S/N") {
+            items[llaveAncla].sku = sku;
+        }
+
         totalPzas += qty;
         totalMonto += (qty * precio);
     }
+
     return { items, totalPzas, totalMonto };
 }
 
