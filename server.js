@@ -126,23 +126,28 @@ const PedidoSchema = new mongoose.Schema({
 });
 const Pedido = mongoose.model('Pedido', PedidoSchema);
 
-// 🔥 NUEVO: MODELO DE CONCILIACIÓN
-    const ConciliacionSchema = new mongoose.Schema({
+// 🔥 NUEVO: MODELO DE CONCILIACIÓN (Actualizado para Match Odoo)
+const ConciliacionSchema = new mongoose.Schema({
     pedido: { type: String, required: true, unique: true },
     fechaCreacion: { type: Number, default: Date.now },
+    
+    // Campos exactos que envía el frontend (almacen.html)
+    facturas: { type: String, default: '' },
+    itemsOrden: { type: Object, default: {} },
+    itemsFactura: { type: Object, default: {} },
+    totalPzasOrden: { type: Number, default: 0 },
+    totalPzasFactura: { type: Number, default: 0 },
+    montoOrden: { type: Number, default: 0 },
+    montoFactura: { type: Number, default: 0 },
+    
+    // Campos extra por si los usas en otras pantallas
     fechaSalida: { type: Number, default: null },
-    factura: { type: String, default: '' },
     remision: { type: String, default: '' },
     comentario: { type: String, default: '' },
-    itemsPedido: { type: Object, default: {} },     // <--- NUEVO
-    totalSolicitado: { type: Number, default: 0 },  // <--- NUEVO
-    itemsFactura: { type: Object, default: {} },
-    itemsRemision: { type: Object, default: {} },
-    totalFacturado: { type: Number, default: 0 },
     totalEntregado: { type: Number, default: 0 },
     completado: { type: Boolean, default: false },
     esTraslado: { type: Boolean, default: false }
-});
+}, { strict: false }); // strict: false protege por si agregas más campos dinámicos en el front
 const Conciliacion = mongoose.model('Conciliacion', ConciliacionSchema);
 
 
