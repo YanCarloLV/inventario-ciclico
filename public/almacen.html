@@ -889,10 +889,14 @@ async function agregarPedidoConciliacion() {
     if(!num) return;
     if(pedidosConciliacion.find(p => p.pedido === num)) return Swal.fire('Hey', 'El pedido ya está en la lista', 'info');
 
-    let nuevoP = { 
+let nuevoP = { 
         pedido: num, 
         fechaCreacion: Date.now(), 
         facturas: '', 
+        cliente: 'No detectado',
+        vendedor: 'No detectado',
+        fechaOrden: 'S/F',
+        rfc: 'S/D',
         itemsOrden: {}, 
         itemsFactura: {}, 
         totalPzasOrden: 0, 
@@ -918,7 +922,7 @@ async function agregarPedidoConciliacion() {
 
 
 // ==============================================================
-// MOTOR ODOO V3: MÉTODO DE DESPEDAZAMIENTO ESTRUCTURAL (SPLIT)
+// MOTOR ODOO V4: EXTRACCIÓN BLINDADA POR SKU
 // ==============================================================
 
 function extraerDatosOdoo(texto) {
@@ -926,78 +930,53 @@ function extraerDatosOdoo(texto) {
     let totalPzas = 0;
     let totalMonto = 0;
 
-    // 1. LIMPIEZA ABSOLUTA: Destruimos comillas y saltos de línea ocultos del PDF
+    // 1. Limpieza absoluta: Destruimos comillas y saltos de línea del PDF
     let txt = texto.replace(/[\r\n]+/g, ' ').replace(/["']/g, '').replace(/\s{2,}/g, ' ');
 
-    // 2. EL HACHA: Partimos el texto entero usando la palabra clave "Unidades"
-    // Esto crea bloques matemáticamente predecibles, ignorando "Actividad" (Envíos)
-    let partes = txt.split(/Unidades/i);
+    // 2. EL HACHA DE PRECISIÓN: Partimos el texto usando los SKUs [12345] como anclas
+    // Esto garantiza que cada bloque empiece exactamente donde está el producto
+    let partes = txt.split(/\[([a-zA-Z0-9\-_]+)\]/);
 
-    // Si el documento no tiene la palabra Unidades, salimos
-    if (partes.length < 2) return { items, totalPzas, totalMonto };
+    // Si el documento no tiene SKUs en corchetes, salimos
+    if (partes.length < 3) return { items, totalPzas, totalMonto };
 
-    // 3. Analizar bloque por bloque
-    for (let i = 0; i < partes.length - 1; i++) {
-        let bloqueActual = partes[i];
-        let bloqueSiguiente = partes[i + 1];
+    // partes[0] es el encabezado
+    // partes[1] es el SKU 1, partes[2] es el bloque de texto del SKU 1...
+    for (let i = 1; i < partes.length; i += 2) {
+        let sku = partes[i].trim();
+        let bloque = partes[i + 1] || "";
 
-        // --- CANTIDAD --- 
-        // Es el último número decimal antes de la palabra "Unidades"
-        let matchQty = bloqueActual.match(/([\d,]+\.\d{2,3})[^\d]*$/);
-        if (!matchQty) continue; 
-        let qty = parseFloat(matchQty[1]);
-
-        // --- PRECIO --- 
-        // Es el primer número decimal después de la palabra "Unidades"
-        let matchPrecio = bloqueSiguiente.match(/^.*?([\d,]+\.\d{2})/);
-        let precio = matchPrecio ? parseFloat(matchPrecio[1].replace(/,/g, '')) : 0;
-
-        // --- DESCRIPCIÓN BRUTA --- 
-        // Cortamos el número de cantidad del final para quedarnos solo con el texto
-        let textoDesc = bloqueActual.substring(0, matchQty.index).trim();
-
-        // Filtro de seguridad por si se cuela un envío
-        if (textoDesc.toLowerCase().includes("envío") || textoDesc.toLowerCase().includes("delivery")) {
+        // Filtro de seguridad por si se cuela un cargo de envío con SKU
+        if (bloque.toLowerCase().includes("envío") || bloque.toLowerCase().includes("delivery")) {
             continue;
         }
 
-        // --- SKU ---
-        let sku = "S/N";
-        let matchSku = textoDesc.match(/\[([a-zA-Z0-9\-_]+)\]/);
-        if (matchSku) {
-            sku = matchSku[1];
-        }
-
-        // --- LLAVE MAESTRA (EL NOMBRE EXACTO DEL PRODUCTO) ---
-        let llaveAncla = "";
+        // 3. EXTRACCIÓN MATEMÁTICA DE CANTIDAD Y PRECIO
+        // Buscamos todos los números con formato decimal (ej. 1.00 o 1,390.00)
+        let matchesNumeros = bloque.match(/\b\d{1,3}(?:,\d{3})*\.\d{2,4}\b/g);
         
-        // Esta fórmula busca estrictamente una frase en mayúsculas que termine en paréntesis.
-        // Ignorará cualquier repetición y toda la descripción de "65% poliéster..."
-        let regexTitulo = /([A-Z0-9][A-Z0-9\-\s/.,]+?\([^)]+\))/; 
-        let matchTitulo = textoDesc.match(regexTitulo);
+        // Si la fila no tiene al menos cantidad y precio, la saltamos
+        if (!matchesNumeros || matchesNumeros.length < 2) continue;
 
-        if (matchTitulo) {
-            // Resultado perfecto: "TRAJE 67901-2B MARINO MF (46, REGULAR)"
-            llaveAncla = matchTitulo[1].trim().toUpperCase();
-        } else {
-            // Respaldo por si el producto no tiene talla en paréntesis
-            let fragmentos = textoDesc.split(' ');
-            llaveAncla = fragmentos.slice(Math.max(fragmentos.length - 5, 0)).join(' ').toUpperCase().substring(0, 35);
-        }
+        // En Odoo, el PRIMER número con decimales es siempre la Cantidad
+        let qty = parseFloat(matchesNumeros[0].replace(/,/g, ''));
+        // El SEGUNDO número con decimales es el Precio Unitario
+        let precio = parseFloat(matchesNumeros[1].replace(/,/g, ''));
 
-        llaveAncla = llaveAncla.replace(/\s+/g, ' '); // Normalizar espacios por seguridad
-
-        // --- GUARDAR Y CONCILIAR ---
-        if (!items[llaveAncla]) {
-            items[llaveAncla] = { sku: sku, desc: llaveAncla, cant: 0, precio: precio };
-        }
-        items[llaveAncla].cant += qty;
+        // 4. EXTRACCIÓN DE LA DESCRIPCIÓN LIMPIA
+        // Cortamos el texto desde el SKU hasta antes de toparnos con la cantidad (el primer número)
+        let descMatch = bloque.match(/^(.*?)(?=\b\d{1,3}(?:,\d{3})*\.\d{2,4}\b)/);
+        let desc = descMatch ? descMatch[1].trim() : "Producto " + sku;
         
-        // Si este ciclo detectó un SKU (Factura), se lo inyectamos al registro
-        if (sku !== "S/N") {
-            items[llaveAncla].sku = sku;
-        }
+        // Limpiamos el molesto Código SAT (8 dígitos) que sale atravesado en las facturas
+        desc = desc.replace(/\s+\d{8}$/, '').trim();
 
+        // 5. GUARDAR Y CONCILIAR (USANDO EL SKU COMO LLAVE MAESTRA)
+        if (!items[sku]) {
+            items[sku] = { sku: sku, desc: desc, cant: 0, precio: precio };
+        }
+        items[sku].cant += qty;
+        
         totalPzas += qty;
         totalMonto += (qty * precio);
     }
@@ -1033,12 +1012,36 @@ async function procesarArchivosPDFOdoo(archivos) {
             continue;
         }
 
+// 1.5 Extracción de Datos Comerciales y Trazabilidad (Cliente, Vendedor, Fechas)
+        let matchFecha = textoPDF.match(/Fecha de la orden[\s\n]+(\d{2}\/\d{2}\/\d{4})/i) || textoPDF.match(/Fecha de factura[\s\n]+(\d{2}\/\d{2}\/\d{4})/i);
+        let matchVendedor = textoPDF.match(/Vendedor[\s\n]+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)[\s\n]+(?:Este es un MUESTRARIO|\[|\d)/i);
+        let matchRFC = textoPDF.match(/RFC:\s*([A-Z0-9]+)/i);
+
         // Inicializar Orden en el estado si no existe
         let p = pedidosConciliacion.find(x => x.pedido === numOrden);
         if(!p) { 
-            p = { pedido: numOrden, fechaCreacion: Date.now(), facturas: '', itemsOrden: {}, itemsFactura: {}, totalPzasOrden: 0, totalPzasFactura: 0, montoOrden: 0, montoFactura: 0 }; 
+            p = { 
+                pedido: numOrden, 
+                fechaCreacion: Date.now(), 
+                facturas: '', 
+                cliente: 'No detectado',
+                vendedor: 'No detectado',
+                fechaOrden: 'S/F',
+                rfc: 'S/D',
+                itemsOrden: {}, 
+                itemsFactura: {}, 
+                totalPzasOrden: 0, 
+                totalPzasFactura: 0, 
+                montoOrden: 0, 
+                montoFactura: 0 
+            }; 
             pedidosConciliacion.push(p); 
         }
+
+        // Enriquecer datos si encontramos nueva info en los PDFs leídos
+        if (matchFecha && p.fechaOrden === 'S/F') p.fechaOrden = matchFecha[1];
+        if (matchVendedor && p.vendedor === 'No detectado') p.vendedor = matchVendedor[1].trim();
+        if (matchRFC && p.rfc === 'S/D') p.rfc = matchRFC[1].trim();
 
         // 2. Extraer y Acumular Datos
         const extraccion = extraerDatosOdoo(textoPDF);
@@ -1106,9 +1109,13 @@ function renderizarTablaConciliacion() {
             matchMontoHtml = `<span style="color:#B91C1C; font-weight:800;">❌ Dif. Precio</span><br><small>Ord: $${p.montoOrden.toFixed(2)} | Fac: $${p.montoFactura.toFixed(2)}</small>`;
         }
 
-        let docsBadge = `
+let docsBadge = `
             <div style="font-size:11px; margin-bottom:3px; color:var(--brand-navy);"><b>ORDEN:</b> ${p.totalPzasOrden > 0 ? '✅ Cargada' : '❌ Falta PDF'}</div>
-            <div style="font-size:11px; color:#007AFF;"><b>FAC:</b> ${p.facturas || 'Pendiente'}</div>
+            <div style="font-size:11px; margin-bottom:3px; color:#007AFF;"><b>FAC:</b> ${p.facturas || 'Pendiente'}</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:5px; border-top: 1px dashed #E5E5EA; padding-top: 4px;">
+                👤 <b>${p.vendedor !== 'No detectado' ? p.vendedor : 'Sin Asignar'}</b><br>
+                📅 ${p.fechaOrden}
+            </div>
         `;
 
         tr.innerHTML = `
@@ -1189,7 +1196,10 @@ function exportarExcelConciliacion() {
     const data = pedidosConciliacion.map(p => {
         return { 
             "Orden (Odoo)": p.pedido, 
-            "Facturas Vinculadas": p.facturas || 'Ninguna', 
+            "Facturas Vinculadas": p.facturas || 'Pendiente', 
+            "RFC Cliente": p.rfc || 'No detectado',
+            "Vendedor (Ejecutivo)": p.vendedor || 'No detectado',
+            "Fecha Orden": p.fechaOrden || 'S/F',
             "Pzas Orden": p.totalPzasOrden || 0, 
             "Pzas Facturadas": p.totalPzasFactura || 0, 
             "Dif. Piezas": (p.totalPzasFactura || 0) - (p.totalPzasOrden || 0), 
@@ -1198,10 +1208,11 @@ function exportarExcelConciliacion() {
             "Dif. Financiera": (p.montoFactura || 0) - (p.montoOrden || 0)
         };
     });
+    
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new(); 
     XLSX.utils.book_append_sheet(wb, ws, "Auditoria_Odoo");
-    XLSX.writeFile(wb, `Auditoria_Odoo_Match_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Auditoria_Odoo_Match_Completo_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
     
     // ==========================================
